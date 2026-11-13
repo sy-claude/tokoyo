@@ -1,5 +1,5 @@
 # 進捗
-## 現在のM：M0a 土台（ブランチ claude/affectionate-bohr-2n6fyg）— 完了。次は M0b
+## 現在のM：M0a 土台 — 完了（main に merge 済み・依頼者の実機確認済み）。次は M0b
 
 ## 済み
 M0a（受け入れ基準：09受1〜10・13・17〜20・22・23、01受27、M0a-1〜3）
@@ -18,6 +18,8 @@ M0a（受け入れ基準：09受1〜10・13・17〜20・22・23、01受27、M0a-
 - [x] verify：`npm ci`＋`verify:fast` 4秒、`npm run verify` 13秒（単体89件・e2e 24件・縮小一覧。09受1・2）
 - [x] M0a-3：push 後の CI の check ジョブが成功（型検査・単体テスト・ブラウザ試験。deploy は main だけなので作業ブランチではスキップ）
 
+- [x] 依頼者の実機確認（iPhone の Safari・横向き）：公開URLで床とカプセルが表示、`?debug=1` で 59fps（17.0ms）・描画命令2・DPR 1.5、Actions は3回とも緑（main の deploy を含む）
+
 ### スクリーンショットの確認（M0a の8枚。sheet.png・sheet_gray.png）
 1. 起動直後：合格（床が下半分、カプセルが中央下、格子が見える）
 2. 60tick 前進：合格（6.5m 進み、カメラが追う）
@@ -31,18 +33,17 @@ M0a（受け入れ基準：09受1〜10・13・17〜20・22・23、01受27、M0a-
 ## 次
 - [ ] M0b 入力層・ブラウザ対策・タイトルと音の起動（`docs/10_milestones.md` §M0b）
   - M0a から送ったもの：なし（調整パネルも M0a で作った）
+  - 実機メモ（依頼者の iPhone・Safari 横向き・タブバー表示あり）：ブラウザのバーが画面の上3割ほどを使い、ゲームの表示領域の高さは約310px（スクリーンショットからの推定）。01 §1 の `H < 320` の案内（「ツールバーを隠すと遊びやすくなります」）に当たる端末なので、M0b の配置と案内はこの高さでも確かめる
   - M0b で使う入口：`src/input/keyboard.js` の `build()` と同じ形でタッチの collector を作り、`app/boot.js` の `loop.tick` で合成する。`__game.layout` は M0b で中身を入れる
 
 ## 既知の問題
 - 公開URL（GitHub Pages）は main に merge してから反映される。404 のときは Settings → Pages → Source が「GitHub Actions」かを確認（SETUP_GUIDE A3）
 
 ## 依頼者に聞くこと
-- **カメラを回す向き**（設計書の中で書き方が2通りあったため）
-  - A：右へ動かす（→キー、M0b 以降は指を右へ）と、**視点が右を向く**（一般的な3Dゲームと同じ）
-  - B：右へ動かすと、視点が左を向く（カメラの位置が右へ回る）
-  - 推奨は A。A で作ってあります。M0b でタッチ操作が入ったときに実機で違和感があれば、設定の「左右反転」（01 6.1 の `camInvertX`）で逆にもできます。
+- なし
 
 ## 決めたこと（設計書に具体値が無かった部分）
+- **カメラを回す向きは A で確定**（依頼者の回答、M0a の確認時）：右へ動かす（→キー、指を右へ）と視点が右を向く。M0b のタッチ操作もこの向きで作る。逆にしたい人向けには設定の左右反転（01 6.1 の `camInvertX`）
 - 向きの内部表現：角度は全部 `F=(sin yaw, 0, cos yaw)`（05 1.1）にそろえた。入力の `camDeg[0]`（右+）はカメラの yaw から**引く**（`sim/camera.js`）。縦は `camDeg[1]` を足す（上から見下ろす向きが＋）
 - 仮の値（後のMで本物に置き換える）：`collision.m0CapsuleRM/HM`（0.35／1.7＝楓真と同じ）、`camera.camNearM/camFarM`（0.1／400）、`debug.gray*`（灰色の表示の色・格子）。プレイヤーの HP は仮に1
 - M0a の一覧に無かったが、数値を直書きしないために足した設定キー：`camera.camExploreDistM`・`camExplorePivotHM`・`camFovYDeg`（02 9.2 の値）、`quality.drawCallMaxCount`（09 8.9）、`input.refViewPx`（[844,390]。合成入力の画面サイズの既定と e2e の視点）、`debug.eventRingCount`・`fpsWindowS`・`overlayRefreshS`
@@ -76,4 +77,4 @@ https://sy-claude.github.io/tokoyo/
 3. GitHub の「Actions」タブで、緑のチェックが付いているか。
 
 依頼者に判断を求める点：
-- カメラを回す向き。A＝右へ動かすと視点が右を向く（推奨・この形で作成済み）／B＝逆。M0b で指の操作が入ってから実機で決めれば十分です。
+- カメラを回す向き → **A（右へ動かすと視点が右を向く）で決定済み**。
