@@ -14,11 +14,11 @@ test('sameSeedSameSequence：同じ種は同じ列、違う種は違う列', () 
   assert.notDeepEqual(sa, sc);
 });
 
-test('goldenSequence：算法を変えたら気づけるように、種1の最初の値を固定する', () => {
+test('[検算] goldenSequence：算法を変えたら気づけるように、種1の最初の値を固定する', () => {
   const r = createRng(1);
   const got = [r.next(), r.next(), r.next(), r.next()];
   for (const v of got) assert.ok(Number.isInteger(v) && v >= 0 && v <= 0xffffffff);
-  assert.deepEqual(got, [4203887797, 1563716435, 1831295773, 1535592268]); // [検算] 実装時に記録した値
+  assert.deepEqual(got, [4203887797, 1563716435, 1831295773, 1535592268]); // 実装時（M0a）に記録した値
 });
 
 test('forkIndependent：fork は元の流れを進めず、ラベルごとに別の列', () => {

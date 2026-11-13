@@ -56,11 +56,6 @@ export function hash32(seed, label) {
   return createHasher().u32(seed).str(label).value();
 }
 
-/** 文字列のハッシュ（8桁16進）。 */
-export function hashString(s) {
-  return createHasher().str(s).hex();
-}
-
 /**
  * ワールドの状態ハッシュ（8桁16進）。
  * 入れるもの：tick、乱数の内部状態、全エンティティ（ID順）、カメラ。

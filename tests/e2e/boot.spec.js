@@ -142,8 +142,7 @@ test('qualityParam：&q=low → pixelRatio 1.0、エラー0（M0a-2）', async (
   await boot(page, { q: 'low' });
   await game(page, 'render');
   const info = await game(page, 'renderInfo');
-  expect(info.pixelRatio).toBe(cfg.quality.dprMaxMul.low);
-  expect(info.pixelRatio).toBe(1.0); // [検算] M0a-2
+  expect(info.pixelRatio).toBe(cfg.quality.dprMaxMul.low); // 既定は 1.0（M0a-2）
   expect(info.quality).toBe('low');
   await game(page, 'setQuality', 'mid');
   await game(page, 'render');

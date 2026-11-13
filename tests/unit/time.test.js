@@ -10,10 +10,17 @@ import { makeCfg } from './helpers/cfg.js';
 const cfg = makeCfg();
 const T = cfg.time;
 
-test('scaleProduct：個別0.3×世界0.15 → q で 0.044921875（09受10）', () => {
-  const expected = Math.round(T.mikiriSlowMul * T.fuWorldMul * T.scaleQuantCount) / T.scaleQuantCount;
-  assert.equal(entityScale(T.fuWorldMul, T.mikiriSlowMul, 0, 0, T.scaleQuantCount), expected);
-  assert.equal(expected, 0.044921875); // [検算] 09 4.2 の表
+/** 見切りの減速×符の構えの倍率（config から計算）。 */
+const SLOW_IN_FU = Math.round(T.mikiriSlowMul * T.fuWorldMul * T.scaleQuantCount) / T.scaleQuantCount;
+
+test('scaleProduct：倍率は 個別×世界 の積を 1/4096 に丸めた値', () => {
+  assert.equal(entityScale(T.fuWorldMul, T.mikiriSlowMul, 0, 0, T.scaleQuantCount), SLOW_IN_FU);
+  assert.equal(entityScale(1, 1, 0, 0, T.scaleQuantCount), 1);
+  assert.equal(entityScale(1, 1, 0, 1, T.scaleQuantCount), 0); // ヒットストップ中は0
+});
+
+test('[検算] scaleProduct の値：個別0.3×世界0.15 → 0.044921875（±0）', () => {
+  assert.equal(entityScale(0.15, 0.3, 0, 0, 4096), 0.044921875); // 09受10、09 4.2 の表
 });
 
 test('quantScale：1/4096 単位に丸め、1 と 0 は変わらない', () => {
@@ -52,7 +59,7 @@ test('slowInFu：見切り減速中の敵が符の構えに入る → 0.3×0.15 
   requestWorldMul(world.time, T.fuWorldMul);
   stepWorld(world, makeFrame(world.tick));
   stepWorld(world, makeFrame(world.tick));
-  assert.equal(world.player.scale, 0.044921875); // [検算] 09 4.2 の表
+  assert.equal(world.player.scale, SLOW_IN_FU);
 });
 
 test('worldMulNextTick：倍率の変化は、変えると決めたtickの次のtickから有効', () => {
@@ -75,7 +82,7 @@ test('localFExact：1/4096 の倍数の和は誤差なく足せる', () => {
     advanceTime(world, T);
     world.tick += 1;
   }
-  assert.equal(ent.localF, 0.044921875 * n);
+  assert.equal(ent.localF, SLOW_IN_FU * n);
 });
 
 test('moveIntegration：移動は pos += vel × scale / 60（倍率0.15なら進みも0.15倍）', () => {

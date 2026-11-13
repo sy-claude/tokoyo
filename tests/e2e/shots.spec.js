@@ -2,6 +2,9 @@
 // 合否は状態で判定し、画像（sheet.png・sheet_gray.png）では「見る点」だけを確かめる。
 import { boot, cfg, expect, game, test } from './helpers/game.js';
 import { shot } from './helpers/shots.js';
+import { sandbox } from '../../src/data/stages/sandbox.js';
+
+const START = sandbox.playerStart.pos;
 
 test.describe.configure({ mode: 'serial' });
 
@@ -17,7 +20,7 @@ test('shot 2：stick [0,1] で60tick（約6.5m前進、カメラが追う）', a
   await game(page, 'step', 60);
   await shot(page, 2);
   const s = await game(page, 'getState');
-  expect(Math.abs(s.player.pos[2] - (14 + cfg.movement.runSpeedMps)) < 0.2).toBe(true);
+  expect(Math.abs(s.player.pos[2] - (START[2] + cfg.movement.runSpeedMps)) < 0.2).toBe(true);
 });
 
 test('shot 3：camDeg で yaw +90°（格子の向きが回る）', async ({ page }) => {
@@ -31,7 +34,7 @@ test('shot 3：camDeg で yaw +90°（格子の向きが回る）', async ({ pag
 
 test('shot 4：pitch を camPitchMaxDeg へ（見下ろし、床の端が見える）', async ({ page }) => {
   await boot(page);
-  await game(page, 'teleport', 30, 0, 55, 0); // 南の端（z=60）の手前。端が画面に入る
+  await game(page, 'teleport', START[0], 0, sandbox.sizeM[1] - 5, 0); // 南の端の5m手前。端が画面に入る
   await game(page, 'setInput', { camDeg: [0, 500] });
   await game(page, 'step', 1);
   await shot(page, 4);

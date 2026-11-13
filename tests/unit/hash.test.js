@@ -8,7 +8,7 @@ import { makeCfg } from './helpers/cfg.js';
 const newWorld = (seed = 1) => createSceneWorld('sandbox', { seed, cfg: makeCfg() });
 
 test('fnv1a：空は FNV の初期値、同じ入力は同じ値', () => {
-  assert.equal(createHasher().hex(), '811c9dc5'); // [検算] FNV-1a 32bit の offset basis
+  assert.equal(createHasher().hex(), '811c9dc5'); // FNV-1a 32bit の初期値（算法の定数。調整の対象ではない）
   assert.equal(createHasher().u32(1).str('a').hex(), createHasher().u32(1).str('a').hex());
   assert.notEqual(createHasher().u32(1).hex(), createHasher().u32(2).hex());
   assert.match(createHasher().u32(123).hex(), /^[0-9a-f]{8}$/);

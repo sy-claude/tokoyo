@@ -15,8 +15,8 @@ M0a（受け入れ基準：09受1〜10・13・17〜20・22・23、01受27、M0a-
 - [x] 入力：キーボード（01 2.12）と合成入力（`keyboard.test › stickDiagonal`＝01受27、`shortTap`、`ougiSlide`）
 - [x] 描画：灰色の床＋1m格子、単色のカプセル。描画命令は2（e2e `budget.spec › drawCallBudget`＝09受20、`sandbox300`＝09受19、`qualityParam`＝M0a-2、`normalLoopRuns`＝M0a-1）
 - [x] デバッグ：`window.__game`（`?test=1`）、数値表示と調整パネル（`?debug=1`。e2e `debugPanelCopy`＝09受23）
-- [x] verify：`npm ci`＋`verify:fast` 4秒、`npm run verify` 13秒（単体86件・e2e 24件・縮小一覧。09受1・2）
-- [x] M0a-3：push 後の CI（check ジョブ）は下の「既知の問題」に結果を書く
+- [x] verify：`npm ci`＋`verify:fast` 4秒、`npm run verify` 13秒（単体89件・e2e 24件・縮小一覧。09受1・2）
+- [x] M0a-3：push 後の CI の check ジョブが成功（型検査・単体テスト・ブラウザ試験。deploy は main だけなので作業ブランチではスキップ）
 
 ### スクリーンショットの確認（M0a の8枚。sheet.png・sheet_gray.png）
 1. 起動直後：合格（床が下半分、カプセルが中央下、格子が見える）
@@ -34,7 +34,6 @@ M0a（受け入れ基準：09受1〜10・13・17〜20・22・23、01受27、M0a-
   - M0b で使う入口：`src/input/keyboard.js` の `build()` と同じ形でタッチの collector を作り、`app/boot.js` の `loop.tick` で合成する。`__game.layout` は M0b で中身を入れる
 
 ## 既知の問題
-- CI：push 後に確認して追記する（M0a-3）
 - 公開URL（GitHub Pages）は main に merge してから反映される。404 のときは Settings → Pages → Source が「GitHub Actions」かを確認（SETUP_GUIDE A3）
 
 ## 依頼者に聞くこと
@@ -56,6 +55,7 @@ M0a（受け入れ基準：09受1〜10・13・17〜20・22・23、01受27、M0a-
 - 撮影：4枚目は床の端が入るように南の端の手前（30,0,55）へ移してから見下ろす。5枚目だけは通常のループで撮る（FPS は実際に回さないと出ないため）
 - キーボード：符の構え中のキー（1〜5・Enter・Esc）は符を作る M2.5 で足す。P／Esc は今はループを止めるだけ（メニューは M10a）
 - 追加したテスト補助：`tests/unit/basePath.test.js`（09受22）、`tests/unit/helpers/`、`tests/replays/runner.js`
+- テストの期待値は config・data から計算。設計書の数字そのものを確かめるテストは名前の先頭に `[検算]`（調整で値を変えたら、そこだけ直す。`config.test › [検算] docValues` など4件）
 
 ## PR本文
 題名：M0a: 土台（雛形・CI・時計・乱数・保存・灰色の床）
@@ -67,7 +67,7 @@ M0a（受け入れ基準：09受1〜10・13・17〜20・22・23、01受27、M0a-
 - `?debug=1` で数値表示と調整パネル、`?test=1` で自動テスト用の入口が使えます。
 - GitHub Actions の設定を入れました（main に merge すると公開URLへ自動で反映）。
 
-verify 結果：`npm run verify` 成功（型検査・単体テスト86件・ブラウザ試験24件・スクリーンショット8枚、合計13秒）。コンソールのエラー0件。
+verify 結果：`npm run verify` 成功（型検査・単体テスト89件・ブラウザ試験24件・スクリーンショット8枚、合計13秒）。コンソールのエラー0件。GitHub Actions の check も成功。
 
 依頼者が試すこと（merge して数分後）：
 https://sy-claude.github.io/tokoyo/

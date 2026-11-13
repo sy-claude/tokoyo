@@ -8,18 +8,28 @@ const cfg = makeCfg();
 const newKb = (opts) => createKeyboard(cfg.input, cfg.time.tickRateHz, opts);
 const near = (a, b, tol) => Math.abs(a - b) <= tol;
 
-test('stickDiagonal：W+D → stick (0.707,0.707)、Shift 併用 → (0.354,0.354)（01受27）', () => {
+test('stickDiagonal：W+D の斜めは長さ1に正規化、Shift 併用で ×kbWalkMul', () => {
   const kb = newKb();
   kb.onKeyDown('KeyW');
   kb.onKeyDown('KeyD');
   let f = kb.build(0);
   const d = Math.SQRT1_2;
-  assert.ok(near(f.stick[0], d, 0.01) && near(f.stick[1], d, 0.01), String(f.stick));
-  assert.ok(near(f.stick[0], 0.707, 0.01)); // [検算] 01受27
+  assert.ok(near(f.stick[0], d, 1e-9) && near(f.stick[1], d, 1e-9), String(f.stick));
+  assert.ok(near(Math.hypot(f.stick[0], f.stick[1]), 1, 1e-9));
   kb.onKeyDown('ShiftLeft');
   f = kb.build(1);
-  assert.ok(near(f.stick[0], d * cfg.input.kbWalkMul, 0.01) && near(f.stick[1], d * cfg.input.kbWalkMul, 0.01), String(f.stick));
-  assert.ok(near(f.stick[0], 0.354, 0.01)); // [検算] 01受27
+  assert.ok(near(f.stick[0], d * cfg.input.kbWalkMul, 1e-9) && near(f.stick[1], d * cfg.input.kbWalkMul, 1e-9), String(f.stick));
+});
+
+test('[検算] stickDiagonal の値：W+D → (0.707,0.707)、Shift 併用 → (0.354,0.354)（±0.01）', () => {
+  const kb = newKb();
+  kb.onKeyDown('KeyW');
+  kb.onKeyDown('KeyD');
+  let f = kb.build(0);
+  assert.ok(near(f.stick[0], 0.707, 0.01) && near(f.stick[1], 0.707, 0.01), String(f.stick)); // 01受27
+  kb.onKeyDown('ShiftLeft');
+  f = kb.build(1);
+  assert.ok(near(f.stick[0], 0.354, 0.01) && near(f.stick[1], 0.354, 0.01), String(f.stick)); // 01受27
 });
 
 test('stickAxes：W=前+、S=後ろ、D=右+、A=左。逆のキーは打ち消す。離すと中立', () => {

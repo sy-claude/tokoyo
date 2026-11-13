@@ -50,11 +50,6 @@ export function yawOfXZ(x, z) {
   return Math.atan2(x, z) * RAD2DEG;
 }
 
-/** @param {V3} a @param {V3} b @returns {V3} */
-export function lerpV3(a, b, t) {
-  return [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
-}
-
 /** @param {V3} v @returns {V3} */
 export function copyV3(v) {
   return [v[0], v[1], v[2]];

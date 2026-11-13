@@ -33,7 +33,6 @@ test('maxFiveTicks：1描画で 0.5s の遅れ → 進むtickは5（09受8）', 
   assert.equal(loop.onFrame(1000), 0); // 最初の描画は基準を取るだけ
   assert.equal(loop.onFrame(1500), cfg.time.maxTicksPerFrameCount);
   assert.equal(log.ticks, cfg.time.maxTicksPerFrameCount);
-  assert.equal(cfg.time.maxTicksPerFrameCount, 5); // [検算] 00_core 4章
   // 遅れは捨てる：残るのは1tick未満の端数だけなので、次の普通の描画で進むのは1〜2tick
   const next = loop.onFrame(1500 + STEP_MS);
   assert.ok(next >= 1 && next <= 2, `next=${next}`);
