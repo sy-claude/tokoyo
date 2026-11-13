@@ -1,0 +1,22 @@
+{
+  "name": "tokoyo-barai",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "engines": { "node": ">=22.12" },
+  "scripts": {
+    "dev": "vite --host",
+    "build": "vite build",
+    "preview": "vite preview --port 4173 --strictPort",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "node --test --test-reporter=dot \"tests/unit/**/*.test.js\"",
+    "test:e2e": "playwright test",
+    "shots": "playwright test tests/e2e/shots.spec.js && node scripts/contact-sheet.mjs",
+    "verify:fast": "npm run typecheck && npm test && npm run build",
+    "verify": "node scripts/verify.mjs",
+    "replays:update": "node scripts/replays-update.mjs",
+    "bench": "playwright test tests/e2e/bench.spec.js"
+  },
+  "dependencies": { "three": "0.187.0" },
+  "devDependencies": { "vite": "8.3.8", "typescript": "6.0.3", "@playwright/test": "1.65.0" }
+}

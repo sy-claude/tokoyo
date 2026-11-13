@@ -1,0 +1,12 @@
+{
+  "name": "常世祓",
+  "short_name": "常世祓",
+  "lang": "ja",
+  "start_url": ".",
+  "scope": ".",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#1b1a1f",
+  "theme_color": "#1b1a1f",
+  "icons": [{ "src": "icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}
