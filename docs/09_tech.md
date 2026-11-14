@@ -697,6 +697,9 @@ config `src/config/save.js`：`saveVersionCount`=1（現在の版）、`saveKeyP
 | `?bench=1` | 最悪場面（ボス舞台、敵10体＋ボス、穢域4、全VFX、カメラは決まった周回）を `&benchS=`（既定20）秒、通常ループで流す。自動降格なし。結果：中央値・p95・p99・最大(ms)、描画命令、三角形、DPR、品質、GPU 名、UA を画面に表で出す |
 | `?scene=sandbox\|stage\|boss\|fu-test\|title` | 直接その場面へ（タイトルを飛ばす）。`&char=fuma\|shirayuki\|ganjo`（既定 fuma）。`title` は `?test=1` でもタイトルから始める（音の2択のタップ・戻る番兵・試験メニューの試験用。メニューは DOM なのでループが止まっていても押せる） |
 
+
+- 見本室（10 §G、依頼者の決定 U7）：`?scene=gallery-rigs`（造形）・`gallery-vfx`（エフェクト）・`stage-view`（白鷺岬の見た目）・`gallery-ui`（画面表示）。シムは動かさず描画だけ。自由カメラ `debug/flyCam.js` は不変条件3の唯一の例外で、この4場面に限る。
+
 ### 10.2 `window.__game`（`debug/testApi.js`）
 ```js
 /** @typedef {Object} GameTestApi
