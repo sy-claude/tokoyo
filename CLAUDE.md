@@ -35,7 +35,7 @@
 - `npm run verify:fast` 型検査＋単体テスト＋ビルド（90秒以内）
 - `npm run verify` 上記＋ヘッドレスChromiumのスマホ横画面e2e＋スクリーンショット（10分以内）
 - `npm run replays:update` 意図して挙動を変えたときだけリプレイを更新
-- URL：`?debug=1` 調整パネル ／ `?test=1&seed=N` テストモード ／ `?bench=1` 性能測定 ／ `?scene=sandbox|stage|boss|fu-test|title`
+- URL：`?debug=1` 調整パネル ／ `?test=1&seed=N` テストモード ／ `?bench=1` 性能測定 ／ `?scene=sandbox|stage|boss|fu-test|title`、見本室 `gallery-rigs|gallery-vfx|stage-view|gallery-ui`（10 §G）
 
 ## 文書の地図
 00_core（原則・用語・時間・不変条件）／01 操作とUI／02 移動とカメラ／03 戦闘と陰陽術／04 敵とボス／05 ステージ／06 キャラと強化・保存／07 美術／08 音／09 技術／10 マイルストーン／decisions（決定の理由）
