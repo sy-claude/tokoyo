@@ -6,7 +6,7 @@ export function createOverlay(game) {
   const el = document.createElement('div');
   el.id = 'debug-overlay';
   el.style.cssText = [
-    'position:fixed', 'top:max(4px, env(safe-area-inset-top))', 'right:max(4px, env(safe-area-inset-right))',
+    'position:fixed', 'top:max(4px, env(safe-area-inset-top))', 'right:calc(max(4px, env(safe-area-inset-right)) + 96px)', // 一時停止ボタン（右上）を隠さない
     'z-index:50', 'padding:4px 8px', 'font:12px/1.35 ui-monospace,Menlo,Consolas,monospace',
     'color:rgb(245,240,225)', 'background:rgba(20,20,24,0.78)', 'border-radius:4px',
     'white-space:pre', 'pointer-events:none', 'text-align:right',

@@ -301,7 +301,7 @@ export {};
 
 /**
  * 配列・オブジェクトの値も持てる（例 `hitstopMultiMul`・`charMove`・設定の `btnLayout`）。品質の3列の表（09 8.9）は `v:{high, mid, low}`
- * @typedef {{v:number|boolean|string|number[]|string[]|Record<string,unknown>, min?:number, max?:number, step?:number, desc:string}} ConfigEntry
+ * @typedef {{v:number|boolean|string|number[]|string[]|Record<string,unknown>, min?:number, max?:number, step?:number, choices?:string[], desc:string}} ConfigEntry
  */
 /** @typedef {Record<string,ConfigEntry>} ConfigTable */
 

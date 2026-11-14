@@ -4,6 +4,7 @@
 import { setConfigValue } from '../core/config.js';
 import { hashWorld } from '../core/hash.js';
 import { createSyntheticInput } from '../input/synthetic.js';
+import { mergeFrames } from '../input/collector.js';
 import { stepWorld } from '../sim/step.js';
 import { teleportPlayer, viewWorld } from '../sim/world.js';
 
@@ -17,7 +18,11 @@ import { teleportPlayer, viewWorld } from '../sim/world.js';
  * @property {(p:{stick?:[number,number], camDeg?:[number,number], camHeld?:boolean, down?:Partial<Record<BtnId,boolean>>,
  *   ougiOut?:boolean, flick?:-1|0|1, taps?:[number,number][], fu?:InputFrame['fu']})=>void} setInput
  *   stick・camHeld・down・ougiOut は次に変えるまで保持。pressed/released は down の変化から作る。それ以外は次の1tickだけ
- * @property {()=>null} audio                          音の状態（08 10章の試験用）。音が無効なら null（音は M0b）
+ * @property {()=>(ReturnType<import('../audio/engine.js').AudioEngine['snapshot']>|null)} audio
+ *   音の状態（08 10章の試験用）。音が無効なら null。masterGain（主音量の倍率）は 09 10.2 への追加（08受17 が読む）
+ * @property {()=>void} audioSuspend                   試験用：ctx を suspend する（08受19。09 10.2 への追加）
+ * @property {(p:Record<string, unknown>)=>void} setSettings  試験用：設定（01 6.1）を変えて配置を作り直す（09 10.2 への追加）
+ * @property {()=>{id:number, role:string, btn:string|null}[]} pointers  試験用：今の指の役割（09 10.2 への追加）
  * @property {{lumaProbe:(id:number|string)=>{core:number, ring:number}}} debug  明度検査（07 1.3。M1a）
  * @property {(btn:BtnId, holdF?:number)=>void} press  down→holdF tick（既定1）→離す→1tick
  * @property {(x:number, y:number, z:number, yawDeg?:number)=>void} teleport  補間を切る
@@ -28,14 +33,15 @@ import { teleportPlayer, viewWorld } from '../sim/world.js';
  * @property {(p:{hp?:number, fu?:number, magatama?:number, kekkai?:number})=>void} setPlayer
  * @property {(name:'sandbox'|'stage'|'boss'|'fu-test'|'title', o?:{char?:string, seed?:number})=>Promise<void>} loadScene
  * @property {()=>string} hash                        状態ハッシュ（8桁16進）
- * @property {()=>never} layout                       computeLayout の結果（M0b）
+ * @property {()=>import('../input/layout.js').Layout} layout  computeLayout の結果
  * @property {()=>{calls:number, triangles:number, programs:number, pixelRatio:number, quality:string}} renderInfo
  *   pixelRatio・quality は 09 10.2 への追加（budget.spec と M0a-2 が読む）
  * @property {(q:'high'|'mid'|'low')=>void} setQuality
  * @property {(frames:InputFrame[])=>void} playReplay  以後 step はこの列を消費
  */
 /**
- * @typedef {{tick:number, scene:string, paused:boolean, worldMul:number,
+ * scene は画面（'title'・'devMenu'・シムの場面名）。lastInput（直前のtickにシムへ渡した InputFrame）は 09 10.2 への追加
+ * @typedef {{tick:number, scene:string, paused:boolean, worldMul:number, lastInput?:InputFrame|null,
  *  player:{id:number, pos:V3, vel:V3, yawDeg:number, grounded:boolean, hp:number, hpMax:number, state:string,
  *    moveId:string|null, moveF:number, scale:number, fu:number, magatama:number, kekkai:number, infected:boolean, buffs:string[]},
  *  enemies:{id:number, def:string, pos:V3, hp:number, state:string, sealed:boolean, scale:number}[],
@@ -68,9 +74,16 @@ export function installTestApi(game) {
     ready,
     step(n = 1) {
       const events = [];
+      // 指の入力（collector）も合成する。1回の step(n) を「n tick 進む1描画」として扱う
+      game.collector.startFrame(n);
+      const nowMs = globalThis.performance.now();
       for (let i = 0; i < n; i++) {
         const w = game.world;
-        const frame = replay.length > 0 ? /** @type {InputFrame} */ (replay.shift()) : synth.build(w.tick, game.renderer.viewPx());
+        const view = game.renderer.viewPx();
+        const frame =
+          replay.length > 0
+            ? /** @type {InputFrame} */ (replay.shift())
+            : mergeFrames(synth.build(w.tick, view), game.collector.build(w.tick, nowMs, view));
         stepWorld(w, frame);
         for (const ev of w.eventsOut) events.push(ev);
       }
@@ -79,10 +92,11 @@ export function installTestApi(game) {
     render() {
       game.frame.render(game.world, 1);
       game.overlay?.update(null);
+      game.updateUi();
     },
     getState() {
-      const { tick, scene, ...rest } = viewWorld(game.world);
-      return { tick, scene, paused: game.paused, ...rest };
+      const { tick, scene: _worldScene, ...rest } = viewWorld(game.world);
+      return { tick, scene: game.scene, paused: game.paused, ...rest, lastInput: game.world.input ? structuredClone(game.world.input) : null };
     },
     getEvents(sinceTick = 0) {
       return game.bus.getEvents(sinceTick);
@@ -91,7 +105,16 @@ export function installTestApi(game) {
       synth.set(p);
     },
     audio() {
-      return null;
+      return game.engine ? game.engine.snapshot() : null;
+    },
+    audioSuspend() {
+      game.engine?.suspend();
+    },
+    setSettings(p) {
+      game.applySettings(p);
+    },
+    pointers() {
+      return game.router.roles();
     },
     debug: { lumaProbe: notYet('debug.lumaProbe', 'M1a') },
     press(btn, holdF = 1) {
@@ -113,12 +136,18 @@ export function installTestApi(game) {
     async loadScene(name, o = {}) {
       synth.reset();
       replay = [];
-      await game.scenes.load(name, o);
+      if (name === 'title') {
+        game.scenes.toTitle();
+        return;
+      }
+      await game.scenes.startPlay(name, o);
     },
     hash() {
       return hashWorld(game.world);
     },
-    layout: notYet('layout', 'M0b'),
+    layout() {
+      return structuredClone(game.layout);
+    },
     renderInfo() {
       return game.renderer.info();
     },

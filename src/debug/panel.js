@@ -10,7 +10,7 @@ const CSS = `
   border-radius:4px; padding:4px 8px; }
 #dbg-toggle { float:right; }
 #dbg-body { clear:both; margin-top:4px; padding:6px; max-height:calc(100vh - 150px); overflow:auto;
-  background:rgba(20,20,24,0.88); border-radius:4px; -webkit-overflow-scrolling:touch; }
+  background:rgba(20,20,24,0.88); border-radius:4px; -webkit-overflow-scrolling:touch; touch-action:pan-y; }
 #dbg-body[hidden] { display:none; }
 #dbg-json { width:100%; box-sizing:border-box; height:44px; margin:4px 0; font:11px ui-monospace,Menlo,monospace;
   color:inherit; background:rgba(0,0,0,0.4); border:1px solid rgba(245,240,225,0.3); }
@@ -42,6 +42,7 @@ export function createPanel(game) {
       <textarea id="dbg-json" readonly aria-label="既定から変えたキー"></textarea>
       <div id="dbg-tables"></div>
     </div>`;
+  root.dataset.allowNative = ''; // 指でスクロール・文字の選択をしてよい（platform/guards）
   document.body.appendChild(root);
   const body = /** @type {HTMLElement} */ (root.querySelector('#dbg-body'));
   const out = /** @type {HTMLTextAreaElement} */ (root.querySelector('#dbg-json'));
