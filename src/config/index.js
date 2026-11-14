@@ -11,9 +11,11 @@ import { layout } from './layout.js';
 import { settings } from './settings.js';
 import { ui } from './ui.js';
 import { palette } from './palette.js';
+import { render } from './render.js';
+import { anim } from './anim.js';
 import { audio } from './audio.js';
 
-export const configTables = { time, collision, movement, camera, input, layout, ui, settings, palette, audio, quality, save, debug };
+export const configTables = { time, collision, movement, camera, input, layout, ui, settings, render, palette, anim, audio, quality, save, debug };
 
 /**
  * 表の集まり → 値だけの形。

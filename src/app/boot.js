@@ -58,7 +58,7 @@ export async function boot() {
   const rootEl = $('root');
   const canvas = /** @type {HTMLCanvasElement} */ ($('game'));
   const renderer = createRenderer(canvas, cfg, params.q ?? 'high');
-  const frame = createFrame(renderer, cfg);
+  const frame = createFrame(renderer, cfg, document);
   const bus = createBus(cfg.debug.eventRingCount);
 
   /** ゲーム全体の入れ物。app と debug だけが持つ */
