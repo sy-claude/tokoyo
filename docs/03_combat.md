@@ -600,3 +600,9 @@ final = max(1, round(基礎 × mul × damageTakenMul))   // damageTakenMul＝1�
 - **C7（7.2）**：攻撃側のヒットストップは1技の合計で上限まで。撃破の命中+3f（上限20）。
 - **他文書への申し送り（09 の型・イベントへの追加 Q1〜Q6）**：Q1 hitboxes に `damage? hitstopF? knockback? breakDmg? rehitF? attackerStops?`。Q2 knockback に `rx`。Q3 MoveDef に `heavy?`・`ignoreInvuln?`。Q4 ProjectileDef に `pierceMaxCount?`・`area?`。Q5 イベント `hitRevoked`・`kekkaiFail`、`ougiCancel.reason` に `air`、`buff.kind` に `mamori`。Q6 InputFrame.fu に 01 の `commit`・`cancel` を足す（簡易モードと取消タップに必要）。
 - **04へ**：想定HP（穢狗32・唐笠36・灯魂24・面鬼160・石凝神2400）、ボスの崩れごとに勾玉+2、敵の技の `ignoreInvuln` は封のみ、`sealable` の旗。**05へ**：穢域1つの札+2は1回。**06へ**：CharacterDef の capsule・kekkaiRangeM・fuMax・damageTakenMul（岩丈0.85）は本書の値。
+
+
+## 14. 外部素材の動き（アニメーションクリップ）との対応（U8・11_assets §3）
+- 技の時間はこの文書のフレームデータが正本。見た目の動きは `MoveDef.anim = {clip, fromS, toS, hitS}` で外部素材のクリップを割り当て、`hitS` を最初の判定フレーム（startupF）に合わせて、その前後を別々に伸縮して再生する（描画側。シムには影響しない）。
+- `anim` が無い技・クリップが無いキャラは、07 §6.7 の `pose` で動かす。両方あるときは `anim` を使い、`pose` は上に重ねる補正。
+- 移動・待機・被弾・死亡のクリップは 11 §3.1 の名前で目録から引く。走りは移動速度に合わせて再生速度を変える（`config/anim.js` の `runClipRefMps`）。

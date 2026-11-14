@@ -927,3 +927,13 @@ exit 0
 - **P2**：0章の単位接尾辞に `Mps2`（加速度）・`Hz`・`Db`（音量）・`Count`（個数・回数）を足す。理由：重力・音・上限数に当てはまる接尾辞が無い。本書と 08 はこれを使う。
 - **P3**：12章5の「シム（`src/sim`, `src/core`）」に `src/gen`（地形と配置の生成）を加える。理由：同じ生成関数をシムと描画が共用し、決定論の検査対象に入れる必要がある。
 - **P4**：12章1に「決定論は同じJSエンジン（Node と Chromium の V8）の中で保証する。iPhone で記録した入力は近似の再現にとどまる」と追記する。理由：`Math.sin` などの最後の桁はエンジンで違うことがあり、完全一致は約束できない。
+
+
+## 13. 外部素材の取り込み（U8・11_assets）
+- 置き場所：元ファイル `assets-raw/{models,textures,concept}/`（配信しない。`.gitignore` には入れない＝履歴に残す）。配信用 `public/assets/{models,tex}/`。
+- 目録：`src/data/assets.js`（型 `AssetDef`、11 §4）。起動時と `data/validate` で検証。
+- 読み込み：`src/render/assets/loader.js`（`GLTFLoader` と `TextureLoader`。three の `examples/jsm` から import）。タイトルの「遊ぶ」押下の後に全素材を先読みし、進み具合を表示。失敗・欠けは仮の見た目に戻す（警告1回、エラーにしない）。
+- 変換：`src/render/assets/toToon.js`（素材を 07 §3.3 のトゥーンへ置き換え、色補正、輪郭の SkinnedMesh を作る）、`src/render/assets/merge.js`（複数メッシュ・素材を1つへ）、`src/render/anim/clipPlayer.js`（クリップの再生・伸縮・混ぜ、`pose` の重ね）。
+- 検査：`scripts/assets-check.mjs`（`npm run assets:check`。依存なしで GLB の中身を読む：三角形・骨・クリップ・画像の大きさ・ファイルの大きさ・合計。11 §5 の上限で合否）。`verify:fast` に含める（素材が無ければ何もせず成功）。
+- 見本室 `gallery-rigs` は目録の全素材を並べ、素材が無いものは仮の見た目で表示する（どちらかの表示を明記）。
+- 描画命令の検査（不変条件9）・品質段階は素材にも同じく適用する。
