@@ -5,6 +5,7 @@
  * @param {Object} o
  * @param {{tickRateHz:number, maxTicksPerFrameCount:number, frameDeltaClampS:number}} o.timeCfg
  * @param {(nowMs:number)=>void} o.tick    1tick 進める（入力を作ってシムを呼ぶ）
+ * @param {(n:number)=>void} [o.beginFrame]  この描画で進める tick の数を、tick の前に1回知らせる（n>0 のときだけ。入力の camDeg を n 等分するため）
  * @param {()=>void} o.flush               溜めたイベントを配送する（tick 単位でまとめて）
  * @param {(alpha:number, nowMs:number)=>void} o.render  補間 alpha で描く
  */
@@ -51,6 +52,7 @@ export function createLoop(o) {
       } else {
         acc -= n * stepMs;
       }
+      if (n > 0) o.beginFrame?.(n);
       for (let i = 0; i < n; i++) o.tick(nowMs);
       o.flush();
       o.render(acc / stepMs, nowMs);

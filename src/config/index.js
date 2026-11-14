@@ -7,8 +7,13 @@ import { input } from './input.js';
 import { quality } from './quality.js';
 import { save } from './save.js';
 import { debug } from './debug.js';
+import { layout } from './layout.js';
+import { settings } from './settings.js';
+import { ui } from './ui.js';
+import { palette } from './palette.js';
+import { audio } from './audio.js';
 
-export const configTables = { time, collision, movement, camera, input, quality, save, debug };
+export const configTables = { time, collision, movement, camera, input, layout, ui, settings, palette, audio, quality, save, debug };
 
 /**
  * 表の集まり → 値だけの形。

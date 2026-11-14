@@ -2,18 +2,38 @@
 <html lang="ja">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover" />
     <meta name="theme-color" content="#1b1a1f" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>常世祓</title>
     <link rel="manifest" href="/manifest.webmanifest" />
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
     <style>
-      html, body { margin: 0; height: 100%; overflow: hidden; background: #1b1a1f; }
-      #game { position: fixed; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+      /* 01 8.1。大きさと位置は visualViewport から JS で決める（100vh は使わない） */
+      html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; overscroll-behavior: none; background: #1b1a1f; }
+      body { position: fixed; inset: 0; touch-action: none; user-select: none; -webkit-user-select: none;
+        -webkit-touch-callout: none; -webkit-tap-highlight-color: transparent; -webkit-text-size-adjust: 100%; }
+      #root { position: fixed; left: 0; top: 0; width: 100%; height: 100%; overflow: hidden; }
+      #game { position: absolute; left: 0; top: 0; width: 100%; height: 100%; display: block; z-index: 0; }
+      #input { position: absolute; inset: 0; z-index: 10; }
+      #input, canvas { touch-action: none; }
+      #hud { position: absolute; inset: 0; z-index: 20; pointer-events: none; contain: strict; }
+      #menus { position: absolute; inset: 0; z-index: 30; pointer-events: none; }
+      input, textarea { user-select: text; -webkit-user-select: text; }
+      .safe-probe { position: fixed; visibility: hidden; pointer-events: none;
+        padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
     </style>
   </head>
   <body>
-    <canvas id="game"></canvas>
+    <div id="root">
+      <canvas id="game"></canvas>
+      <div id="input"></div>
+      <div id="hud"></div>
+      <div id="menus"></div>
+    </div>
+    <div class="safe-probe" id="safe-probe"></div>
     <script type="module" src="/src/main.js"></script>
   </body>
 </html>
