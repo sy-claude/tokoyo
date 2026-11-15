@@ -13,7 +13,8 @@ import { createRng, presentationSeed } from '../../core/rng.js';
 import { scene as S } from '../../data/lookdev/scene.js';
 import { models } from '../../data/lookdev/models.js';
 import { createCameraView } from '../cameraView.js';
-import { createBuilder } from './build.js';
+import { createBuilder, partMatrix } from './build.js';
+import { yokaiMatrix } from './yokaiMotion.js';
 import { HALF, N3, N4, TAU } from './consts.js';
 import { addBareTrees, addDaisies, addGrass, addFallenLeaves, addIslands, addMaple, addMapleBranches, addScatter, addSenbon, addWires, placeAll } from './flora.js';
 import { createPost } from './post.js';
@@ -52,6 +53,8 @@ export function createLookdevView(renderer, cfg) {
   let casters = [];
   /** 影を落とさない物（影の図を描く間は隠す） @type {any[]} */
   let nonCasters = [];
+  /** 妖怪（毎フレーム身じろぎの行列を掛ける） @type {{mesh:any, place:Matrix4, motion:any}[]} */
+  let yokai = [];
   const shadowCam = new OrthographicCamera(-1, 1, 1, -1, 0, 1);
   /** @type {any} */
   let shadowRT = null;
@@ -83,6 +86,7 @@ export function createLookdevView(renderer, cfg) {
     uShadowMat: { value: new Matrix4() },
     uShadowOffset: { value: 0 },
     uShadow: { value: new Vector4() },
+    uInk: { value: new Vector4() },
   };
   const still = { value: new Vector4() }; // 動かない物の uWalk
   const heroWalk = { value: new Vector4() };
@@ -144,6 +148,7 @@ export function createLookdevView(renderer, cfg) {
     for (const d of disposables) d.dispose();
     disposables = [];
     casters = [];
+    yokai = [];
     nonCasters = [];
     shadowRT = null;
     root = null;
@@ -234,13 +239,18 @@ export function createLookdevView(renderer, cfg) {
     root.add(flora);
     addCaster(flora);
 
-    // 妖怪（1体＝1メッシュ。動かない）
+    // 妖怪（1体＝1メッシュ。形は自分の座標で作り、配置と身じろぎはメッシュの行列で掛ける）
     for (const y of S.yokai) {
       const yb = createBuilder(lib);
-      placeAll(yb, [y], terrain);
+      yb.addAll(models[y.model].parts, new Matrix4(), {});
       const ym = meshOf(yb, washMat);
+      const at = y.ground ? [y.at[0], y.at[1] + terrain.height(y.at[0], y.at[2]), y.at[2]] : y.at;
+      const place = partMatrix({ at, rot: y.rot, scale: y.scale });
+      ym.matrixAutoUpdate = false;
+      ym.matrix.copy(place);
       root.add(ym);
       addCaster(ym);
+      yokai.push({ mesh: ym, place, motion: y.motion });
     }
 
     // 主人公（1メッシュ＋1素材。歩きと布の動きは頂点シェーダ）
@@ -262,7 +272,7 @@ export function createLookdevView(renderer, cfg) {
       uCloudLit: { value: col(S.sky.cloudLit) },
       uCloudEdge: { value: col(S.sky.cloudEdge) },
       uSunCol: { value: col(S.sky.sun) },
-      uSky: { value: new Vector4(0, L.cloudRatio, 0, L.skyBleedRatio) },
+      uSky: { value: new Vector4(L.cloudFleckRatio, L.cloudRatio, 0, L.skyBleedRatio) },
     }, L.skyPx[q], L.skyOctaveCount);
     const skyGeo = new SphereGeometry(S.sky.radiusM, N4 * N4, N4 * N3);
     const skyMat = new ShaderMaterial({
@@ -410,6 +420,7 @@ export function createLookdevView(renderer, cfg) {
     U.uWind.value.set(L.windM, L.windHz, L.windM * HALF * HALF);
     U.uLook.value.set(L.mottleRatio, L.rimRatio, L.wetRatio, 1 / L.paveCellM);
     U.uTexScale.value.set(1 / L.texLargeTileM, 1 / L.texFineTileM, 1 / L.texBTileM, L.grainRatio);
+    U.uInk.value.set(L.inkCrackRatio, L.inkGrainRatio, L.paveJointM, 0);
     m.skyMat.uniforms.uSky.value.set(L.sunRadiusDeg * DEG2RAD, 0, 0, 0);
     m.seaMat.uniforms.uSea.value.set(L.seaSpeedRatio, L.seaGlitterRatio, L.seaFoamRatio, L.seaLaneRatio);
     m.mistMat.uniforms.uMist.value.set(L.mistSizeM, L.mistRiseRatio, L.mistAlphaRatio, L.mistRiseM);
@@ -477,6 +488,7 @@ export function createLookdevView(renderer, cfg) {
       const amount = Math.min(1, speed / cfg.movement.runSpeedMps);
       heroWalk.value.set(time * L.walkStepHz * TAU, amount, S.heroHipM, L.walkSwingDeg * DEG2RAD);
       U.uPlayer.value.set(x, y, z, L.shadowRatio);
+      for (const k of yokai) yokaiMatrix(k.place, k.motion, time, k.mesh.matrix);
 
       const [w, h] = renderer.viewPx();
       cameraView.update(world.camera, alpha, w / h);

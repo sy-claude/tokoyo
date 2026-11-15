@@ -119,7 +119,7 @@ uniform vec3 uCloudDark;
 uniform vec3 uCloudLit;
 uniform vec3 uCloudEdge;
 uniform vec3 uSunCol;
-uniform vec4 uSky; // x=（未使用） y=雲の量 z=（未使用） w=色の境のにじみ
+uniform vec4 uSky; // x=うろこ雲の量 y=雲の量 z=（未使用） w=色の境のにじみ
 varying vec2 vUv;
 void main() {
   vec3 d = skyDir(vUv);
@@ -132,7 +132,7 @@ void main() {
   vec3 horizon = mix(uSkyHorizonFar, uSkyHorizonSun, pow(sunSide, 5.0));
   vec3 col = mix(horizon, uSkyLow, smoothstep(0.0, 0.09 + 0.05 * sunSide, h));
   col = mix(col, uSkyMid, smoothstep(0.07 + 0.05 * sunSide, 0.3, h));
-  col = mix(col, uSkyTop, smoothstep(0.3, 0.8, h) * (1.0 - 0.45 * sunSide));
+  col = mix(col, uSkyTop, smoothstep(0.2, 0.62, h) * (1.0 - 0.4 * sunSide));
   // 雲：大きな塊をゆがめ、小さなちぎれ雲を重ねる
   vec2 cp = d.xz / (max(e, 0.0) + 0.2);
   vec2 st = vec2(dot(cp, vec2(s.z, -s.x)), dot(cp, s.xz));
@@ -151,6 +151,17 @@ void main() {
   float rimBand = smoothstep(0.0, 0.35, dens) * (1.0 - smoothstep(0.35, 0.8, dens));
   cc = mix(cc, uCloudEdge, rimBand * lowness * (0.3 + 0.7 * sunSide));
   col = mix(col, cc, dens * 0.92);
+  // うろこ雲：小さな雲片が列になって並ぶ。夕日を向いた下側の縁が染まり、上側は青鼠に沈む
+  vec2 sq = vec2(atan(d.x, d.z), asin(clamp(e, -1.0, 1.0))) + wv * 0.05;
+  sq = vec2(sq.x + sq.y * 0.5, sq.y - sq.x * 0.12); // 列を少し斜めに
+  float rowsK = sin(sq.y * 44.0 + fbm2(sq * 3.0 + 3.0) * 7.0) * 0.5 + 0.5;
+  float cellA = vnoise2(sq * vec2(17.0, 27.0) + 2.0) * 0.7 + vnoise2(sq * vec2(36.0, 52.0) + 9.0) * 0.3;
+  float cellB = vnoise2(sq * vec2(17.0, 27.0) + vec2(2.0, 2.25)) * 0.7 + vnoise2(sq * vec2(36.0, 52.0) + vec2(9.0, 9.4)) * 0.3;
+  float fleckArea = smoothstep(0.3, 0.5, fbm2(sq * 2.2 + 31.0));
+  float fleck = smoothstep(0.47, 0.6, cellA * 0.72 + rowsK * 0.28) * fleckArea * smoothstep(0.02, 0.12, e) * (1.0 - dens * 0.5);
+  float fleckLit = clamp((cellA - cellB) * 4.0 + 0.45, 0.0, 1.0);
+  vec3 fc = mix(uCloudDark * 0.95, mix(uCloudLit, uCloudEdge, 0.4 * sunSide), fleckLit * (0.35 + 0.65 * max(lowness, sunSide)));
+  col = mix(col, fc, fleck * uSky.x);
   // 地平近くの横筋の雲
   float sk = fbm2(vec2(st.x * 0.25, st.y * 5.0) + 3.0);
   float band = smoothstep(0.5, 0.68, sk) * smoothstep(0.17, 0.02, h) * smoothstep(-0.005, 0.02, e);

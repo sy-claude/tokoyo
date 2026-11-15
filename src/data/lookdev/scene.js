@@ -237,11 +237,14 @@ export const scene = {
     { model: 'lighthouse', at: [62, 3, 170], rot: [0, 0, 0], scale: 0.75 },
   ],
 
-  // 妖怪（1体＝1メッシュ）
+  // 妖怪（1体＝1メッシュ）。motion＝身じろぎ：pivot＝支点（形の座標 m）、swayDeg＝[前後, 左右] の揺れ、bob＝呼吸の上下、hop＝小跳び、phase＝ずらし
   yokai: [
-    { model: 'chochin', at: [-1.45, 2.5, 7.0], rot: [4, 186, -3], scale: 1.0 },
-    { model: 'karakasa', at: [-6.5, 0.05, 10.4], rot: [5, 160, -9], scale: 1.2, ground: true },
-    { model: 'yamainu', at: [-9.2, 0.95, 14.6], rot: [6, 122, 0], scale: 1.6, ground: true },
+    { model: 'chochin', at: [-1.45, 2.5, 7.0], rot: [4, 186, -3], scale: 1.0,
+      motion: { pivot: [0.3, 2.06, 0], swayDeg: [3.5, 5], swayHz: 0.31, bobM: 0, bobHz: 0, hopM: 0, hopHz: 0, phase: 0.4 } },
+    { model: 'karakasa', at: [-6.5, 0.05, 10.4], rot: [5, 160, -9], scale: 1.2, ground: true,
+      motion: { pivot: [0, 0, 0], swayDeg: [4, 5], swayHz: 0.42, bobM: 0, bobHz: 0, hopM: 0.2, hopHz: 0.42, phase: 1.1 } },
+    { model: 'yamainu', at: [-9.2, 0.95, 14.6], rot: [6, 122, 0], scale: 1.6, ground: true,
+      motion: { pivot: [0, 0.4, -0.5], swayDeg: [2.2, 1.2], swayHz: 0.5, bobM: 0.012, bobHz: 0.5, hopM: 0, hopHz: 0, phase: 2.3 } },
   ],
 
   // 電線 [始点, 終点, たるみ(m)]

@@ -1,7 +1,7 @@
 // 見た目の試作（lookdev）の形の表。部品（box・cyl・sph・lathe・tube・loft・ribbon・fan・group・ref）を並べて1体を作る。
 // loft＝肉付けした管：st＝[[x, y, z, 半径A, 半径B], …]、A の向きは side（既定は x）、B は道のり×A。
 // 単位は m・度。模型の正面は +Z、足元（底面の中心）が原点。色は palette の名前か '#rrggbb'。
-// fx＝[苔, 塗りのはげ, 石畳, 発光]。anim＝[動きの種類, 重み, 位相]（1=風 2・3=脚 4=腕 5=布）。
+// fx＝[苔, 塗りのはげ, 石畳, 発光]。anim＝[動きの種類, 重み, 位相]（1=風 2・3=脚 4=腕 5=布 7=まぶた［伸びる倍率, 上端の高さ, 面の傾き］）。
 // 参考画像（design-notes/lookdev/reference.png）を見て決めた形（設計書に無い「見た目の創作部分」）。
 
 const STONE_FX = [0.75, 0, 1, 0];
@@ -237,7 +237,7 @@ export const models = {
         { s: 'sph', r: [0.25, 0.18, 0.07], seg: 12, at: [0, 0.95, 0.6], col: 'paperWhite' },
         { s: 'sph', r: [0.12, 0.12, 0.05], seg: 10, at: [0, 0.94, 0.65], col: 'eyeAmber', fx: [0, 0, 0, 0.35] },
         { s: 'sph', r: [0.055, 0.075, 0.04], seg: 6, at: [0, 0.94, 0.69], col: 'ink' },
-        { s: 'sph', r: [0.27, 0.07, 0.08], seg: 10, at: [0, 1.1, 0.585], rot: [0, 0, -4], col: 'chochinRib' },
+        { s: 'sph', r: [0.27, 0.07, 0.08], seg: 10, at: [0, 1.1, 0.585], rot: [0, 0, -4], col: 'chochinRib', anim: [7, 2.2, 1.18, 0] },
         // 裂けた口と舌
         { s: 'sph', r: [0.36, 0.09, 0.1], seg: 10, at: [0, 0.47, 0.56], col: 'mouth' },
         { s: 'loft', seg: 10, n: 26, col: 'tongue', col2: 'tongueHi', gradUv: true, anim: [1, 0.2, 0], animGrad: [0.15, 0.75],
@@ -272,7 +272,7 @@ export const models = {
       { s: 'sph', r: [0.26, 0.2, 0.08], seg: 12, at: [0, 1.66, 0.77], rot: [-40, 0, 0], col: 'paperWhite' },
       { s: 'sph', r: [0.125, 0.125, 0.05], seg: 10, at: [0, 1.64, 0.83], rot: [-40, 0, 0], col: 'eyeAmber', fx: [0, 0, 0, 0.3] },
       { s: 'sph', r: [0.055, 0.075, 0.04], seg: 6, at: [0, 1.63, 0.87], rot: [-40, 0, 0], col: 'ink' },
-      { s: 'sph', r: [0.28, 0.07, 0.09], seg: 10, at: [0, 1.83, 0.7], rot: [-40, 0, -5], col: 'kasaLo' },
+      { s: 'sph', r: [0.28, 0.07, 0.09], seg: 10, at: [0, 1.83, 0.7], rot: [-40, 0, -5], col: 'kasaLo', anim: [7, 2.4, 1.9, 0.84] },
       { s: 'sph', r: [0.3, 0.07, 0.07], seg: 8, at: [0, 1.26, 0.98], rot: [-30, 0, 0], col: 'mouth' },
       { s: 'loft', seg: 8, n: 14, col: 'tongue', col2: 'tongueHi', gradUv: true, anim: [1, 0.12, 0], animGrad: [0.05, 0.4],
         st: [[0, 1.26, 0.96, 0.11, 0.03], [0.03, 1.08, 1.1, 0.1, 0.03], [0.08, 0.84, 1.12, 0.08, 0.028], [0.14, 0.7, 1.06, 0.02, 0.012]] },

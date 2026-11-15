@@ -29,10 +29,17 @@ void main() {
     p = rotX(p - vec3(0.0, pivot, 0.0), a) + vec3(0.0, pivot, 0.0);
     n = rotX(n, a);
   }
+  // 7：まぶた（まばたき）。上端（aAnim.z＝形の座標の高さ）を止めたまま下へ伸び、目の前へ出る（aAnim.y＝伸びる倍率、aAnim.w＝面の傾き）
+  if (kind > 6.5 && kind < 7.5) {
+    float bl = pow(max(sin(uTime * 0.9 + modelMatrix[3].x * 1.7), 0.0), 26.0);
+    float drop = max(aAnim.z - p.y, 0.0) * aAnim.y * bl;
+    p.y -= drop;
+    p.z += drop * aAnim.w + 0.1 * bl;
+  }
   // 体の上下（歩き）
   if (kind > 1.5) p.y += abs(sin(uWalk.x)) * uWalk.y * 0.035;
   // 待機の呼吸：胴から上がわずかに上下する（脚は動かさない）
-  if (kind > 3.5) p.y += sin(uTime * 1.7) * 0.005 * smoothstep(0.7, 1.4, p.y) * (1.0 - uWalk.y);
+  if (kind > 3.5 && kind < 6.5) p.y += sin(uTime * 1.7) * 0.005 * smoothstep(0.7, 1.4, p.y) * (1.0 - uWalk.y);
   vec4 w = modelMatrix * vec4(p, 1.0);
   float ph = dot(w.xz, vec2(0.37, 0.29)) + aAnim.z;
   // 1：風にしなる（草・枝先の葉）
@@ -70,6 +77,7 @@ uniform sampler2D uTexA;
 uniform sampler2D uTexB;
 uniform sampler2D uShadowMap;
 uniform vec4 uTexScale; // x=大きな柄(1/m) y=細かな柄(1/m) z=texB(1/m) w=粒の強さ
+uniform vec4 uInk;      // x=石の割れ目の線 y=木目・しわの線 z=敷石の目地の太さ
 uniform vec4 uShadow;   // x=影の濃さ(0で無効) y=奥行きの余裕 z=ぼかし(uv) w=筆の筋の強さ
 uniform vec3 uLightCol;
 uniform vec3 uShadeCol;
@@ -168,10 +176,10 @@ void main() {
   stoneCol = mix(stoneCol, stoneCol * vec3(1.12, 0.98, 0.84), smoothstep(0.5, 0.9, hash12(cell + 9.1)));
   stoneCol = mix(stoneCol, stoneCol * vec3(0.88, 0.86, 1.08), smoothstep(0.6, 0.95, hash12(cell + 5.3)));
   // 石の縁は欠けて暗く、内側は少し明るい（1枚ずつの厚みが見える）
-  float joint = smoothstep(0.07, 0.015, edge);
-  float bevel = smoothstep(0.2, 0.05, edge);
-  stoneCol *= 1.0 - bevel * 0.16;
-  stoneCol = mix(stoneCol, uCrackCol, joint * 0.8);
+  float joint = smoothstep(uInk.z * 2.2, uInk.z * 0.5, edge);
+  float bevel = smoothstep(0.16, uInk.z, edge);
+  stoneCol *= 1.0 - bevel * 0.12;
+  stoneCol = mix(stoneCol, uCrackCol, joint * 0.85);
   // 目地の草・苔・土
   stoneCol = mix(stoneCol, uMossCol * (0.8 + 0.5 * dF.r), joint * smoothstep(0.45, 0.6, dB.r) * 0.85);
   base = mix(base, stoneCol, st);
@@ -222,11 +230,16 @@ void main() {
 
   // --- 石の描き込み：ひび・粒・かすれた明るい面 ---
   float ck = max(dF.b, dA.b * 0.9) * stone;
-  base = mix(base, uCrackCol, ck * 0.7);
+  base = mix(base, uCrackCol, ck * 0.7 * (1.0 - uInk.x * 0.6));
+  // 墨線：割れ目の芯だけを細く濃く引く（参考の「形の内側まで描いた細い線」）
+  base = mix(base, uCrackCol * 0.75, smoothstep(0.45, 0.8, dF.b * stone) * uInk.x);
   base *= 1.0 + (dF.g - 0.5) * uTexScale.w * (0.45 + 0.55 * stone);
   base += vec3(0.09, 0.08, 0.065) * dB.a * stone * smoothstep(0.0, 0.7, N.y);
   // 筆の筋（木目・岩の層・布のしわ）
   base *= 1.0 + (dF.a - 0.5) * uShadow.w;
+  // 墨線：木目・布のしわ。筋の暗い谷だけを細い線にする（石と発光する所には引かない）
+  float gl = smoothstep(0.2, 0.08, dF.a) * (0.55 + 0.45 * smoothstep(0.35, 0.65, dA.r));
+  base = mix(base, base * uCrackCol * 1.6, gl * uInk.y * (1.0 - stone) * (1.0 - glow));
 
   // --- 水彩の色むら：大きなにじみ。暗い所は紫へ、明るい所は暖色へ寄る ---
   float mott = (dA.r - 0.5) * 1.1 + (dF.r - 0.5) * 0.6;

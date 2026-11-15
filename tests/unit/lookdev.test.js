@@ -57,3 +57,19 @@ test('lookdevUniformArrays：シェーダへ渡す折れ線の点数（石畳8�
   assert.equal(scene.fissure.length, 6);
   assert.equal(scene.casters.length, 12);
 });
+
+test('lookdevYokaiMotion：妖怪の身じろぎは時刻だけで決まり、動きの指定が無ければ配置のまま。跳ねは0〜1', async () => {
+  const { Matrix4 } = await import('three');
+  const { yokaiMatrix, hopRatio } = await import('../../src/render/lookdev/yokaiMotion.js');
+  const { partMatrix } = await import('../../src/render/lookdev/build.js');
+  for (const y of scene.yokai) {
+    const place = partMatrix(y);
+    const a = yokaiMatrix(place, y.motion, 1.25, new Matrix4());
+    const b = yokaiMatrix(place, y.motion, 1.25, new Matrix4());
+    assert.deepEqual(a.elements, b.elements);
+    assert.ok(a.elements.every(Number.isFinite));
+    assert.notDeepEqual(a.elements, place.elements); // 動いている
+    assert.deepEqual(yokaiMatrix(place, undefined, 1.25, new Matrix4()).elements, place.elements);
+  }
+  for (let c = 0; c < 2; c += 0.01) assert.ok(hopRatio(c) >= 0 && hopRatio(c) <= 1);
+});
