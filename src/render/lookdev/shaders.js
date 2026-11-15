@@ -153,12 +153,15 @@ varying vec2 vUv;
 varying float vAlpha;
 varying float vRnd;
 void main() {
+  // 煙の筋：上へ流れながらよじれる
   float d = length(vUv);
-  float n = fbm2(vUv * 1.6 + vRnd * 50.0 + vec2(0.0, -uTime * 0.12));
-  float a = smoothstep(1.0, 0.1, d + (n - 0.5) * 0.9) * vAlpha;
-  vec3 col = mix(uMistCol, uMistCore, smoothstep(0.5, 0.9, n) * 0.6);
-  gl_FragColor = vec4(col, a);
-  gl_FragColor.rgb = toDisplay(gl_FragColor.rgb);
+  vec2 p = vUv * vec2(1.7, 1.0) + vRnd * 50.0;
+  p.x += sin(vUv.y * 2.6 + uTime * 0.5 + vRnd * 9.0) * 0.35;
+  float n = fbm2(p + vec2(0.0, -uTime * 0.16));
+  float wisp = smoothstep(0.42, 0.7, n);
+  float a = wisp * smoothstep(1.0, 0.25, d) * vAlpha;
+  vec3 col = mix(uMistCore, uMistCol, smoothstep(0.5, 0.85, n));
+  gl_FragColor = vec4(toDisplay(col), a);
 }`;
 
 export const LEAF_VERT = /* glsl */ `

@@ -257,7 +257,7 @@ void main() {
   float wrap = smoothstep(-0.7, 0.7, ndl);
   float up = N.y * 0.5 + 0.5;
   vec3 col = base * mix(uShadeCol, uLightCol, wrap * lit) * mix(0.86, 1.06, up);
-  col *= mix(1.0, 0.8, (1.0 - lit) * step(0.001, uShadow.x));
+  col *= mix(1.0, 0.9, (1.0 - lit) * step(0.001, uShadow.x));
   col = mix(col, col * uShadeCol * 0.72, blob);
 
   // --- 濡れた石：空の色を映す（夕日の方角は橙、反対は青紫）＋夕日の照り返し ---

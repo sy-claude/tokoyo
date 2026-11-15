@@ -29,6 +29,7 @@ test('lookdevCameraView：既定のカメラは構図の上書き（距離・高
 
 test('lookdevModelsExist：配置で使う形がすべて形の表にある', () => {
   const refs = [...scene.placements, ...scene.yokai].map((p) => p.model);
+  for (const sc of scene.scatter) refs.push(...sc.models);
   const walk = (parts) => {
     for (const p of parts) {
       if (p.s === 'ref') refs.push(p.model);
