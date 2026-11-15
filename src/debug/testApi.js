@@ -34,8 +34,11 @@ import { teleportPlayer, viewWorld } from '../sim/world.js';
  * @property {(name:'sandbox'|'stage'|'boss'|'fu-test'|'title', o?:{char?:string, seed?:number})=>Promise<void>} loadScene
  * @property {()=>string} hash                        状態ハッシュ（8桁16進）
  * @property {()=>import('../input/layout.js').Layout} layout  computeLayout の結果
- * @property {()=>{calls:number, triangles:number, programs:number, pixelRatio:number, quality:string}} renderInfo
- *   pixelRatio・quality は 09 10.2 への追加（budget.spec と M0a-2 が読む）
+ * @property {()=>{calls:number, triangles:number, programs:number, pixelRatio:number, quality:string, compileCalls:number, programsAtWarmup:number}} renderInfo
+ *   pixelRatio・quality は 09 10.2 への追加（budget.spec と M0a-2 が読む）。compileCalls（renderer.compile を呼んだ回数）と
+ *   programsAtWarmup（事前コンパイル直後のプログラム数）は M1a の追加（07受25）
+ * @property {()=>({springs:{bone:string, xDeg:number, zDeg:number}[], blinkAt:number, drawCalls:number, meshes:{name:string, skinned:boolean, bones:number}[]}|null)} playerRig
+ *   試験用：主人公の造形と揺れの状態（M1a の追加。07受5 と撮影7が読む）
  * @property {(q:'high'|'mid'|'low')=>void} setQuality
  * @property {(frames:InputFrame[])=>void} playReplay  以後 step はこの列を消費
  */
@@ -116,7 +119,7 @@ export function installTestApi(game) {
     pointers() {
       return game.router.roles();
     },
-    debug: { lumaProbe: notYet('debug.lumaProbe', 'M1a') },
+    debug: { lumaProbe: notYet('debug.lumaProbe', 'M7d') },
     press(btn, holdF = 1) {
       synth.set({ down: { [btn]: true } });
       api.step(holdF);
@@ -150,6 +153,15 @@ export function installTestApi(game) {
     },
     renderInfo() {
       return game.renderer.info();
+    },
+    playerRig() {
+      const snap = game.frame.playerSnapshot();
+      const view = game.frame.playerView;
+      if (!snap || !view) return null;
+      const meshes = [view.rig.body, view.rig.outline, view.rig.weapon, view.rig.weaponOutline]
+        .filter(Boolean)
+        .map((m) => ({ name: m.name, skinned: m.isSkinnedMesh === true, bones: m.skeleton.bones.length }));
+      return { ...snap, meshes };
     },
     setQuality(q) {
       game.renderer.setQuality(q);

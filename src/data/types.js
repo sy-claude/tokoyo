@@ -100,13 +100,25 @@ export {};
 // ---- RigDef（人物・敵・ボスの剛体スキン）。07 6.1 の定義の写し ----
 /** @typedef {{name:string, parent:string|null, posM:[number,number,number]}} BoneDef */
 /**
- * color は palette のキーまたは16進。dims は lathe が [半径,高さ] の列、extrude が先頭に形名の文字列
+ * color は palette のキーまたは16進。dims は lathe が [半径,高さ] の列、extrude が先頭に形名の文字列。
+ * 形の原点は骨の関節：cyl・cone・extrude は関節から −Y へ伸ばす。box・sphere・cap は中心が原点。lathe は書いた高さのまま。
+ * dims（07 6.1）：lathe＝[[半径,高さ]…]／cyl＝[上半径,下半径,高さ]／cone＝[半径,高さ]／box＝[幅,高さ,奥行]／sphere＝[半径,sx,sy,sz]／
+ *   cap＝[半径,開き角(軸からの角度),sx,sy,sz]（+Z 向き。sx〜sz は省略可。M1a の追加）／extrude＝[形名,長さ,先端の細り倍率,幅,反り]（幅・反りは省略可。形は data/rigs/shapes.js）／ico＝[半径,分割,ノイズ振幅]。
+ * rotDeg は [x,y,z]（度）で、Z（ひねり）→ X（傾け）→ Y（向き）の順に回す（three の Euler 'YXZ'。M1a で決定）。offsetM はその後に足す。
+ *   sphere・cap の sx〜sz は、回した後に骨の座標の軸に沿って掛ける
  * @typedef {{name:string, shape:'lathe'|'cyl'|'cone'|'box'|'sphere'|'cap'|'extrude'|'ico'|'tube',
  *  dims:(number|string|number[])[], bone:string, offsetM:[number,number,number], rotDeg:[number,number,number],
  *  color:string, faceCell?:number}} RigPartDef
  */
-/** @typedef {{bone:string, axes:'xz'|'x', gainMul:number, limitDeg:number}} SpringDef */
-/** @typedef {{scaleMul:number, bones:BoneDef[], parts:RigPartDef[], springs:SpringDef[], weapon?:{socket:string, parts:RigPartDef[], bones:BoneDef[]}}} RigDef */
+/**
+ * restDeg（M1a の追加）＝ばねの釣り合いの角度 [x,z]（07 6.5 の式の θ0。省略は 0）
+ * @typedef {{bone:string, axes:'xz'|'x', gainMul:number, limitDeg:number, restDeg?:[number,number]}} SpringDef
+ */
+/**
+ * stance（M1a の追加）＝待機の基本姿勢。関節名 → [x,y,z]（度、Euler 'XYZ'、バインド姿勢からの相対。07 6.7 のキーと同じ書き方）
+ * @typedef {{scaleMul:number, bones:BoneDef[], parts:RigPartDef[], springs:SpringDef[],
+ *  weapon?:{socket:string, parts:RigPartDef[], bones:BoneDef[]}, stance?:Record<string,V3>}} RigDef
+ */
 
 /**
  * @typedef {Object} CharacterDef

@@ -1,0 +1,27 @@
+{
+  "format": 1,
+  "name": "m1a_orbit",
+  "scene": "sandbox",
+  "char": "fuma",
+  "seed": 1,
+  "ticks": 360,
+  "hashes": {
+    "60": "bba81504",
+    "120": "90f4a82e",
+    "180": "606da56d",
+    "240": "3de1db94",
+    "300": "e9d5ea01",
+    "360": "bccf2a69",
+    "final": "bccf2a69"
+  },
+  "frames": [
+    [20,{}],
+    [120,{"camDeg":[3,0],"camHeld":true}],
+    [30,{"camDeg":[0,1],"camHeld":true}],
+    [60,{"camDeg":[-3,-0.5],"camHeld":true}],
+    [20,{}],
+    [50,{"stick":[0,1]}],
+    [30,{}],
+    [30,{"stick":[-0.7,0.3],"camDeg":[1,0],"camHeld":true}]
+  ]
+}

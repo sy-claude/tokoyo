@@ -1,6 +1,11 @@
-// レンダラー（09 8.1。最小）。後処理（紙墨パス）と品質の自動降格は M1b。
+// レンダラー（07 3.1、09 8.1）。場面の描画先と紙墨パス（07 3.2 の手順2・3）、品質の自動降格は M1b。
 /** @import {Cfg, QualityLevel} from '../config/index.js' */
-import { NoToneMapping, SRGBColorSpace, WebGLRenderer } from 'three';
+import { ColorManagement, NoToneMapping, SRGBColorSpace, WebGLRenderer } from 'three';
+import { warmupScene } from './warmup.js';
+
+/** config の文字列 → three の定数（07 3.1 の表にある値だけ） */
+const TONE_MAPPINGS = { NoToneMapping };
+const COLOR_SPACES = { SRGBColorSpace };
 
 /**
  * @param {HTMLCanvasElement} canvas
@@ -8,21 +13,24 @@ import { NoToneMapping, SRGBColorSpace, WebGLRenderer } from 'three';
  * @param {QualityLevel} quality
  */
 export function createRenderer(canvas, cfg, quality) {
+  const rc = cfg.render;
+  ColorManagement.enabled = true;
   const three = new WebGLRenderer({
     canvas,
-    antialias: false,
-    alpha: false,
-    stencil: false,
+    antialias: rc.rendererAntialias,
+    alpha: rc.rendererAlpha,
+    stencil: rc.rendererStencil,
     depth: true,
-    powerPreference: 'high-performance',
+    powerPreference: rc.rendererPowerPreference,
   });
-  three.outputColorSpace = SRGBColorSpace;
-  three.toneMapping = NoToneMapping;
+  three.outputColorSpace = COLOR_SPACES[rc.outputColorSpace] ?? SRGBColorSpace;
+  three.toneMapping = TONE_MAPPINGS[rc.toneMapping] ?? NoToneMapping;
   three.info.autoReset = false; // 1フレームの最初に reset し、後処理まで合算する
   let level = quality;
   let viewW = 1;
   let viewH = 1;
   const last = { calls: 0, triangles: 0 };
+  const warm = { compileCalls: 0, programs: 0 };
 
   function applySize() {
     three.setPixelRatio(Math.min(globalThis.devicePixelRatio || 1, cfg.quality.dprMaxMul[level]));
@@ -49,6 +57,11 @@ export function createRenderer(canvas, cfg, quality) {
     viewPx() {
       return [viewW, viewH];
     },
+    /** 事前コンパイル（09 8.7）。全材質を1つずつ置いた場面を渡す。 */
+    warmup(scene, camera) {
+      warm.programs = warmupScene(three, scene, camera);
+      warm.compileCalls += 1;
+    },
     /** 1フレームを描く。描画命令の数を数え直す。 */
     draw(scene, camera) {
       three.info.reset();
@@ -64,6 +77,8 @@ export function createRenderer(canvas, cfg, quality) {
         programs: three.info.programs ? three.info.programs.length : 0,
         pixelRatio: three.getPixelRatio(),
         quality: level,
+        compileCalls: warm.compileCalls,
+        programsAtWarmup: warm.programs,
       };
     },
   };
