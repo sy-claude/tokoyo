@@ -7,6 +7,7 @@ import {
 } from 'three';
 import { DEG2RAD } from '../../core/math.js';
 import { fbm3 } from '../../core/noise.js';
+import { createRng } from '../../core/rng.js';
 import { HALF, N3, N4, SEG_DEFAULT, TAU } from './consts.js';
 
 const ZERO4 = [0, 0, 0, 0];
@@ -221,6 +222,37 @@ function bendGeometry(g, bendY, halfLen) {
   g.computeVertexNormals();
 }
 
+/**
+ * 鑿（のみ）で割ったような平らな面を付ける（岩）：でたらめな向きの平面で、はみ出した頂点を面の上へ押し戻す。
+ * chisel=[面の数, 削る深さ（半径に対する比の上限）, 種]。面と面の境が稜になり、後処理の「内側の線」が乗る。
+ */
+function chiselGeometry(g, chisel) {
+  const [count, depth, seed] = chisel;
+  const rng = createRng(seed);
+  g.computeBoundingBox();
+  const bb = g.boundingBox;
+  const c = bb.getCenter(new Vector3());
+  const half = bb.getSize(new Vector3()).multiplyScalar(HALF);
+  const pos = g.attributes.position;
+  const n = new Vector3();
+  const v = new Vector3();
+  for (let k = 0; k < count; k++) {
+    n.set(rng.range(-1, 1), rng.range(-HALF, 1), rng.range(-1, 1)).normalize();
+    // その向きでの岩の「半径」から、少し内側に平面を置く
+    const reach = Math.hypot(n.x * half.x, n.y * half.y, n.z * half.z);
+    const d = reach * (1 - depth * rng.range(HALF * HALF, 1));
+    for (let i = 0; i < pos.count; i++) {
+      v.fromBufferAttribute(pos, i).sub(c);
+      const over = v.dot(n) - d;
+      if (over > 0) {
+        v.addScaledVector(n, -over).add(c);
+        pos.setXYZ(i, v.x, v.y, v.z);
+      }
+    }
+  }
+  g.computeVertexNormals();
+}
+
 /** ノイズで頂点を法線方向へ出し入れする（岩・古い石の凹凸）。 */
 function jitterGeometry(g, amount, freq, seed, oct) {
   const pos = g.attributes.position;
@@ -281,6 +313,7 @@ export function createBuilder(lib = {}) {
       return;
     }
     let g = shapeGeometry(p, lib.segMul ?? 1);
+    if (p.chisel) chiselGeometry(g, p.chisel);
     if (p.flute) fluteGeometry(g, p.flute);
     if (p.bendY) bendGeometry(g, p.bendY, p.size[0] * HALF);
     if (p.jitter) {

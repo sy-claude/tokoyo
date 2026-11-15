@@ -322,36 +322,41 @@ export function createLookdevView(renderer, cfg) {
     nonCasters.push(sea);
     disposables.push(hmTex, seaGeo, seaMat);
 
-    // 紫の靄（裂け目と石段から立ちのぼる）
-    const mistRng = rng.fork('mist');
-    const weightSum = S.mistSources.reduce((a, m) => a + m[N4], 0);
-    const mistGeo = billboards(L.mistCount[q], (i, seed) => {
-      let pick = mistRng.float() * weightSum;
-      let src = S.mistSources[0];
-      for (const m of S.mistSources) {
-        src = m;
-        pick -= m[N4];
-        if (pick <= 0) break;
-      }
-      seed[i * N4] = src[0] + mistRng.range(-1, 1) * src[N3];
-      seed[i * N4 + 1] = src[1] + mistRng.float() * HALF;
-      seed[i * N4 + 2] = src[2] + mistRng.range(-1, 1) * src[N3];
-      seed[i * N4 + N3] = mistRng.float();
-    });
-    const mistMat = new ShaderMaterial({
-      vertexShader: MIST_VERT,
-      fragmentShader: MIST_FRAG,
-      defines: { OCT: 2 },
-      uniforms: { uTime: U.uTime, uMist: { value: new Vector4() }, uMistCol: { value: col(S.mist.col) }, uMistCore: { value: col(S.mist.core) } },
-      transparent: true,
-      depthWrite: false,
-    });
-    const mist = new Mesh(mistGeo, mistMat);
-    mist.frustumCulled = false;
-    mist.renderOrder = 2;
-    root.add(mist);
-    nonCasters.push(mist);
-    disposables.push(mistMat);
+    // 煙のように上る板の群れ：紫の靄（裂け目と石段）と、白い波しぶき（岸の岩）
+    const puffs = (name, sources, count, c0, c1) => {
+      const pr = rng.fork(name);
+      const weightSum = sources.reduce((a, m) => a + m[N4], 0);
+      const geo = billboards(count, (i, seed) => {
+        let pick = pr.float() * weightSum;
+        let src = sources[0];
+        for (const m of sources) {
+          src = m;
+          pick -= m[N4];
+          if (pick <= 0) break;
+        }
+        seed[i * N4] = src[0] + pr.range(-1, 1) * src[N3];
+        seed[i * N4 + 1] = src[1] + pr.float() * HALF;
+        seed[i * N4 + 2] = src[2] + pr.range(-1, 1) * src[N3];
+        seed[i * N4 + N3] = pr.float();
+      });
+      const mat = new ShaderMaterial({
+        vertexShader: MIST_VERT,
+        fragmentShader: MIST_FRAG,
+        defines: { OCT: 2 },
+        uniforms: { uTime: U.uTime, uMist: { value: new Vector4() }, uMistCol: { value: col(c0) }, uMistCore: { value: col(c1) } },
+        transparent: true,
+        depthWrite: false,
+      });
+      const mesh = new Mesh(geo, mat);
+      mesh.frustumCulled = false;
+      mesh.renderOrder = 2;
+      root.add(mesh);
+      nonCasters.push(mesh);
+      disposables.push(mat);
+      return mat;
+    };
+    const mistMat = puffs('mist', S.mistSources, L.mistCount[q], S.mist.col, S.mist.core);
+    const sprayMat = puffs('spray', S.spraySources, L.sprayCount[q], S.spray.col, S.spray.core);
 
     // 舞う紅葉
     const leafRng = rng.fork('leaf');
@@ -390,7 +395,7 @@ export function createLookdevView(renderer, cfg) {
     disposables.push(leafMat);
 
     // 毎フレーム cfg から書き換える uniform の置き場
-    root.userData = { skyMat, seaMat, mistMat, leafMat, origin: o };
+    root.userData = { skyMat, seaMat, mistMat, sprayMat, leafMat, origin: o };
     builtQuality = q;
     builtWorld = world;
   }
@@ -408,6 +413,7 @@ export function createLookdevView(renderer, cfg) {
     m.skyMat.uniforms.uSky.value.set(L.sunRadiusDeg * DEG2RAD, 0, 0, 0);
     m.seaMat.uniforms.uSea.value.set(L.seaSpeedRatio, L.seaGlitterRatio, L.seaFoamRatio, L.seaLaneRatio);
     m.mistMat.uniforms.uMist.value.set(L.mistSizeM, L.mistRiseRatio, L.mistAlphaRatio, L.mistRiseM);
+    m.sprayMat.uniforms.uMist.value.set(L.spraySizeM, L.sprayRiseRatio, L.sprayAlphaRatio, L.sprayRiseM);
     m.leafMat.uniforms.uLeaf.value.set(L.leafSizeM, L.leafFallMps, L.leafDriftMps, 0);
     // 影の図：夕日の方角・決めた仰角から、場面の中心を見下ろす
     if (shadowRT) {

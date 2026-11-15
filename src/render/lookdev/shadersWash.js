@@ -31,6 +31,8 @@ void main() {
   }
   // 体の上下（歩き）
   if (kind > 1.5) p.y += abs(sin(uWalk.x)) * uWalk.y * 0.035;
+  // 待機の呼吸：胴から上がわずかに上下する（脚は動かさない）
+  if (kind > 3.5) p.y += sin(uTime * 1.7) * 0.005 * smoothstep(0.7, 1.4, p.y) * (1.0 - uWalk.y);
   vec4 w = modelMatrix * vec4(p, 1.0);
   float ph = dot(w.xz, vec2(0.37, 0.29)) + aAnim.z;
   // 1：風にしなる（草・枝先の葉）

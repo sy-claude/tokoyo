@@ -67,12 +67,12 @@ export const models = {
   // ---- 注連縄の巨岩 ----
   iwakura: {
     parts: [
-      { s: 'sph', r: [2.45, 2.5, 2.15], seg: 40, at: [0, 1.85, 0], col: 'rock', col2: 'rockHi', fx: [0.32, 0, 1, 0], jitter: 0.6, jfreq: 0.7, seed: 3, joct: 5 },
+      { s: 'sph', r: [2.45, 2.5, 2.15], seg: 44, at: [0, 1.85, 0], col: 'rock', col2: 'rockHi', fx: [0.32, 0, 1, 0], chisel: [14, 0.13, 3], jitter: 0.3, jfreq: 1.1, seed: 3, joct: 5, flat: true },
       { s: 'sph', r: [1.5, 1.0, 1.4], seg: 20, at: [1.9, 0.5, -1.3], col: 'rock', col2: 'rockHi', fx: [0.35, 0, 1, 0], jitter: 0.4, jfreq: 0.8, seed: 5, joct: 5 },
       { s: 'sph', r: [1.2, 0.8, 1.2], seg: 18, at: [-0.6, 0.4, -2.2], col: 'rock', col2: 'rockHi', fx: [0.35, 0, 1, 0], jitter: 0.35, jfreq: 0.9, seed: 7, joct: 5 },
       // 注連縄（岩を一周。手前で少したるむ）
       { s: 'tube', seg: 40, rseg: 7, r: 0.075, col: 'straw', col2: 'strawHi',
-        path: [[2.62, 2.6, 0.2], [2.15, 2.3, -1.45], [0.9, 2.05, -2.33], [-0.8, 2.15, -2.33], [-2.2, 2.45, -1.25], [-2.58, 2.7, 0.3], [-1.75, 2.8, 1.75], [0, 2.85, 2.28], [1.85, 2.75, 1.62], [2.62, 2.6, 0.2]] },
+        path: [[2.36, 2.6, 0.2], [1.98, 2.3, -1.4], [0.9, 2.05, -2.3], [-0.8, 2.15, -2.33], [-2.2, 2.45, -1.25], [-2.58, 2.7, 0.3], [-1.75, 2.8, 1.75], [0, 2.85, 2.28], [1.75, 2.75, 1.55], [2.36, 2.6, 0.2]] },
       // 紙垂（白い紙。手前側に4枚）と房
       { s: 'ref', model: 'shide', at: [1.75, 2.08, -2.0], rot: [0, 40, 0], scale: 0.6 },
       { s: 'ref', model: 'shide', at: [0.75, 1.94, -2.46], rot: [0, 12, 0], scale: 0.6 },
@@ -89,10 +89,10 @@ export const models = {
     ],
   },
   // ---- 岩（小。散らす用） ----
-  rockA: { parts: [{ s: 'sph', r: [0.9, 0.6, 0.75], seg: 18, at: [0, 0.3, 0], col: 'rock', col2: 'rockHi', fx: [0.35, 0, 1, 0], jitter: 0.28, jfreq: 1.3, seed: 2, joct: 5 }] },
-  rockB: { parts: [{ s: 'sph', r: [0.7, 0.75, 0.6], seg: 18, at: [0, 0.35, 0], col: 'rockDark', col2: 'rock', fx: [0.3, 0, 1, 0], jitter: 0.25, jfreq: 1.6, seed: 11, joct: 5 }] },
-  rockC: { parts: [{ s: 'sph', r: [1.5, 0.85, 1.1], seg: 18, at: [0, 0.3, 0], col: 'rock', col2: 'rockHi', fx: [0.35, 0, 1, 0], jitter: 0.4, jfreq: 0.9, seed: 21, joct: 5 }] },
-  rockShore: { parts: [{ s: 'sph', r: [1.3, 1.0, 1.1], seg: 18, at: [0, 0.2, 0], col: 'rockWet', col2: 'rock', fx: [0.15, 0, 1, 0], jitter: 0.45, jfreq: 1.0, seed: 31, joct: 5 }] },
+  rockA: { parts: [{ s: 'sph', r: [0.9, 0.6, 0.75], seg: 18, at: [0, 0.3, 0], col: 'rock', col2: 'rockHi', fx: [0.35, 0, 1, 0], chisel: [9, 0.3, 2], jitter: 0.1, jfreq: 2.2, seed: 2, joct: 4, flat: true }] },
+  rockB: { parts: [{ s: 'sph', r: [0.7, 0.75, 0.6], seg: 18, at: [0, 0.35, 0], col: 'rockDark', col2: 'rock', fx: [0.3, 0, 1, 0], chisel: [9, 0.32, 11], jitter: 0.09, jfreq: 2.4, seed: 11, joct: 4, flat: true }] },
+  rockC: { parts: [{ s: 'sph', r: [1.5, 0.85, 1.1], seg: 20, at: [0, 0.3, 0], col: 'rock', col2: 'rockHi', fx: [0.35, 0, 1, 0], chisel: [11, 0.3, 21], jitter: 0.14, jfreq: 1.6, seed: 21, joct: 4, flat: true }] },
+  rockShore: { parts: [{ s: 'sph', r: [1.3, 1.0, 1.1], seg: 18, at: [0, 0.2, 0], col: 'rockWet', col2: 'rock', fx: [0.15, 0, 1, 0], chisel: [10, 0.32, 31], jitter: 0.14, jfreq: 1.7, seed: 31, joct: 4, flat: true }] },
   pebbleA: { parts: [{ s: 'sph', r: [0.9, 0.6, 0.75], seg: 9, at: [0, 0.3, 0], col: 'rock', col2: 'rockHi', fx: [0.35, 0, 1, 0], jitter: 0.28, jfreq: 1.3, seed: 2, joct: 4 }] },
   pebbleB: { parts: [{ s: 'sph', r: [0.7, 0.75, 0.6], seg: 9, at: [0, 0.35, 0], col: 'rockDark', col2: 'rockHi', fx: [0.3, 0, 1, 0], jitter: 0.25, jfreq: 1.6, seed: 11, joct: 4 }] },
   // ---- 茂み（枯れかけの低木・紅葉の残る低木） ----
@@ -309,7 +309,7 @@ export const models = {
       { s: 'loft', seg: 8, n: 14, col: 'wolf', col2: 'wolfLo', gradUv: true, st: [[0.16, 0.98, -0.52, 0.11, 0.15], [0.2, 0.62, -0.36, 0.075, 0.09], [0.19, 0.36, -0.66, 0.042, 0.045], [0.19, 0.05, -0.58, 0.055, 0.07]] },
       { s: 'loft', seg: 8, n: 14, col: 'wolf', col2: 'wolfLo', gradUv: true, st: [[-0.16, 0.98, -0.46, 0.11, 0.15], [-0.2, 0.62, -0.3, 0.075, 0.09], [-0.19, 0.36, -0.6, 0.042, 0.045], [-0.19, 0.05, -0.52, 0.055, 0.07]] },
       // 尾（下げた毛のふさ）
-      { s: 'loft', seg: 8, n: 12, col: 'wolfLo', col2: 'wolf', jitter: 0.04, jfreq: 8, joct: 3,
+      { s: 'loft', seg: 8, n: 12, col: 'wolfLo', col2: 'wolf', jitter: 0.04, jfreq: 8, joct: 3, anim: [1, 0.1, 0], animGrad: [0, 0.3],
         st: [[0, 1.0, -0.78, 0.06, 0.06], [0.03, 0.86, -1.04, 0.1, 0.1], [0.08, 0.62, -1.24, 0.095, 0.095], [0.1, 0.42, -1.34, 0.015, 0.015]] },
       // 逆立つ毛：首のまわりのたてがみ → 肩 → 背 → 腰
       { s: 'cyl', r: [0.09, 0.0], h: 0.42, seg: 4, at: [0, 1.22, 0.86], rot: [-8, 0, 0], col: 'wolf' },
