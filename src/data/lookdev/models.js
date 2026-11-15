@@ -148,6 +148,35 @@ export const models = {
     ],
   },
   // ---- 石段の1段 ----
+  // 薄い踏み石（V4）。前の縁が欠けて丸い
+  stepSlab: { parts: [
+    { s: 'box', size: [2.9, 0.34, 0.74], at: [0, -0.15, 0], col: 'pave', col2: 'paveHi', fx: [0.55, 0, 1, 0], jitter: 0.035, jfreq: 2.4, segs: [5, 1, 2] },
+    { s: 'box', size: [0.9, 0.3, 0.5], at: [-1.75, -0.2, 0.05], rot: [0, 8, 3], col: 'stoneDark', col2: 'stone', fx: [0.6, 0, 1, 0], jitter: 0.04, jfreq: 3, segs: [2, 1, 1] },
+    { s: 'box', size: [0.8, 0.28, 0.46], at: [1.72, -0.22, -0.04], rot: [0, -6, -4], col: 'stoneDark', col2: 'stone', fx: [0.6, 0, 1, 0], jitter: 0.04, jfreq: 3, segs: [2, 1, 1] },
+  ] },
+  // 石垣（V4）。不ぞろいな切り石を2段に積む。苔むす
+  ishigaki: { parts: [
+    { s: 'box', size: [0.78, 0.46, 0.5], at: [-0.72, 0.2, 0], rot: [0, 3, 0], col: 'stoneDark', col2: 'stone', fx: [0.6, 0, 1, 0], jitter: 0.04, jfreq: 3, segs: [2, 2, 1] },
+    { s: 'box', size: [0.62, 0.42, 0.52], at: [0.0, 0.18, 0.02], rot: [0, -4, 0], col: 'stone', col2: 'stoneHi', fx: [0.5, 0, 1, 0], jitter: 0.04, jfreq: 3, segs: [2, 2, 1] },
+    { s: 'box', size: [0.84, 0.5, 0.48], at: [0.76, 0.22, -0.02], rot: [0, 2, 2], col: 'stoneDark', col2: 'stone', fx: [0.6, 0, 1, 0], jitter: 0.04, jfreq: 3, segs: [2, 2, 1] },
+    { s: 'box', size: [0.7, 0.36, 0.46], at: [-0.4, 0.6, 0], rot: [0, -3, -2], col: 'stone', col2: 'stoneHi', fx: [0.75, 0, 1, 0], jitter: 0.04, jfreq: 3, segs: [2, 2, 1] },
+    { s: 'box', size: [0.66, 0.38, 0.5], at: [0.34, 0.62, 0.01], rot: [0, 5, 3], col: 'stoneDark', col2: 'stone', fx: [0.75, 0, 1, 0], jitter: 0.04, jfreq: 3, segs: [2, 2, 1] },
+  ] },
+  // 崩れた石垣（V4）。上の段が落ち、石が手前へ転がっている
+  ishigakiBroken: { parts: [
+    { s: 'box', size: [0.8, 0.44, 0.5], at: [-0.6, 0.18, 0], rot: [0, 4, -3], col: 'stoneDark', col2: 'stone', fx: [0.6, 0, 1, 0], jitter: 0.045, jfreq: 3, segs: [2, 2, 1] },
+    { s: 'box', size: [0.7, 0.4, 0.5], at: [0.2, 0.16, 0.03], rot: [0, -6, 4], col: 'stone', col2: 'stoneHi', fx: [0.55, 0, 1, 0], jitter: 0.045, jfreq: 3, segs: [2, 2, 1] },
+    { s: 'box', size: [0.6, 0.36, 0.44], at: [-0.5, 0.56, 0.04], rot: [6, 12, -9], col: 'stone', col2: 'stoneHi', fx: [0.7, 0, 1, 0], jitter: 0.045, jfreq: 3, segs: [2, 2, 1] },
+    { s: 'box', size: [0.56, 0.36, 0.42], at: [0.86, 0.1, 0.5], rot: [24, 40, 16], col: 'stoneDark', col2: 'stone', fx: [0.5, 0, 1, 0], jitter: 0.045, jfreq: 3, segs: [2, 2, 1] },
+    { s: 'box', size: [0.44, 0.3, 0.36], at: [0.3, 0.06, 0.78], rot: [-14, 70, 30], col: 'stone', col2: 'stoneHi', fx: [0.4, 0, 1, 0], jitter: 0.045, jfreq: 3, segs: [2, 2, 1] },
+  ] },
+  // 木の根（V4）。地面を這う太い根と細い根
+  roots: { parts: [
+    { s: 'tube', r: [0.13, 0.035], seg: 14, rseg: 6, col: 'bark', col2: 'barkHi', path: [[0, 0.12, 0], [0.5, 0.2, 0.25], [1.0, 0.05, 0.3], [1.6, 0.14, 0.7], [2.3, -0.05, 0.9]] },
+    { s: 'tube', r: [0.1, 0.03], seg: 12, rseg: 6, col: 'bark', col2: 'barkHi', path: [[0, 0.1, 0], [0.4, 0.16, -0.4], [0.9, 0.02, -0.7], [1.5, 0.1, -0.8], [1.9, -0.06, -1.2]] },
+    { s: 'tube', r: [0.07, 0.02], seg: 10, rseg: 5, col: 'bark', col2: 'barkHi', path: [[0.5, 0.2, 0.25], [0.8, 0.22, 0.05], [1.3, 0.04, -0.1], [1.8, -0.04, 0.2]] },
+    { s: 'tube', r: [0.15, 0.1], seg: 6, rseg: 6, col: 'bark', col2: 'barkHi', path: [[-0.5, -0.1, 0.1], [-0.2, 0.08, 0.02], [0, 0.12, 0]] },
+  ] },
   step: { parts: [{ s: 'box', size: [4.4, 0.5, 1.15], at: [0, -0.32, 0], col: 'pave', col2: 'paveHi', fx: [0.5, 0, 1, 0], jitter: 0.03, jfreq: 2, segs: [4, 1, 1] }] },
 
   // ---- 主人公（後ろ姿。萌葱の羽織・墨色の袴・白い鉢巻の尾・長巻） ----
