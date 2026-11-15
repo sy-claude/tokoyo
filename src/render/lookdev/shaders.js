@@ -65,280 +65,6 @@ vec3 applyFog(vec3 col, vec3 world) {
 }
 `;
 
-export const WASH_VERT = /* glsl */ `
-attribute vec4 aFx;
-attribute vec4 aAnim;
-uniform float uTime;
-uniform vec3 uWind;   // xz=向き×強さ(m) y=速さ
-uniform vec4 uWalk;   // x=歩きの位相 y=歩きの量(0..1) z=腰の高さ(m) w=脚の振り(rad)
-varying vec3 vWorld;
-varying vec3 vNormal;
-varying vec3 vColor;
-varying vec4 vFx;
-vec3 rotX(vec3 p, float a) { float c = cos(a), s = sin(a); return vec3(p.x, c * p.y - s * p.z, s * p.y + c * p.z); }
-void main() {
-  vec3 p = position;
-  vec3 n = normal;
-  float kind = aAnim.x;
-  // 2・3：脚（腰を軸に前後へ振る）。4：腕（肩を軸に少し振る。aAnim.z＝軸の高さ）
-  if (kind > 1.5 && kind < 4.5) {
-    float sgn = kind < 2.5 ? 1.0 : (kind < 3.5 ? -1.0 : 0.35);
-    float pivot = kind < 3.5 ? uWalk.z : aAnim.z;
-    float a = sin(uWalk.x) * uWalk.w * uWalk.y * sgn;
-    p = rotX(p - vec3(0.0, pivot, 0.0), a) + vec3(0.0, pivot, 0.0);
-    n = rotX(n, a);
-  }
-  // 体の上下（歩き）
-  if (kind > 1.5) p.y += abs(sin(uWalk.x)) * uWalk.y * 0.035;
-  vec4 w = modelMatrix * vec4(p, 1.0);
-  float ph = dot(w.xz, vec2(0.37, 0.29)) + aAnim.z;
-  // 1：風にしなる（草・枝先の葉）
-  if (kind > 0.5 && kind < 1.5) {
-    float s = sin(uTime * uWind.y + ph) * 0.6 + sin(uTime * uWind.y * 1.9 + ph * 1.7) * 0.4;
-    w.xz += uWind.xz * aAnim.y * (0.55 + 0.45 * s);
-    w.y -= aAnim.y * aAnim.y * length(uWind.xz) * 0.25 * (0.55 + 0.45 * s);
-  }
-  // 5：布・鉢巻の尾（はためく）
-  if (kind > 4.5 && kind < 5.5) {
-    float t = uTime * uWind.y * 2.6 - aAnim.y * 5.0 + aAnim.z;
-    w.y += sin(t) * aAnim.y * 0.10;
-    w.xz += normalize(uWind.xz + 1e-5) * (sin(t * 0.7 + 1.3) * 0.08 + 0.05) * aAnim.y;
-  }
-  vWorld = w.xyz;
-  vNormal = normalize(mat3(modelMatrix) * n);
-  vColor = color;
-  vFx = aFx;
-  gl_Position = projectionMatrix * viewMatrix * w;
-}`;
-
-export const WASH_FRAG = /* glsl */ `
-${OUT_GLSL}
-${NOISE_GLSL}
-${FOG_GLSL}
-uniform float uTime;
-uniform vec3 uLightCol;
-uniform vec3 uShadeCol;
-uniform vec3 uRimCol;
-uniform vec3 uMossCol;
-uniform vec3 uPeelCol;
-uniform vec3 uCrackCol;
-uniform vec3 uReflWarm;
-uniform vec3 uReflCool;
-uniform vec3 uGlowCol;
-uniform vec4 uLook;   // x=色むら y=縁の光 z=濡れ w=石畳の升(1/m)
-uniform vec4 uPlayer; // xyz=主人公の足元 w=影の濃さ
-#ifdef TERRAIN
-uniform vec3 uPath[PATH_N];    // 参道の中心線（x, z, 半幅）
-uniform vec3 uFis[FIS_N];      // 地面の裂け目（x, z, 幅）
-uniform vec4 uCaster[CAST_N];  // 置き影（x, z, 半径, 長さ）
-uniform vec3 uPaveCol;
-#endif
-varying vec3 vWorld;
-varying vec3 vNormal;
-varying vec3 vColor;
-varying vec4 vFx;
-
-float segDist(vec2 p, vec2 a, vec2 b, out float t) {
-  vec2 pa = p - a, ba = b - a;
-  t = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0);
-  return length(pa - ba * t);
-}
-// 影の楕円（夕日の反対側へ長く伸びる）
-float blobShadow(vec2 p, vec2 c, float r, float len, vec2 dir) {
-  vec2 rel = p - c;
-  float al = dot(rel, dir);
-  float ac = dot(rel, vec2(-dir.y, dir.x));
-  float k = clamp(al / len, 0.0, 1.0);
-  float d = length(vec2(al - clamp(al, 0.0, len), ac)) / (r * (1.0 + k * 0.6));
-  return smoothstep(1.0, 0.35, d) * (1.0 - k * 0.75);
-}
-
-void main() {
-  vec3 N = normalize(vNormal);
-  if (!gl_FrontFacing) N = -N;
-  vec3 V = normalize(cameraPosition - vWorld);
-  vec3 base = vColor;
-  float n1 = fbm3(vWorld * 0.55);
-  float n2 = fbm3(vWorld * 2.3 + 7.0);
-  float pave = vFx.z;
-  float glow = vFx.w;
-  float wetK = 0.0;
-
-#ifdef TERRAIN
-  // --- 石畳：ボロノイの1升＝敷石1枚。升の中心が参道の幅に入っていれば石 ---
-  vec2 gp = vWorld.xz * uLook.w;
-  vec2 gi = floor(gp), gf = fract(gp);
-  float d1 = 9.0, d2 = 9.0; vec2 cell = vec2(0.0); vec2 cpos = vec2(0.0);
-  for (int j = -1; j <= 1; j++) for (int i = -1; i <= 1; i++) {
-    vec2 o = vec2(float(i), float(j));
-    vec2 r = o + 0.06 + 0.88 * hash22(gi + o) - gf;
-    float d = max(abs(r.x), abs(r.y)) * 0.6 + length(r) * 0.4;
-    if (d < d1) { d2 = d1; d1 = d; cell = gi + o; cpos = (gi + o + 0.06 + 0.88 * hash22(gi + o)) / uLook.w; }
-    else if (d < d2) d2 = d;
-  }
-  float dPath = 99.0; float tt;
-  for (int i = 0; i < PATH_N - 1; i++) {
-    float d = segDist(cpos, uPath[i].xy, uPath[i + 1].xy, tt) - mix(uPath[i].z, uPath[i + 1].z, tt);
-    dPath = min(dPath, d);
-  }
-  float stone = step(dPath + (hash12(cell) - 0.5) * 0.9, 0.0) * step(0.55, N.y);
-  float edge = d2 - d1;
-  float ch = hash12(cell + 3.7);
-  vec3 stoneCol = uPaveCol * (0.82 + 0.36 * ch);
-  stoneCol = mix(stoneCol, stoneCol * vec3(1.10, 0.97, 0.86), smoothstep(0.55, 0.9, hash12(cell + 9.1)));
-  stoneCol = mix(stoneCol, stoneCol * vec3(0.86, 0.84, 1.08), smoothstep(0.6, 0.95, hash12(cell + 5.3)));
-  // 目地（割れ目）：暗い線。石の内側にも細いひび
-  float joint = smoothstep(0.075, 0.02, edge);
-  float hair = smoothstep(0.035, 0.0, abs(vnoise2(vWorld.xz * 1.7 + ch * 9.0) - 0.5)) * step(0.5, ch) * 0.6;
-  stoneCol = mix(stoneCol, uCrackCol, max(joint, hair) * 0.8);
-  // 目地の草・苔
-  stoneCol = mix(stoneCol, uMossCol, joint * smoothstep(0.45, 0.7, n2) * 0.7);
-  base = mix(base, stoneCol, stone);
-  pave = stone;
-  wetK = stone * (1.0 - joint);
-  // --- 地面の裂け目（紫の靄が漏れる） ---
-  float dF = 99.0;
-  for (int i = 0; i < FIS_N - 1; i++) {
-    float w = mix(uFis[i].z, uFis[i + 1].z, 0.5);
-    float d = segDist(vWorld.xz + (vec2(vnoise2(vWorld.xz * 2.1), vnoise2(vWorld.xz * 2.1 + 31.0)) - 0.5) * 0.5, uFis[i].xy, uFis[i + 1].xy, tt) - w;
-    dF = min(dF, d);
-  }
-  float fisCore = smoothstep(0.05, -0.05, dF);
-  float fisGlow = exp(-max(dF, 0.0) * 2.6) * (0.75 + 0.25 * sin(uTime * 1.3 + vWorld.x * 2.0));
-  base = mix(base, uCrackCol * 0.55, fisCore);
-  wetK *= 1.0 - fisCore;
-  // --- 置き影 ---
-  vec2 sdir = -normalize(uSunDir.xz);
-  float sh = blobShadow(vWorld.xz, uPlayer.xz, 0.4, 4.6, sdir) * step(abs(vWorld.y - uPlayer.y), 0.6);
-  for (int i = 0; i < CAST_N; i++) sh = max(sh, blobShadow(vWorld.xz, uCaster[i].xy, uCaster[i].z, uCaster[i].w, sdir) * 0.8);
-  sh *= uPlayer.w * step(0.4, N.y);
-#else
-  float fisGlow = 0.0;
-  float sh = 0.0;
-  if (pave > 0.5) wetK = 0.5;
-#endif
-
-  // --- 塗りのはげ（鳥居）：朱の下から白っぽい木地、縦に流れる汚れ ---
-  if (vFx.y > 0.01) {
-    float pn = fbm3(vWorld * vec3(2.2, 1.1, 2.2) + 3.0);
-    float peel = smoothstep(0.05, -0.05, pn - vFx.y * 0.62);
-    float fine = step(0.62, vnoise3(vWorld * vec3(9.0, 4.0, 9.0))) * vFx.y * 0.5;
-    base = mix(base, uPeelCol * (0.85 + 0.3 * n2), max(peel, fine * step(pn - vFx.y * 0.62, 0.12)));
-    float streak = fbm3(vec3(vWorld.x * 5.0, vWorld.y * 0.6, vWorld.z * 5.0));
-    base *= 1.0 - smoothstep(0.5, 0.8, streak) * 0.28 * vFx.y;
-  }
-  // --- 苔：上を向いた面とくぼみに ---
-  if (vFx.x > 0.01) {
-    float m = smoothstep(0.42, 0.62, n2 * 0.75 + N.y * 0.3 + (vFx.x - 0.5) * 0.5);
-    vec3 mc = mix(uMossCol, uMossCol * vec3(1.12, 1.08, 0.8), smoothstep(0.4, 0.7, n1));
-    base = mix(base, mc, m * min(0.8, vFx.x * 1.6));
-  }
-
-  // --- 水彩の色むら：大きなにじみ＋細かな顔料の粒。暗い所は紫へ、明るい所は暖色へ寄る ---
-  float n3 = vnoise3(vWorld * 6.5 + 3.0);
-  float mott = (n1 - 0.5) * 1.0 + (n2 - 0.5) * 0.55 + (n3 - 0.5) * 0.3;
-  base *= 1.0 + mott * uLook.x;
-  base = mix(base, base * vec3(0.90, 0.86, 1.10), smoothstep(0.52, 0.8, n1) * uLook.x);
-  base = mix(base, base * vec3(1.10, 1.02, 0.86), smoothstep(0.48, 0.2, n1) * uLook.x);
-
-  // 筆のむら：面の向きを少し乱して、陰影が筆触のように割れる
-  N = normalize(N + (vec3(n2, n3, vnoise3(vWorld * 2.9 + 40.0)) - 0.5) * 0.55);
-  // --- 淡い陰影：夕日側は暖かく、陰は藍紫 ---
-  float ndl = dot(N, normalize(uSunDir + vec3(0.0, 0.38, 0.0)));
-  float wrap = smoothstep(-0.55, 0.75, ndl);
-  float up = N.y * 0.5 + 0.5;
-  vec3 col = base * mix(uShadeCol, uLightCol, wrap) * mix(0.86, 1.06, up);
-  col = mix(col, col * uShadeCol * 0.72, sh);
-
-  // --- 濡れた石：空の色を映す（夕日の方角は橙、反対は青紫）＋夕日の照り返し ---
-  if (wetK > 0.0) {
-    vec3 R = reflect(-V, normalize(N + vec3(n2 - 0.5, 0.0, n1 - 0.5) * 0.35));
-    float fres = pow(1.0 - max(dot(N, V), 0.0), 2.5);
-    float toSun = pow(max(dot(normalize(R.xz + 1e-5), normalize(uSunDir.xz)), 0.0), 2.0);
-    float puddle = smoothstep(0.5, 0.66, fbm2(vWorld.xz * 0.45 + 11.0));
-    vec3 refl = mix(uReflCool, uReflWarm, toSun);
-    col = mix(col, refl, wetK * uLook.z * puddle * (0.12 + 0.88 * fres) * 0.75);
-    float glint = pow(max(dot(R, normalize(uSunDir)), 0.0), 18.0) * puddle;
-    col += uReflWarm * glint * wetK * uLook.z * 0.9;
-  }
-
-  // --- 縁の光（逆光の輪郭が橙に光る） ---
-  float rim = pow(1.0 - abs(dot(N, V)), 3.0) * smoothstep(-0.2, 0.6, dot(-V, normalize(uSunDir)));
-  col += uRimCol * rim * uLook.y * smoothstep(-0.3, 0.4, ndl + 0.3);
-
-  // --- 発光（目・灯・裂け目） ---
-  col = mix(col, vColor * 1.35, glow);
-  col += uGlowCol * fisGlow * 0.3;
-
-  col = applyFog(col, vWorld);
-  gl_FragColor = vec4(col, 1.0);
-  gl_FragColor.rgb = toDisplay(gl_FragColor.rgb);
-}`;
-
-export const SKY_VERT = /* glsl */ `
-varying vec3 vDir;
-void main() {
-  vDir = position;
-  vec4 p = projectionMatrix * viewMatrix * vec4(position + cameraPosition, 1.0);
-  gl_Position = p.xyww;
-}`;
-
-export const SKY_FRAG = /* glsl */ `
-${OUT_GLSL}
-${NOISE_GLSL}
-uniform float uTime;
-uniform vec3 uSunDir;
-uniform vec3 uSkyTop;
-uniform vec3 uSkyMid;
-uniform vec3 uSkyLow;
-uniform vec3 uSkyHorizonSun;
-uniform vec3 uSkyHorizonFar;
-uniform vec3 uCloudDark;
-uniform vec3 uCloudLit;
-uniform vec3 uCloudEdge;
-uniform vec3 uSunCol;
-uniform vec3 uSunCore;
-uniform vec4 uSky; // x=夕日の半径(rad) y=雲の量 z=雲の流れる速さ w=にじみ
-varying vec3 vDir;
-void main() {
-  vec3 d = normalize(vDir);
-  vec3 s = normalize(uSunDir);
-  float e = d.y;
-  float az = dot(normalize(d.xz + 1e-5), normalize(s.xz)); // 夕日の方角=1
-  float sunSide = smoothstep(-0.2, 1.0, az);
-  float wob = (fbm2(d.xz * 3.0 / (abs(e) + 0.4)) - 0.5) * uSky.w;
-  float h = clamp(e + wob * 0.12, -0.2, 1.0);
-  // 地平から天頂へ：淡い黄桃 → 橙桃 → 藤 → 青鼠
-  vec3 horizon = mix(uSkyHorizonFar, uSkyHorizonSun, sunSide);
-  vec3 col = mix(horizon, uSkyLow, smoothstep(0.0, 0.14 + 0.08 * sunSide, h));
-  col = mix(col, uSkyMid, smoothstep(0.08 + 0.06 * sunSide, 0.34, h));
-  col = mix(col, uSkyTop, smoothstep(0.26, 0.7, h));
-  // 雲：横に流れる筋。下の面は夕日に染まり、上は暗い藤鼠
-  vec2 cp = d.xz / (max(e, 0.0) + 0.22);
-  vec2 st = vec2(dot(cp, vec2(s.z, -s.x)), dot(cp, s.xz));
-  float t = uTime * uSky.z;
-  float c1 = fbm2(vec2(st.x * 0.55 + t, st.y * 1.9) + 4.0);
-  float c2 = fbm2(vec2(st.x * 1.3 - t * 0.6, st.y * 4.2) + 19.0);
-  // 高い雲：青鼠の厚い雲が上を覆う
-  float topD = smoothstep(0.62 - uSky.y * 0.25, 0.8 - uSky.y * 0.25, c1 * 0.75 + c2 * 0.25) * smoothstep(0.1, 0.45, h);
-  col = mix(col, mix(uCloudDark, uSkyMid, 0.25 + 0.3 * c2), topD * 0.85);
-  // 低い雲：横に長い筋。夕日に染まった橙の腹と明るい縁
-  float lowD = smoothstep(0.52, 0.7, c2 * 0.62 + c1 * 0.42) * smoothstep(-0.01, 0.04, e) * smoothstep(0.42, 0.12, h);
-  float lit = 0.4 + 0.6 * sunSide;
-  vec3 cc = mix(uCloudDark, uCloudLit, lit * smoothstep(0.3, 0.05, h) + 0.25);
-  float edgeBand = smoothstep(0.0, 0.5, lowD) * (1.0 - smoothstep(0.5, 1.0, lowD));
-  cc = mix(cc, uCloudEdge, edgeBand * lit * 0.8);
-  col = mix(col, cc, lowD * 0.8);
-  // 夕日：朱の円盤と、にじんだ光の輪
-  float ang = acos(clamp(dot(d, s), -1.0, 1.0));
-  float disc = smoothstep(uSky.x * 1.06, uSky.x * 0.94, ang + wob * 0.004);
-  float halo = exp(-ang * 5.5);
-  col += uSunCol * halo * 0.42;
-  col = mix(col, mix(uSunCol, uSunCore, smoothstep(uSky.x, 0.0, ang) * 0.6), disc);
-  gl_FragColor = vec4(col, 1.0);
-  gl_FragColor.rgb = toDisplay(gl_FragColor.rgb);
-}`;
-
 export const SEA_VERT = /* glsl */ `
 varying vec3 vWorld;
 void main() {
@@ -378,7 +104,7 @@ void main() {
   float lane = pow(toSun, uSea.w) * smoothstep(6.0, 60.0, dist);
   float spark = smoothstep(0.52, 0.7, rip * 0.6 + band * 0.5 + lane * 0.25);
   col = mix(col, uGlitterCol, lane * spark * uSea.y);
-  col += uGlitterCol * pow(toSun, uSea.w * 0.25) * 0.10 * uSea.y;
+  col += uGlitterCol * pow(toSun, uSea.w * 0.5) * 0.05 * uSea.y;
   // 岸の泡：地形の高さの図から水深を出し、浅い所に寄せては返す白波
   vec2 huv = (wp - uHeightRect.xy) * uHeightRect.zw;
   float inside = step(0.0, huv.x) * step(huv.x, 1.0) * step(0.0, huv.y) * step(huv.y, 1.0);
@@ -391,7 +117,7 @@ void main() {
   // 沖の白波（まばら）
   foam = max(foam, smoothstep(0.80, 0.86, band * 0.55 + rip * 0.5) * smoothstep(90.0, 10.0, dist) * 0.7);
   col = mix(col, uFoamCol, foam * uSea.z);
-  col = applyFog(col, cameraPosition + (vWorld - cameraPosition) * 0.45);
+  col = applyFog(col, cameraPosition + (vWorld - cameraPosition) * 0.3);
   gl_FragColor = vec4(col, 1.0);
   gl_FragColor.rgb = toDisplay(gl_FragColor.rgb);
 }`;
@@ -427,12 +153,15 @@ varying vec2 vUv;
 varying float vAlpha;
 varying float vRnd;
 void main() {
+  // 煙の筋：上へ流れながらよじれる
   float d = length(vUv);
-  float n = fbm2(vUv * 1.6 + vRnd * 50.0 + vec2(0.0, -uTime * 0.12));
-  float a = smoothstep(1.0, 0.1, d + (n - 0.5) * 0.9) * vAlpha;
-  vec3 col = mix(uMistCol, uMistCore, smoothstep(0.5, 0.9, n) * 0.6);
-  gl_FragColor = vec4(col, a);
-  gl_FragColor.rgb = toDisplay(gl_FragColor.rgb);
+  vec2 p = vUv * vec2(1.7, 1.0) + vRnd * 50.0;
+  p.x += sin(vUv.y * 2.6 + uTime * 0.5 + vRnd * 9.0) * 0.35;
+  float n = fbm2(p + vec2(0.0, -uTime * 0.16));
+  float wisp = smoothstep(0.42, 0.7, n);
+  float a = wisp * smoothstep(1.0, 0.25, d) * vAlpha;
+  vec3 col = mix(uMistCore, uMistCol, smoothstep(0.5, 0.85, n));
+  gl_FragColor = vec4(toDisplay(col), a);
 }`;
 
 export const LEAF_VERT = /* glsl */ `
@@ -554,7 +283,7 @@ void main() {
   vec3 s3 = texture2D(tColor, uv + o2).rgb;
   vec3 s4 = texture2D(tColor, uv - o2).rgb;
   vec3 avg = (s1 + s2 + s3 + s4) * 0.25;
-  vec3 col = mix(c0, avg, 0.55);
+  vec3 col = mix(c0, avg, 0.3);
   // 3) 顔料のたまり：色の境目が少し濃くなる（水彩の「縁取り」）
   float grad = length(vec2(luma(s1) - luma(s2), luma(s3) - luma(s4)));
   col *= 1.0 - smoothstep(0.02, 0.22, grad) * uWash.z;

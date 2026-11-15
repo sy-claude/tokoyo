@@ -101,7 +101,7 @@ export function createTerrain(T, path) {
           const wetK = smoothstep(T.wetM[0], T.wetM[1], y);
           c.lerp(col('rockWet'), wetK);
           C.push(c.r, c.g, c.b);
-          F.push(rockK * T.rockMoss + (1 - rockK) * T.grassMoss * (1 - wetK), 0, 0, 0);
+          F.push(rockK * T.rockMoss + (1 - rockK) * T.grassMoss * (1 - wetK), 0, rockK, 0);
           A.push(0, 0, 0, 0);
         }
       }

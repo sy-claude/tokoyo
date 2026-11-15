@@ -1,10 +1,12 @@
 // 見た目の試作（V1。?scene=lookdev）の描画。参考画像（水彩画）に近い場面を、すべてコードの形と色で作る。
 // シムの状態（主人公の位置と向き・カメラ）を読んで補間して描くだけ（シムを import しない）。
-// 描画命令：地形・小道具・草木・主人公・妖怪3・空・海・靄・舞う葉＝11、後処理は「中」+1、「高」+5。
+// V2：面の質感は起動時に焼いたテクスチャ、空も焼いた絵、影は影の図（「低」は楕円の置き影）。
+// 描画命令：場面11＋影の図6（高・中）＋後処理（中1・高5）。
 /** @import {Cfg} from '../../config/index.js' */
 import {
-  BackSide, Color, DataTexture, DoubleSide, Group, InstancedBufferAttribute, InstancedBufferGeometry, LinearFilter,
-  Matrix4, Mesh, PlaneGeometry, RedFormat, Scene, ShaderMaterial, SphereGeometry, UnsignedByteType, Vector3, Vector4,
+  BackSide, Color, DataTexture, DepthTexture, DoubleSide, Group, InstancedBufferAttribute, InstancedBufferGeometry, LinearFilter,
+  Matrix4, Mesh, NearestFilter, OrthographicCamera, PlaneGeometry, RedFormat, Scene, ShaderMaterial, SphereGeometry,
+  UnsignedByteType, UnsignedIntType, Vector3, Vector4, WebGLRenderTarget,
 } from 'three';
 import { DEG2RAD, lerp, lerpDeg } from '../../core/math.js';
 import { createRng, presentationSeed } from '../../core/rng.js';
@@ -13,9 +15,12 @@ import { models } from '../../data/lookdev/models.js';
 import { createCameraView } from '../cameraView.js';
 import { createBuilder } from './build.js';
 import { HALF, N3, N4, TAU } from './consts.js';
-import { addBareTrees, addDaisies, addGrass, addIslands, addMaple, addMapleBranches, addSenbon, addWires, placeAll } from './flora.js';
+import { addBareTrees, addDaisies, addGrass, addFallenLeaves, addIslands, addMaple, addMapleBranches, addScatter, addSenbon, addWires, placeAll } from './flora.js';
 import { createPost } from './post.js';
-import { LEAF_FRAG, LEAF_VERT, MIST_FRAG, MIST_VERT, SEA_FRAG, SEA_VERT, SKY_FRAG, SKY_VERT, WASH_FRAG, WASH_VERT } from './shaders.js';
+import { bakeDetail, bakeSky } from './bake.js';
+import { LEAF_FRAG, LEAF_VERT, MIST_FRAG, MIST_VERT, SEA_FRAG, SEA_VERT } from './shaders.js';
+import { SKY_FRAG, SKY_VERT } from './shadersBake.js';
+import { SHADOW_FRAG, WASH_FRAG, WASH_VERT } from './shadersWash.js';
 import { createTerrain } from './terrain.js';
 
 const col = (hex, gain = 1) => new Color(hex).multiplyScalar(gain);
@@ -27,7 +32,7 @@ const col = (hex, gain = 1) => new Color(hex).multiplyScalar(gain);
 export function createLookdevView(renderer, cfg) {
   const scene = new Scene();
   const cameraView = createCameraView(cfg);
-  const lib = { models, palette: S.palette };
+  const lib = { models, palette: S.palette, aoGain: S.aoGain };
   const terrain = createTerrain(S.terrain, S.path);
   const post = createPost(cfg, S);
   const sun = new Vector3(S.sunDir[0], S.sunDir[1], S.sunDir[2]).normalize();
@@ -42,6 +47,16 @@ export function createLookdevView(renderer, cfg) {
   let builtQuality = '';
   /** @type {any} */
   let builtWorld = null;
+  /** 焼いた質感テクスチャ（大きさごとに1度だけ焼く） @type {Map<number, ReturnType<typeof bakeDetail>>} */
+  const detailCache = new Map();
+  /** 影を落とす物（影の図を描くときだけ材質を差し替える） @type {{mesh:any, mat:any, shadowMat:any}[]} */
+  let casters = [];
+  /** 影を落とさない物（影の図を描く間は隠す） @type {any[]} */
+  let nonCasters = [];
+  const shadowCam = new OrthographicCamera(-1, 1, 1, -1, 0, 1);
+  /** @type {any} */
+  let shadowRT = null;
+  const shadowBias = new Matrix4().makeTranslation(HALF, HALF, HALF).multiply(new Matrix4().makeScale(HALF, HALF, HALF));
 
   // ---- 全材質で共有する値（毎フレーム cfg から更新） ----
   const U = {
@@ -62,19 +77,39 @@ export function createLookdevView(renderer, cfg) {
     uGlowCol: { value: col(S.light.glowCol) },
     uLook: { value: new Vector4() },
     uPlayer: { value: new Vector4() },
+    uTexA: { value: null },
+    uTexB: { value: null },
+    uTexScale: { value: new Vector4() },
+    uShadowMap: { value: null },
+    uShadowMat: { value: new Matrix4() },
+    uShadowOffset: { value: 0 },
+    uShadow: { value: new Vector4() },
   };
   const still = { value: new Vector4() }; // 動かない物の uWalk
   const heroWalk = { value: new Vector4() };
 
-  function washMaterial(octaves, extraDefines, extraUniforms, walk) {
+  function washMaterial(defines, extraUniforms, walk) {
     const m = new ShaderMaterial({
       vertexShader: WASH_VERT,
       fragmentShader: WASH_FRAG,
-      defines: { OCT: octaves, ...extraDefines },
+      defines,
       uniforms: { ...U, uWalk: walk, ...extraUniforms },
       vertexColors: true,
       side: DoubleSide,
     });
+    disposables.push(m);
+    return m;
+  }
+  /** 影の図を描くときの材質（頂点の動きは同じ、色は書かない）。 */
+  function shadowMaterial(walk) {
+    const m = new ShaderMaterial({
+      vertexShader: WASH_VERT,
+      fragmentShader: SHADOW_FRAG,
+      uniforms: { uTime: U.uTime, uWind: U.uWind, uWalk: walk, uShadowMat: U.uShadowMat, uShadowOffset: U.uShadowOffset },
+      vertexColors: true,
+      side: DoubleSide,
+    });
+    m.colorWrite = false;
     disposables.push(m);
     return m;
   }
@@ -109,6 +144,9 @@ export function createLookdevView(renderer, cfg) {
     if (sky) scene.remove(sky);
     for (const d of disposables) d.dispose();
     disposables = [];
+    casters = [];
+    nonCasters = [];
+    shadowRT = null;
     root = null;
     hero = null;
     sky = null;
@@ -126,73 +164,115 @@ export function createLookdevView(renderer, cfg) {
     root.position.set(o[0], o[1], o[2]);
     scene.add(root);
 
-    // 地形（石畳・裂け目・置き影はシェーダが描く。座標はワールドへ直して渡す）
+    // 質感テクスチャ（焼くのは大きさごとに1度）
+    let detail = detailCache.get(L.bakePx[q]);
+    if (!detail) {
+      detail = bakeDetail(renderer.three, L.bakePx[q]);
+      detailCache.set(L.bakePx[q], detail);
+    }
+    U.uTexA.value = detail.texA;
+    U.uTexB.value = detail.texB;
+
+    // 影の図
+    const useShadow = L.shadowOn[q];
+    /** @type {Record<string, number>} */
+    const baseDefines = { OCT: oct };
+    if (L.triFull[q]) baseDefines.TRI_FULL = 1;
+    if (useShadow) {
+      baseDefines.SHADOWS = 1;
+      const px = L.shadowMapPx[q];
+      const depth = new DepthTexture(px, px);
+      depth.type = UnsignedIntType;
+      depth.minFilter = NearestFilter;
+      depth.magFilter = NearestFilter;
+      shadowRT = new WebGLRenderTarget(px, px, { depthBuffer: true, depthTexture: depth });
+      U.uShadowMap.value = depth;
+      disposables.push(shadowRT, depth);
+    }
+    const stillShadow = shadowMaterial(still);
+    const addCaster = (mesh, shadowMat = stillShadow) => casters.push({ mesh, mat: mesh.material, shadowMat });
+
+    // 地形（石畳・裂け目はシェーダが描く。座標はワールドへ直して渡す）
     const toWorld3 = (p) => new Vector3(p[0] + o[0], p[1] + o[2], p[2]);
     const tb = createBuilder(lib);
     terrain.addTo(tb);
-    const terrainMat = washMaterial(oct, { TERRAIN: 1, PATH_N: S.path.length, FIS_N: S.fissure.length, CAST_N: S.casters.length }, {
+    const terrainMat = washMaterial({ ...baseDefines, TERRAIN: 1, PATH_N: S.path.length, FIS_N: S.fissure.length, CAST_N: S.casters.length }, {
       uPath: { value: S.path.map(toWorld3) },
       uFis: { value: S.fissure.map(toWorld3) },
       uCaster: { value: S.casters.map((c) => new Vector4(c[0] + o[0], c[1] + o[2], c[2], c[N3])) },
       uPaveCol: { value: col(S.palette.pave) },
     }, still);
-    root.add(meshOf(tb, terrainMat));
+    const terrainMesh = meshOf(tb, terrainMat);
+    root.add(terrainMesh);
+    nonCasters.push(terrainMesh);
 
     // 小道具・木の枝・千本鳥居・島（動かない物を1つにまとめる）
-    const washMat = washMaterial(oct, {}, {}, still);
+    const washMat = washMaterial(baseDefines, {}, still);
     const sb = createBuilder(lib);
     placeAll(sb, S.placements, terrain);
+    addScatter(sb, S, terrain, rng.fork('scatter'));
     addSenbon(sb, S, terrain);
     addIslands(sb, S);
     addBareTrees(sb, S, terrain, rng.fork('trees'));
     addWires(sb, S);
     addMapleBranches(sb, S);
-    root.add(meshOf(sb, washMat));
+    const staticMesh = meshOf(sb, washMat);
+    root.add(staticMesh);
+    addCaster(staticMesh);
 
-    // 草・野菊・紅葉（風で動く）
+    // 草・野菊・紅葉・落ち葉（風で動く）
     const fb = createBuilder(lib);
     addGrass(fb, S, terrain, rng.fork('grass'), mul);
     addDaisies(fb, S, terrain, rng.fork('daisy'), mul);
+    addFallenLeaves(fb, S, terrain, rng.fork('fallen'), mul);
     addMaple(fb, S, rng.fork('maple'), mul);
     // 草や葉は奥行きを書かない：後処理の輪郭線が細い葉の1枚ずつに付いて黒ずむのを防ぐ（ほかの不透明な物の後に描く）
-    const floraMat = washMaterial(oct, {}, {}, still);
+    const floraMat = washMaterial(baseDefines, {}, still);
     floraMat.depthWrite = false;
     const flora = meshOf(fb, floraMat);
     flora.renderOrder = 1;
     root.add(flora);
+    addCaster(flora);
 
     // 妖怪（1体＝1メッシュ。動かない）
     for (const y of S.yokai) {
       const yb = createBuilder(lib);
       placeAll(yb, [y], terrain);
-      root.add(meshOf(yb, washMat));
+      const ym = meshOf(yb, washMat);
+      root.add(ym);
+      addCaster(ym);
     }
 
     // 主人公（1メッシュ＋1素材。歩きと布の動きは頂点シェーダ）
     const hb = createBuilder(lib);
     hb.addAll(models.hero.parts, new Matrix4(), {});
-    hero = meshOf(hb, washMaterial(oct, {}, {}, heroWalk));
+    hero = meshOf(hb, washMaterial(baseDefines, {}, heroWalk));
     scene.add(hero);
+    addCaster(hero, shadowMaterial(heroWalk));
 
-    // 空（カメラを中心にした球の内側）
+    // 空（焼いた絵を、カメラを中心にした球の内側に貼る）
+    const skyBake = bakeSky(renderer.three, {
+      uSunDir: { value: sun },
+      uSkyTop: { value: col(S.sky.top) },
+      uSkyMid: { value: col(S.sky.mid) },
+      uSkyLow: { value: col(S.sky.low) },
+      uSkyHorizonSun: { value: col(S.sky.horizonSun) },
+      uSkyHorizonFar: { value: col(S.sky.horizonFar) },
+      uCloudDark: { value: col(S.sky.cloudDark) },
+      uCloudLit: { value: col(S.sky.cloudLit) },
+      uCloudEdge: { value: col(S.sky.cloudEdge) },
+      uSunCol: { value: col(S.sky.sun) },
+      uSky: { value: new Vector4(0, L.cloudRatio, 0, L.skyBleedRatio) },
+    }, L.skyPx[q], L.skyOctaveCount);
     const skyGeo = new SphereGeometry(S.sky.radiusM, N4 * N4, N4 * N3);
     const skyMat = new ShaderMaterial({
       vertexShader: SKY_VERT,
       fragmentShader: SKY_FRAG,
-      defines: { OCT: Math.max(2, oct) },
       uniforms: {
-        uTime: U.uTime,
+        uSkyTex: { value: skyBake.tex },
         uSunDir: U.uSunDir,
-        uSkyTop: { value: col(S.sky.top) },
-        uSkyMid: { value: col(S.sky.mid) },
-        uSkyLow: { value: col(S.sky.low) },
-        uSkyHorizonSun: { value: col(S.sky.horizonSun) },
-        uSkyHorizonFar: { value: col(S.sky.horizonFar) },
-        uCloudDark: { value: col(S.sky.cloudDark) },
-        uCloudLit: { value: col(S.sky.cloudLit) },
-        uCloudEdge: { value: col(S.sky.cloudEdge) },
-        uSunCol: { value: col(S.sky.sun) },
-        uSunCore: { value: col(S.sky.sunCore) },
+        uSunCol: { value: col(S.sky.sun).convertLinearToSRGB() },
+        uSunCore: { value: col(S.sky.sunCore).convertLinearToSRGB() },
         uSky: { value: new Vector4() },
       },
       side: BackSide,
@@ -202,7 +282,8 @@ export function createLookdevView(renderer, cfg) {
     sky.frustumCulled = false;
     sky.renderOrder = -1;
     scene.add(sky);
-    disposables.push(skyGeo, skyMat);
+    nonCasters.push(sky);
+    disposables.push(skyGeo, skyMat, skyBake);
 
     // 海（岸の泡は地形の高さの図から）
     const hm = terrain.heightMap();
@@ -222,6 +303,7 @@ export function createLookdevView(renderer, cfg) {
         uFogWarm: U.uFogWarm,
         uFogCool: U.uFogCool,
         uFog: U.uFog,
+        uTexA: U.uTexA,
         uHeightMap: { value: hmTex },
         uHeightRect: { value: new Vector4(hm.rect[0] + o[0], hm.rect[1] + o[2], 1 / (hm.rect[2] - hm.rect[0]), 1 / (hm.rect[N3] - hm.rect[1])) },
         uHeightRange: { value: S.terrain.heightRange },
@@ -237,6 +319,7 @@ export function createLookdevView(renderer, cfg) {
     sea.position.y = world.stage.seaLevelM - o[1];
     sea.frustumCulled = false;
     root.add(sea);
+    nonCasters.push(sea);
     disposables.push(hmTex, seaGeo, seaMat);
 
     // 紫の靄（裂け目と石段から立ちのぼる）
@@ -267,6 +350,7 @@ export function createLookdevView(renderer, cfg) {
     mist.frustumCulled = false;
     mist.renderOrder = 2;
     root.add(mist);
+    nonCasters.push(mist);
     disposables.push(mistMat);
 
     // 舞う紅葉
@@ -302,10 +386,11 @@ export function createLookdevView(renderer, cfg) {
     leaves.position.set(box.center[0], box.center[1], box.center[2]);
     leaves.frustumCulled = false;
     root.add(leaves);
+    nonCasters.push(leaves);
     disposables.push(leafMat);
 
     // 毎フレーム cfg から書き換える uniform の置き場
-    root.userData = { skyMat, seaMat, mistMat, leafMat };
+    root.userData = { skyMat, seaMat, mistMat, leafMat, origin: o };
     builtQuality = q;
     builtWorld = world;
   }
@@ -319,10 +404,48 @@ export function createLookdevView(renderer, cfg) {
     // 風は海（左）から山（右）へ：鉢巻の尾と草が画面の右→左へ流れて見えるよう、向きは +X
     U.uWind.value.set(L.windM, L.windHz, L.windM * HALF * HALF);
     U.uLook.value.set(L.mottleRatio, L.rimRatio, L.wetRatio, 1 / L.paveCellM);
-    m.skyMat.uniforms.uSky.value.set(L.sunRadiusDeg * DEG2RAD, L.cloudRatio, L.cloudSpeedRatio, L.skyBleedRatio);
+    U.uTexScale.value.set(1 / L.texLargeTileM, 1 / L.texFineTileM, 1 / L.texBTileM, L.grainRatio);
+    m.skyMat.uniforms.uSky.value.set(L.sunRadiusDeg * DEG2RAD, 0, 0, 0);
     m.seaMat.uniforms.uSea.value.set(L.seaSpeedRatio, L.seaGlitterRatio, L.seaFoamRatio, L.seaLaneRatio);
     m.mistMat.uniforms.uMist.value.set(L.mistSizeM, L.mistRiseRatio, L.mistAlphaRatio, L.mistRiseM);
     m.leafMat.uniforms.uLeaf.value.set(L.leafSizeM, L.leafFallMps, L.leafDriftMps, 0);
+    // 影の図：夕日の方角・決めた仰角から、場面の中心を見下ろす
+    if (shadowRT) {
+      const e = L.shadowElevDeg * DEG2RAD;
+      const hx = sun.x / Math.hypot(sun.x, sun.z);
+      const hz = sun.z / Math.hypot(sun.x, sun.z);
+      const c = S.shadowCenter;
+      const cx = c[0] + m.origin[0];
+      const cy = c[1] + m.origin[1];
+      const cz = c[2] + m.origin[2];
+      const d = L.shadowDepthM * HALF;
+      shadowCam.left = -L.shadowHalfM;
+      shadowCam.right = L.shadowHalfM;
+      shadowCam.top = L.shadowHalfM;
+      shadowCam.bottom = -L.shadowHalfM;
+      shadowCam.near = 0;
+      shadowCam.far = L.shadowDepthM;
+      shadowCam.position.set(cx + hx * Math.cos(e) * d, cy + Math.sin(e) * d, cz + hz * Math.cos(e) * d);
+      shadowCam.lookAt(cx, cy, cz);
+      shadowCam.updateProjectionMatrix();
+      shadowCam.updateMatrixWorld();
+      U.uShadowMat.value.copy(shadowBias).multiply(shadowCam.projectionMatrix).multiply(shadowCam.matrixWorldInverse);
+      U.uShadowOffset.value = L.shadowOffsetM;
+      U.uShadow.value.set(L.castShadowRatio, L.shadowBiasRatio, L.shadowSoftPx / shadowRT.width, L.strokeRatio);
+    } else {
+      U.uShadow.value.set(0, 0, 0, L.strokeRatio);
+    }
+  }
+
+  /** 影の図を描く：影を落とす物だけ、奥行きだけを書く材質に差し替えて、光の側から描く。 */
+  function renderShadow(three) {
+    for (const n of nonCasters) n.visible = false;
+    for (const c of casters) c.mesh.material = c.shadowMat;
+    three.setRenderTarget(shadowRT);
+    three.clear();
+    three.render(scene, shadowCam);
+    for (const c of casters) c.mesh.material = c.mat;
+    for (const n of nonCasters) n.visible = true;
   }
 
   return {
@@ -353,6 +476,7 @@ export function createLookdevView(renderer, cfg) {
       cameraView.update(world.camera, alpha, w / h);
       const q = renderer.quality;
       renderer.drawWith((three) => {
+        if (shadowRT) renderShadow(three);
         if (L.postOn[q]) {
           post.render(three, scene, cameraView.three, { bloom: L.bloomOn[q], viewPx: [w, h], time });
         } else {
@@ -363,6 +487,8 @@ export function createLookdevView(renderer, cfg) {
     },
     dispose() {
       clear();
+      for (const d of detailCache.values()) d.dispose();
+      detailCache.clear();
       post.dispose();
     },
   };
