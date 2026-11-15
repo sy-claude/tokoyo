@@ -1,5 +1,5 @@
 // 形の記述（src/data/lookdev/models.js の部品の表）→ 1つにまとめたジオメトリ。
-// 部品：box・cyl・sph・lathe・tube・ribbon・fan・group・ref。色は THREE.Color を通す（不変条件10）。
+// 部品：box・cyl・sph・lathe・tube・loft・ribbon・fan・group・ref。色は THREE.Color を通す（不変条件10）。
 // 頂点の属性：position・normal・color・aFx（苔, 塗りのはげ, 石畳, 発光）・aAnim（動きの種類, 重み）。
 import {
   BoxGeometry, BufferAttribute, BufferGeometry, CatmullRomCurve3, Color, CylinderGeometry, Euler, LatheGeometry,
@@ -7,6 +7,7 @@ import {
 } from 'three';
 import { DEG2RAD } from '../../core/math.js';
 import { fbm3 } from '../../core/noise.js';
+import { createRng } from '../../core/rng.js';
 import { HALF, N3, N4, SEG_DEFAULT, TAU } from './consts.js';
 
 const ZERO4 = [0, 0, 0, 0];
@@ -77,8 +78,67 @@ function fanGeometry(p) {
   return g;
 }
 
-/** 部品1つ → three のジオメトリ（局所座標）。 */
-function shapeGeometry(p) {
+/**
+ * 肉付けした管（体・手足・袖）：道のりに沿って、楕円の断面の大きさを変えながらつなぐ。
+ * st＝[[x, y, z, 半径A, 半径B], …]。A の向きは side（道のりに直交させる）、B は道のり×A。両端はふさぐ。
+ */
+function loftGeometry(p) {
+  const st = p.st;
+  const centers = new CatmullRomCurve3(st.map((q) => new Vector3(q[0], q[1], q[2])));
+  const radii = new CatmullRomCurve3(st.map((q) => new Vector3(q[N3], q[N4], 0)));
+  const rings = p.n ?? st.length * N3;
+  const seg = p.seg ?? SEG_DEFAULT;
+  const side = v3(p.side ?? [1, 0, 0]);
+  const pos = [];
+  const uv = [];
+  const idx = [];
+  const c = new Vector3();
+  const r = new Vector3();
+  const tan = new Vector3();
+  const A = new Vector3();
+  const B = new Vector3();
+  for (let i = 0; i < rings; i++) {
+    const t = i / (rings - 1);
+    centers.getPoint(t, c);
+    radii.getPoint(t, r);
+    centers.getTangent(t, tan);
+    A.copy(side).addScaledVector(tan, -side.dot(tan)).normalize();
+    B.crossVectors(tan, A);
+    for (let j = 0; j <= seg; j++) {
+      const a = (j / seg) * TAU;
+      const ca = Math.cos(a) * Math.max(r.x, 0);
+      const sa = Math.sin(a) * Math.max(r.y, 0);
+      pos.push(c.x + A.x * ca + B.x * sa, c.y + A.y * ca + B.y * sa, c.z + A.z * ca + B.z * sa);
+      uv.push(j / seg, t);
+      if (i > 0 && j > 0) {
+        const k = i * (seg + 1) + j;
+        idx.push(k - seg - 2, k - 1, k - seg - 1, k - seg - 1, k - 1, k);
+      }
+    }
+  }
+  // 両端のふた
+  for (const end of [0, rings - 1]) {
+    centers.getPoint(end === 0 ? 0 : 1, c);
+    const center = pos.length / N3;
+    pos.push(c.x, c.y, c.z);
+    uv.push(HALF, end === 0 ? 0 : 1);
+    for (let j = 0; j < seg; j++) {
+      const k = end * (seg + 1) + j;
+      if (end === 0) idx.push(center, k, k + 1);
+      else idx.push(center, k + 1, k);
+    }
+  }
+  const g = new BufferGeometry();
+  g.setAttribute('position', new BufferAttribute(new Float32Array(pos), N3));
+  g.setAttribute('uv', new BufferAttribute(new Float32Array(uv), 2));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
+
+/** 部品1つ → three のジオメトリ（局所座標）。segMul＝円周の分割数に掛ける倍率（品質ごと）。ひだのある形は山の数を保つ。 */
+function shapeGeometry(p0, segMul) {
+  const p = segMul === 1 || p0.seg === undefined || p0.flute ? p0 : { ...p0, seg: Math.max(N4, Math.round(p0.seg * segMul)) };
   switch (p.s) {
     case 'box': {
       const g = new BoxGeometry(p.size[0], p.size[1], p.size[2], p.segs?.[0] ?? 1, p.segs?.[1] ?? 1, p.segs?.[2] ?? 1);
@@ -118,6 +178,8 @@ function shapeGeometry(p) {
       }
       return g;
     }
+    case 'loft':
+      return loftGeometry(p);
     case 'ribbon':
       return ribbonGeometry(p);
     case 'fan':
@@ -160,6 +222,37 @@ function bendGeometry(g, bendY, halfLen) {
   g.computeVertexNormals();
 }
 
+/**
+ * 鑿（のみ）で割ったような平らな面を付ける（岩）：でたらめな向きの平面で、はみ出した頂点を面の上へ押し戻す。
+ * chisel=[面の数, 削る深さ（半径に対する比の上限）, 種]。面と面の境が稜になり、後処理の「内側の線」が乗る。
+ */
+function chiselGeometry(g, chisel) {
+  const [count, depth, seed] = chisel;
+  const rng = createRng(seed);
+  g.computeBoundingBox();
+  const bb = g.boundingBox;
+  const c = bb.getCenter(new Vector3());
+  const half = bb.getSize(new Vector3()).multiplyScalar(HALF);
+  const pos = g.attributes.position;
+  const n = new Vector3();
+  const v = new Vector3();
+  for (let k = 0; k < count; k++) {
+    n.set(rng.range(-1, 1), rng.range(-HALF, 1), rng.range(-1, 1)).normalize();
+    // その向きでの岩の「半径」から、少し内側に平面を置く
+    const reach = Math.hypot(n.x * half.x, n.y * half.y, n.z * half.z);
+    const d = reach * (1 - depth * rng.range(HALF * HALF, 1));
+    for (let i = 0; i < pos.count; i++) {
+      v.fromBufferAttribute(pos, i).sub(c);
+      const over = v.dot(n) - d;
+      if (over > 0) {
+        v.addScaledVector(n, -over).add(c);
+        pos.setXYZ(i, v.x, v.y, v.z);
+      }
+    }
+  }
+  g.computeVertexNormals();
+}
+
 /** ノイズで頂点を法線方向へ出し入れする（岩・古い石の凹凸）。 */
 function jitterGeometry(g, amount, freq, seed, oct) {
   const pos = g.attributes.position;
@@ -183,7 +276,7 @@ function jitterGeometry(g, amount, freq, seed, oct) {
 
 /**
  * 部品の表をためて、最後に1つのジオメトリにする。
- * @param {{models?:Record<string, any>, palette?:Record<string, any>, aoGain?:number}} [lib] ref で引く部品の表と、色の名前の表
+ * @param {{models?:Record<string, any>, palette?:Record<string, any>, aoGain?:number, segMul?:number}} [lib] ref で引く部品の表と、色の名前の表
  */
 export function createBuilder(lib = {}) {
   /** @type {number[]} */ const P = [];
@@ -219,7 +312,8 @@ export function createBuilder(lib = {}) {
       for (const q of parts) add(q, m, sub);
       return;
     }
-    let g = shapeGeometry(p);
+    let g = shapeGeometry(p, lib.segMul ?? 1);
+    if (p.chisel) chiselGeometry(g, p.chisel);
     if (p.flute) fluteGeometry(g, p.flute);
     if (p.bendY) bendGeometry(g, p.bendY, p.size[0] * HALF);
     if (p.jitter) {

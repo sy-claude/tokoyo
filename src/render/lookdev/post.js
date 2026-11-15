@@ -47,6 +47,7 @@ export function createPost(cfg, S) {
       uLine: { value: new Vector4() },
       uTone: { value: new Vector4() },
       uGlow: { value: new Vector4() },
+      uCrease: { value: new Vector2() },
     },
     depthTest: false,
     depthWrite: false,
@@ -105,12 +106,16 @@ export function createPost(cfg, S) {
         u.tBloom.value = black;
       }
       u.uTexel.value.set(pr / size.x, pr / size.y); // CSS px 1つぶん
-      u.uView.value.set(o.viewPx[0], o.viewPx[1]);
+      // 小さい画面（スマホ）では、にじみ・ゆらぎ・線・紙の目を画面の高さに合わせて細かくする（絵に対する割合をそろえる）
+      const k = Math.min(1, Math.max(L.postMinScaleRatio, o.viewPx[1] / L.postRefHeightPx));
+      const linePx = Math.max(L.outlinePx * k, 1 / pr); // 線は端末の1画素より細くしない
+      u.uView.value.set(o.viewPx[0] / k, o.viewPx[1] / k);
       u.uNearFar.value.set(camera.near, camera.far);
-      u.uWash.value.set(L.wobblePx, L.bleedPx, L.poolRatio, L.granulationRatio);
-      u.uLine.value.set(L.outlineRatio, L.outlinePx, L.outlineDepthRatio, L.outlineColorRatio);
+      u.uWash.value.set(L.wobblePx * k, L.bleedPx * k, L.poolRatio, L.granulationRatio);
+      u.uLine.value.set(L.outlineRatio, linePx, L.outlineDepthRatio, L.outlineColorRatio);
+      u.uCrease.value.set(L.creaseDepthRatio, L.creaseRatio);
       u.uTone.value.set(L.saturationMul, L.contrastMul, L.paperLiftRatio, L.borderRatio);
-      u.uGlow.value.set(o.bloom ? L.bloomRatio : 0, L.paperGrainRatio, 1, o.time);
+      u.uGlow.value.set(o.bloom ? L.bloomRatio : 0, L.paperGrainRatio, L.bleedMixRatio, o.time);
       pass(three, postMat, null);
     },
     dispose() {

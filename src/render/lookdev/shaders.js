@@ -250,7 +250,8 @@ uniform vec3 uInkCol;
 uniform vec4 uWash;   // x=縁のゆらぎ(px) y=にじみ(px) z=顔料のたまり w=粒状感
 uniform vec4 uLine;   // x=輪郭の濃さ y=太さ(px) z=奥行きの感度 w=色の境の線
 uniform vec4 uTone;   // x=彩度 y=コントラスト z=紙の白へ寄せる量 w=周囲の紙の余白
-uniform vec4 uGlow;   // x=光のにじみ y=紙の目 z=にじみの有無(0/1) w=時間
+uniform vec2 uCrease; // x=折れ目の感度 y=折れ目の線の濃さ
+uniform vec4 uGlow;   // x=光のにじみ y=紙の目 z=にじみで混ぜる量 w=時間
 varying vec2 vUv;
 
 float linDepth(vec2 uv) {
@@ -283,7 +284,7 @@ void main() {
   vec3 s3 = texture2D(tColor, uv + o2).rgb;
   vec3 s4 = texture2D(tColor, uv - o2).rgb;
   vec3 avg = (s1 + s2 + s3 + s4) * 0.25;
-  vec3 col = mix(c0, avg, 0.3);
+  vec3 col = mix(c0, avg, uGlow.z);
   // 3) 顔料のたまり：色の境目が少し濃くなる（水彩の「縁取り」）
   float grad = length(vec2(luma(s1) - luma(s2), luma(s3) - luma(s4)));
   col *= 1.0 - smoothstep(0.02, 0.22, grad) * uWash.z;
@@ -294,6 +295,13 @@ void main() {
   float du = linDepth(uv - vec2(0.0, lt.y)), dd = linDepth(uv + vec2(0.0, lt.y));
   float dEdge = (abs(dl + dr - 2.0 * dc) + abs(du + dd - 2.0 * dc)) / max(dc, 0.1);
   float line = smoothstep(uLine.z, uLine.z * 3.0, dEdge);
+  // 形の内側の線：面の折れ目（岩の稜・木組みの角・石段の縁）。奥行きバッファの値は平らな面の上では画面上で直線的に変わるので、
+  // その2階差が0でない所＝折れ目。輪郭より薄く、細く引く
+  float qc = 1.0 - texture2D(tDepth, uv).r;
+  float ql = 1.0 - texture2D(tDepth, uv - vec2(lt.x, 0.0)).r, qr = 1.0 - texture2D(tDepth, uv + vec2(lt.x, 0.0)).r;
+  float qu = 1.0 - texture2D(tDepth, uv - vec2(0.0, lt.y)).r, qd = 1.0 - texture2D(tDepth, uv + vec2(0.0, lt.y)).r;
+  float crease = (abs(ql + qr - 2.0 * qc) + abs(qu + qd - 2.0 * qc)) / max(qc, 1e-6);
+  line = max(line, smoothstep(uCrease.x, uCrease.x * 3.0, crease) * uCrease.y);
   vec3 cl = texture2D(tColor, uv - lt).rgb, cr = texture2D(tColor, uv + lt).rgb;
   line = max(line, smoothstep(0.10, 0.32, abs(luma(cl) - luma(cr))) * uLine.w);
   line *= 0.55 + 0.45 * smoothstep(0.35, 0.6, paper + wv2.x * 0.5); // かすれ

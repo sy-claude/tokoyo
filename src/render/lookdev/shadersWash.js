@@ -31,6 +31,8 @@ void main() {
   }
   // 体の上下（歩き）
   if (kind > 1.5) p.y += abs(sin(uWalk.x)) * uWalk.y * 0.035;
+  // 待機の呼吸：胴から上がわずかに上下する（脚は動かさない）
+  if (kind > 3.5) p.y += sin(uTime * 1.7) * 0.005 * smoothstep(0.7, 1.4, p.y) * (1.0 - uWalk.y);
   vec4 w = modelMatrix * vec4(p, 1.0);
   float ph = dot(w.xz, vec2(0.37, 0.29)) + aAnim.z;
   // 1：風にしなる（草・枝先の葉）
@@ -185,8 +187,8 @@ void main() {
     dFs = min(dFs, segDist(vWorld.xz + wob, uFis[i].xy, uFis[i + 1].xy, tt) - w);
   }
   float fisCore = smoothstep(0.05, -0.05, dFs);
-  fisGlow = exp(-max(dFs, 0.0) * 2.6) * (0.75 + 0.25 * sin(uTime * 1.3 + vWorld.x * 2.0));
-  base = mix(base, uCrackCol * 0.5, fisCore);
+  fisGlow = exp(-max(dFs, 0.0) * 7.0) * (0.75 + 0.25 * sin(uTime * 1.3 + vWorld.x * 2.0));
+  base = mix(base, uCrackCol * 0.3, fisCore);
   wetK *= 1.0 - fisCore;
 #ifndef SHADOWS
   vec2 sdir = -normalize(uSunDir.xz);
