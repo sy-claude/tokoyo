@@ -250,7 +250,7 @@ uniform vec3 uInkCol;
 uniform vec4 uWash;   // x=縁のゆらぎ(px) y=にじみ(px) z=顔料のたまり w=粒状感
 uniform vec4 uLine;   // x=輪郭の濃さ y=太さ(px) z=奥行きの感度 w=色の境の線
 uniform vec4 uTone;   // x=彩度 y=コントラスト z=紙の白へ寄せる量 w=周囲の紙の余白
-uniform vec4 uGlow;   // x=光のにじみ y=紙の目 z=にじみの有無(0/1) w=時間
+uniform vec4 uGlow;   // x=光のにじみ y=紙の目 z=にじみで混ぜる量 w=時間
 varying vec2 vUv;
 
 float linDepth(vec2 uv) {
@@ -283,7 +283,7 @@ void main() {
   vec3 s3 = texture2D(tColor, uv + o2).rgb;
   vec3 s4 = texture2D(tColor, uv - o2).rgb;
   vec3 avg = (s1 + s2 + s3 + s4) * 0.25;
-  vec3 col = mix(c0, avg, 0.3);
+  vec3 col = mix(c0, avg, uGlow.z);
   // 3) 顔料のたまり：色の境目が少し濃くなる（水彩の「縁取り」）
   float grad = length(vec2(luma(s1) - luma(s2), luma(s3) - luma(s4)));
   col *= 1.0 - smoothstep(0.02, 0.22, grad) * uWash.z;

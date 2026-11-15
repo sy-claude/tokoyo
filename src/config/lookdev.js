@@ -53,6 +53,9 @@ export const lookdev = {
   // ---- 後処理（水彩の仕上げ。品質「高」「中」） ----
   wobblePx: { v: 1.3, min: 0, max: 8, step: 0.1, desc: '色の境目のゆらぎ（px）' },
   bleedPx: { v: 1.7, min: 0, max: 8, step: 0.1, desc: '色のにじみの幅（px）' },
+  bleedMixRatio: { v: 0.22, min: 0, max: 1, step: 0.01, desc: 'にじみで周りの色を混ぜる量' },
+  postRefHeightPx: { v: 900, min: 200, max: 2000, step: 10, desc: '後処理の基準の画面の高さ（px）。これより低い画面では、にじみ・線・紙の目を比例して細かくする' },
+  postMinScaleRatio: { v: 0.3, min: 0.1, max: 1, step: 0.05, desc: '後処理を細かくする下限（基準に対する比）' },
   poolRatio: { v: 0.34, min: 0, max: 1, step: 0.01, desc: '境目に顔料がたまる濃さ' },
   granulationRatio: { v: 0.3, min: 0, max: 1, step: 0.01, desc: '顔料の粒状感' },
   outlineRatio: { v: 0.34, min: 0, max: 1, step: 0.01, desc: '輪郭線の濃さ' },
