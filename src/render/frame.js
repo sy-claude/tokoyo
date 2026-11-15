@@ -4,6 +4,10 @@
 import { CapsuleGeometry, Color, Mesh, MeshBasicMaterial, PlaneGeometry, Scene, ShaderMaterial } from 'three';
 import { DEG2RAD, lerp, lerpDeg } from '../core/math.js';
 import { createCameraView } from './cameraView.js';
+import { createLookdevView } from './lookdev/view.js';
+
+/** 見た目の試作（V1）の場面。この場面だけ専用の描画（render/lookdev）へ任せる。 */
+const LOOKDEV_STAGE = 'lookdev';
 
 const GRID_VERT = /* glsl */ `
 varying vec3 vWorld;
@@ -57,6 +61,9 @@ export function createFrame(renderer, cfg) {
   /** @type {any} */
   let capsule = null;
   let capsuleHM = 0;
+  /** @type {ReturnType<typeof createLookdevView>|null} 見た目の試作の描画（その場面を開いたときに作る） */
+  let lookdev = null;
+  let useLookdev = false;
 
   function clear() {
     for (const m of [floor, capsule]) {
@@ -76,6 +83,12 @@ export function createFrame(renderer, cfg) {
      */
     setWorld(world) {
       clear();
+      useLookdev = world.stage.id === LOOKDEV_STAGE;
+      if (useLookdev) {
+        lookdev ??= createLookdevView(renderer, cfg);
+        lookdev.setWorld(world);
+        return;
+      }
       const [sx, sz] = world.stage.sizeM;
       const baseM = Number(world.stage.terrain.params.baseM ?? 0);
       const floorGeo = new PlaneGeometry(sx, sz);
@@ -95,6 +108,10 @@ export function createFrame(renderer, cfg) {
      * @param {number} alpha 前tick→今tickの補間（0〜1）
      */
     render(world, alpha) {
+      if (useLookdev && lookdev) {
+        lookdev.render(world, alpha);
+        return;
+      }
       if (!floor || !capsule) return;
       // 調整パネルで変えた値を反映する
       bg.set(cfg.debug.grayBgColor);
@@ -118,6 +135,7 @@ export function createFrame(renderer, cfg) {
     },
     dispose() {
       clear();
+      lookdev?.dispose();
       floorMat.dispose();
       capsuleMat.dispose();
     },

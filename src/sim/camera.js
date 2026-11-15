@@ -18,12 +18,13 @@ import { clamp, forwardYawPitch, wrapDeg } from '../core/math.js';
  * @property {V3} prevPos
  * @property {number} prevYawDeg
  * @property {number} prevPitchDeg
+ * @property {{distM:number, pivotHM:number, pitchDeg:number, fovYDeg:number}|null} view  場面ごとの構図の上書き（StageDef.cameraView。無ければ cfg）
  */
 
 /** 注視点（足元＋高さ）から後ろへ dist だけ引いた位置に置く。 */
 function place(cam, target, cfg) {
   const f = forwardYawPitch(cam.yawDeg, cam.pitchDeg);
-  const pivotY = target.pos[1] + cfg.camera.camExplorePivotHM;
+  const pivotY = target.pos[1] + (cam.view ? cam.view.pivotHM : cfg.camera.camExplorePivotHM);
   cam.pos[0] = target.pos[0] - f[0] * cam.distM;
   cam.pos[1] = pivotY - f[1] * cam.distM;
   cam.pos[2] = target.pos[2] - f[2] * cam.distM;
@@ -41,21 +42,23 @@ export function snapCamera(cam) {
 /**
  * @param {{pos:V3, yawDeg:number}} target プレイヤー
  * @param {Cfg} cfg
+ * @param {CameraState['view']} [view] 場面ごとの構図の上書き
  * @returns {CameraState}
  */
-export function createCamera(target, cfg) {
+export function createCamera(target, cfg, view = null) {
   /** @type {CameraState} */
   const cam = {
     pos: [0, 0, 0],
     yawDeg: target.yawDeg,
-    pitchDeg: 0,
-    distM: cfg.camera.camExploreDistM,
-    fovYDeg: cfg.camera.camFovYDeg,
+    pitchDeg: view ? view.pitchDeg : 0,
+    distM: view ? view.distM : cfg.camera.camExploreDistM,
+    fovYDeg: view ? view.fovYDeg : cfg.camera.camFovYDeg,
     mode: 'explore',
     lockId: null,
     prevPos: [0, 0, 0],
     prevYawDeg: target.yawDeg,
     prevPitchDeg: 0,
+    view,
   };
   place(cam, target, cfg);
   snapCamera(cam);
@@ -74,8 +77,8 @@ export function resetCameraBehind(cam, target, cfg) {
  * @param {CameraState} cam @param {{pos:V3, yawDeg:number}} target @param {InputFrame} input @param {Cfg} cfg
  */
 export function stepCamera(cam, target, input, cfg) {
-  cam.distM = cfg.camera.camExploreDistM;
-  cam.fovYDeg = cfg.camera.camFovYDeg;
+  cam.distM = cam.view ? cam.view.distM : cfg.camera.camExploreDistM;
+  cam.fovYDeg = cam.view ? cam.view.fovYDeg : cfg.camera.camFovYDeg;
   cam.yawDeg = wrapDeg(cam.yawDeg - input.camDeg[0]);
   cam.pitchDeg = clamp(cam.pitchDeg + input.camDeg[1], cfg.camera.camPitchMinDeg, cfg.camera.camPitchMaxDeg);
   place(cam, target, cfg);

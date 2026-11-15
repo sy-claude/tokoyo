@@ -1,0 +1,65 @@
+// 見た目の試作（V1。?scene=lookdev）の調整値。水彩の仕上げ・霧・風・品質ごとの量。
+// 色・配置・形は src/data/lookdev/ にある。?debug=1 の調整パネルで動かせる。
+/** @import {ConfigTable} from '../data/types.js' */
+
+/** @satisfies {ConfigTable} */
+export const lookdev = {
+  // ---- 塗り（材質） ----
+  mottleRatio: { v: 0.62, min: 0, max: 1, step: 0.01, desc: '水彩の色むらの強さ' },
+  rimRatio: { v: 0.55, min: 0, max: 2, step: 0.05, desc: '逆光の縁の光の強さ' },
+  wetRatio: { v: 0.5, min: 0, max: 1, step: 0.05, desc: '濡れた石の映り込みの強さ' },
+  paveCellM: { v: 0.72, min: 0.4, max: 3, step: 0.05, desc: '敷石1枚の大きさ（m）' },
+  shadowRatio: { v: 0.85, min: 0, max: 1, step: 0.05, desc: '置き影の濃さ' },
+  // ---- 空気遠近（霧） ----
+  fogDensityRatio: { v: 0.008, min: 0, max: 0.1, step: 0.0005, desc: '霧の濃さ（1mあたり）' },
+  fogLowM: { v: 9, min: 1, max: 60, step: 1, desc: '低い所ほど霧が濃くなる高さの目安（m）' },
+  fogMaxRatio: { v: 0.86, min: 0, max: 1, step: 0.01, desc: '霧の上限（遠景がどこまで淡くなるか）' },
+  fogSunSpreadRatio: { v: 2.5, min: 0.5, max: 16, step: 0.5, desc: '夕日側の暖かい霧の広がり（大きいほど狭い）' },
+  // ---- 風・動き ----
+  windM: { v: 0.2, min: 0, max: 1, step: 0.01, desc: '風で草の先が動く幅（m）' },
+  windHz: { v: 1.5, min: 0, max: 6, step: 0.1, desc: '風の揺れの速さ' },
+  walkSwingDeg: { v: 26, min: 0, max: 60, step: 1, desc: '歩きの脚の振り（deg）' },
+  walkStepHz: { v: 2.3, min: 0.5, max: 5, step: 0.1, desc: '歩きの歩調（1秒あたりの往復）' },
+  // ---- 空・海 ----
+  sunRadiusDeg: { v: 3.2, min: 0.5, max: 10, step: 0.1, desc: '夕日の見かけの半径（deg）' },
+  cloudRatio: { v: 0.85, min: 0, max: 1, step: 0.01, desc: '雲の量' },
+  cloudSpeedRatio: { v: 0.004, min: 0, max: 0.05, step: 0.001, desc: '雲の流れる速さ' },
+  skyBleedRatio: { v: 0.6, min: 0, max: 2, step: 0.05, desc: '空の色の境のにじみ' },
+  seaSpeedRatio: { v: 0.1, min: 0, max: 1, step: 0.01, desc: '波の速さ' },
+  seaGlitterRatio: { v: 0.9, min: 0, max: 2, step: 0.05, desc: '夕日の道（海のきらめき）の強さ' },
+  seaFoamRatio: { v: 0.9, min: 0, max: 1, step: 0.05, desc: '白波の濃さ' },
+  seaLaneRatio: { v: 26, min: 2, max: 200, step: 1, desc: '夕日の道の細さ（大きいほど細い）' },
+  // ---- 紫の靄・舞う葉 ----
+  mistSizeM: { v: 1.0, min: 0.2, max: 6, step: 0.1, desc: '靄の粒の大きさ（m）' },
+  mistRiseRatio: { v: 0.07, min: 0, max: 1, step: 0.01, desc: '靄が上る速さ' },
+  mistAlphaRatio: { v: 0.2, min: 0, max: 1, step: 0.01, desc: '靄の濃さ' },
+  mistRiseM: { v: 1.6, min: 0, max: 8, step: 0.1, desc: '靄が上る高さ（m）' },
+  leafSizeM: { v: 0.11, min: 0.02, max: 0.6, step: 0.01, desc: '舞う葉の大きさ（m）' },
+  leafFallMps: { v: 0.55, min: 0, max: 4, step: 0.05, desc: '舞う葉の落ちる速さ（m/s）' },
+  leafDriftMps: { v: 0.9, min: 0, max: 4, step: 0.05, desc: '舞う葉が風に流れる速さ（m/s）' },
+  // ---- 後処理（水彩の仕上げ。品質「高」「中」） ----
+  wobblePx: { v: 1.3, min: 0, max: 8, step: 0.1, desc: '色の境目のゆらぎ（px）' },
+  bleedPx: { v: 1.7, min: 0, max: 8, step: 0.1, desc: '色のにじみの幅（px）' },
+  poolRatio: { v: 0.34, min: 0, max: 1, step: 0.01, desc: '境目に顔料がたまる濃さ' },
+  granulationRatio: { v: 0.3, min: 0, max: 1, step: 0.01, desc: '顔料の粒状感' },
+  outlineRatio: { v: 0.34, min: 0, max: 1, step: 0.01, desc: '輪郭線の濃さ' },
+  outlinePx: { v: 0.6, min: 0.3, max: 3, step: 0.05, desc: '輪郭線の太さ（px）' },
+  outlineDepthRatio: { v: 0.03, min: 0.001, max: 0.2, step: 0.001, desc: '輪郭線：奥行きの段差の感度（小さいほど線が増える）' },
+  outlineColorRatio: { v: 0.0, min: 0, max: 1, step: 0.01, desc: '輪郭線：色の境にも引く量' },
+  saturationMul: { v: 0.86, min: 0, max: 2, step: 0.01, desc: '彩度（倍）' },
+  contrastMul: { v: 1.14, min: 0.5, max: 2, step: 0.01, desc: 'コントラスト（倍）' },
+  paperLiftRatio: { v: 0.04, min: 0, max: 0.6, step: 0.01, desc: '全体を紙の白へ寄せる量' },
+  borderRatio: { v: 0.004, min: 0, max: 0.3, step: 0.005, desc: '周囲の紙の余白' },
+  paperGrainRatio: { v: 0.22, min: 0, max: 1, step: 0.01, desc: '紙の目の強さ' },
+  bloomRatio: { v: 0.4, min: 0, max: 2, step: 0.05, desc: '光のにじみの強さ' },
+  bloomThresholdRatio: { v: 0.7, min: 0, max: 1, step: 0.01, desc: '光のにじみ：これより明るい所だけ' },
+  bloomSpreadPx: { v: 2.2, min: 0.5, max: 8, step: 0.1, desc: '光のにじみの広がり（px）' },
+  // ---- 品質ごとの量 ----
+  postOn: { v: { high: true, mid: true, low: false }, desc: '後処理（水彩の仕上げ）を使う' },
+  bloomOn: { v: { high: true, mid: false, low: false }, desc: '光のにじみを使う' },
+  octaveCount: { v: { high: 3, mid: 2, low: 1 }, desc: '色むらの細かさ（ノイズの重ね数）' },
+  floraMul: { v: { high: 1, mid: 0.6, low: 0.3 }, desc: '草・花・葉の量（倍）' },
+  mistCount: { v: { high: 64, mid: 36, low: 14 }, desc: '靄の粒の数' },
+  leafCount: { v: { high: 70, mid: 40, low: 16 }, desc: '舞う葉の数' },
+  bloomDivCount: { v: 4, min: 2, max: 8, step: 1, desc: '光のにじみの解像度（画面の何分の1か）' },
+};

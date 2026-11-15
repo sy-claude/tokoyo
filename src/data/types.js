@@ -243,6 +243,7 @@ export {};
  * @property {{center:V3, rM:number}} bossArena
  * @property {{id:string, pos:V3, yawDeg:number}[]} checkpoints
  * @property {{pos:V3, yawDeg:number}} playerStart
+ * @property {{distM:number, pivotHM:number, pitchDeg:number, fovYDeg:number}} [cameraView]  見た目の試作（lookdev）用：構図の上書き
  */
 
 /**

@@ -12,8 +12,9 @@ import { settings } from './settings.js';
 import { ui } from './ui.js';
 import { palette } from './palette.js';
 import { audio } from './audio.js';
+import { lookdev } from './lookdev.js';
 
-export const configTables = { time, collision, movement, camera, input, layout, ui, settings, palette, audio, quality, save, debug };
+export const configTables = { time, collision, movement, camera, input, layout, ui, settings, palette, audio, quality, save, debug, lookdev };
 
 /**
  * 表の集まり → 値だけの形。

@@ -1,7 +1,7 @@
 // URL 引数（09 10.1）。純関数。
 /** @import {QualityLevel} from '../config/index.js' */
 
-const SCENES = ['sandbox', 'stage', 'boss', 'fu-test', 'title'];
+const SCENES = ['sandbox', 'stage', 'boss', 'fu-test', 'title', 'lookdev'];
 const CHARS = ['fuma', 'shirayuki', 'ganjo'];
 const QUALITIES = ['high', 'mid', 'low'];
 

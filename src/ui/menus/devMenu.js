@@ -9,7 +9,7 @@ const QUALITIES = [['high', '高'], ['mid', '中'], ['low', '低']];
 /**
  * @param {Document} doc @param {HTMLElement} parent
  * @param {import('../../config/index.js').Cfg} cfg
- * @param {{onScene:(name:'sandbox')=>void, onOverlay:()=>boolean, onQuality:(q:QualityLevel)=>void,
+ * @param {{onScene:(name:'sandbox'|'lookdev')=>void, onOverlay:()=>boolean, onQuality:(q:QualityLevel)=>void,
  *   getQuality:()=>QualityLevel, getOverlay:()=>boolean, onTitle:()=>void}} hooks
  */
 export function createDevMenu(doc, parent, cfg, hooks) {
@@ -39,7 +39,9 @@ export function createDevMenu(doc, parent, cfg, hooks) {
     overlay.setAttribute('aria-pressed', String(hooks.onOverlay()));
   });
   overlay.dataset.item = 'overlay';
-  r1.append(sandbox, overlay);
+  const lookdev = createItem(doc, '見た目の試作', W, H, ready, () => hooks.onScene('lookdev'));
+  lookdev.dataset.item = 'lookdev';
+  r1.append(sandbox, lookdev, overlay);
 
   const r2 = row();
   /** @type {HTMLButtonElement[]} */

@@ -10,6 +10,7 @@ import { createTimeState } from '../core/time.js';
 import { copyV3 } from '../core/math.js';
 import { validateStage } from '../data/validate.js';
 import { sandbox } from '../data/stages/sandbox.js';
+import { lookdev } from '../data/stages/lookdev.js';
 import { createPlayer } from './entities.js';
 import { createCamera, resetCameraBehind } from './camera.js';
 
@@ -36,7 +37,7 @@ import { createCamera, resetCameraBehind } from './camera.js';
  */
 
 /** 場面名 → ステージのデータ。M0a は試験場だけ。 @type {Map<string, StageDef>} */
-const SCENE_STAGES = new Map([['sandbox', sandbox]]);
+const SCENE_STAGES = new Map([['sandbox', sandbox], ['lookdev', lookdev]]);
 
 /** その場面をシムが作れるか。 */
 export function hasSceneWorld(scene) {
@@ -75,7 +76,7 @@ export function createWorld(o) {
   };
   const capsule = { rM: o.cfg.collision.m0CapsuleRM, hM: o.cfg.collision.m0CapsuleHM };
   world.player = createPlayer(world, o.stage.playerStart.pos, o.stage.playerStart.yawDeg, capsule);
-  world.camera = createCamera(world.player, o.cfg);
+  world.camera = createCamera(world.player, o.cfg, o.stage.cameraView ?? null);
   return world;
 }
 
