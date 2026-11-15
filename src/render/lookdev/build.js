@@ -1,5 +1,5 @@
 // 形の記述（src/data/lookdev/models.js の部品の表）→ 1つにまとめたジオメトリ。
-// 部品：box・cyl・sph・lathe・tube・ribbon・fan・group・ref。色は THREE.Color を通す（不変条件10）。
+// 部品：box・cyl・sph・lathe・tube・loft・ribbon・fan・group・ref。色は THREE.Color を通す（不変条件10）。
 // 頂点の属性：position・normal・color・aFx（苔, 塗りのはげ, 石畳, 発光）・aAnim（動きの種類, 重み）。
 import {
   BoxGeometry, BufferAttribute, BufferGeometry, CatmullRomCurve3, Color, CylinderGeometry, Euler, LatheGeometry,
@@ -77,6 +77,64 @@ function fanGeometry(p) {
   return g;
 }
 
+/**
+ * 肉付けした管（体・手足・袖）：道のりに沿って、楕円の断面の大きさを変えながらつなぐ。
+ * st＝[[x, y, z, 半径A, 半径B], …]。A の向きは side（道のりに直交させる）、B は道のり×A。両端はふさぐ。
+ */
+function loftGeometry(p) {
+  const st = p.st;
+  const centers = new CatmullRomCurve3(st.map((q) => new Vector3(q[0], q[1], q[2])));
+  const radii = new CatmullRomCurve3(st.map((q) => new Vector3(q[N3], q[N4], 0)));
+  const rings = p.n ?? st.length * N3;
+  const seg = p.seg ?? SEG_DEFAULT;
+  const side = v3(p.side ?? [1, 0, 0]);
+  const pos = [];
+  const uv = [];
+  const idx = [];
+  const c = new Vector3();
+  const r = new Vector3();
+  const tan = new Vector3();
+  const A = new Vector3();
+  const B = new Vector3();
+  for (let i = 0; i < rings; i++) {
+    const t = i / (rings - 1);
+    centers.getPoint(t, c);
+    radii.getPoint(t, r);
+    centers.getTangent(t, tan);
+    A.copy(side).addScaledVector(tan, -side.dot(tan)).normalize();
+    B.crossVectors(tan, A);
+    for (let j = 0; j <= seg; j++) {
+      const a = (j / seg) * TAU;
+      const ca = Math.cos(a) * Math.max(r.x, 0);
+      const sa = Math.sin(a) * Math.max(r.y, 0);
+      pos.push(c.x + A.x * ca + B.x * sa, c.y + A.y * ca + B.y * sa, c.z + A.z * ca + B.z * sa);
+      uv.push(j / seg, t);
+      if (i > 0 && j > 0) {
+        const k = i * (seg + 1) + j;
+        idx.push(k - seg - 2, k - 1, k - seg - 1, k - seg - 1, k - 1, k);
+      }
+    }
+  }
+  // 両端のふた
+  for (const end of [0, rings - 1]) {
+    centers.getPoint(end === 0 ? 0 : 1, c);
+    const center = pos.length / N3;
+    pos.push(c.x, c.y, c.z);
+    uv.push(HALF, end === 0 ? 0 : 1);
+    for (let j = 0; j < seg; j++) {
+      const k = end * (seg + 1) + j;
+      if (end === 0) idx.push(center, k, k + 1);
+      else idx.push(center, k + 1, k);
+    }
+  }
+  const g = new BufferGeometry();
+  g.setAttribute('position', new BufferAttribute(new Float32Array(pos), N3));
+  g.setAttribute('uv', new BufferAttribute(new Float32Array(uv), 2));
+  g.setIndex(idx);
+  g.computeVertexNormals();
+  return g;
+}
+
 /** 部品1つ → three のジオメトリ（局所座標）。 */
 function shapeGeometry(p) {
   switch (p.s) {
@@ -118,6 +176,8 @@ function shapeGeometry(p) {
       }
       return g;
     }
+    case 'loft':
+      return loftGeometry(p);
     case 'ribbon':
       return ribbonGeometry(p);
     case 'fan':

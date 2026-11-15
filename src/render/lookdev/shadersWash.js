@@ -185,8 +185,8 @@ void main() {
     dFs = min(dFs, segDist(vWorld.xz + wob, uFis[i].xy, uFis[i + 1].xy, tt) - w);
   }
   float fisCore = smoothstep(0.05, -0.05, dFs);
-  fisGlow = exp(-max(dFs, 0.0) * 2.6) * (0.75 + 0.25 * sin(uTime * 1.3 + vWorld.x * 2.0));
-  base = mix(base, uCrackCol * 0.5, fisCore);
+  fisGlow = exp(-max(dFs, 0.0) * 7.0) * (0.75 + 0.25 * sin(uTime * 1.3 + vWorld.x * 2.0));
+  base = mix(base, uCrackCol * 0.3, fisCore);
   wetK *= 1.0 - fisCore;
 #ifndef SHADOWS
   vec2 sdir = -normalize(uSunDir.xz);
