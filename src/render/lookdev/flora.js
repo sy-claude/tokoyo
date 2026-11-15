@@ -144,12 +144,30 @@ export function addMapleBranches(b, S) {
   for (const br of S.maple.branches) b.add({ s: 'tube', path: br.path, r: br.r, rseg: S.flora.branchRseg, col: 'bark', col2: 'barkHi', fx: [HALF, 0, 0, 0], jitter: br.r[0] * HALF * HALF, jfreq: 1 });
 }
 
+/** もみじ形の扇を1枚足す（中心＋外周。ax・ay は葉の面の2軸）。 */
+function leafFan(w, fl, x, y, z, ax, ay, size, c, anim) {
+  const pts = fl.leafLobeCount * 2;
+  const center = w.vert(x, y, z, 0, 1, 0, c, anim);
+  let first = -1;
+  let prev = -1;
+  for (let i = 0; i < pts; i++) {
+    const ang = (i / pts) * TAU;
+    const rad = size * (i % 2 === 0 ? 1 : fl.leafLobe);
+    const px = Math.cos(ang) * rad;
+    const py = Math.sin(ang) * rad;
+    const v = w.vert(x + ax.x * px + ay.x * py, y + ax.y * px + ay.y * py, z + ax.z * px + ay.z * py, 0, 1, 0, c, anim);
+    if (prev >= 0) w.tri(center, prev, v);
+    else first = v;
+    prev = v;
+  }
+  w.tri(center, prev, first);
+}
+
 /** 紅葉の葉。 */
 export function addMaple(b, S, rng, mul) {
   const M = S.maple;
   const w = rawWriter(b);
   const fl = S.flora;
-  const pts = fl.leafLobeCount * 2;
   const ax = new Vector3();
   const ay = new Vector3();
   const nrm = new Vector3();
@@ -169,24 +187,59 @@ export function addMaple(b, S, rng, mul) {
       ax.set(rng.range(-1, 1), rng.range(-1, 1), rng.range(-1, 1)).cross(nrm).normalize();
       ay.crossVectors(nrm, ax);
       const size = M.leafM * rng.range(HALF + HALF * HALF, 1 + HALF * HALF);
-      c.copy(b.color(rng.pick(M.maple ?? S.palette.maple)));
+      c.copy(b.color(rng.pick(S.palette.maple)));
       c.multiplyScalar(rng.range(1 - HALF * HALF, 1 + HALF * HALF));
-      const phase = rng.float() * TAU;
-      const anim = [1, fl.leafSway, phase];
-      const center = w.vert(x, y, z, 0, 1, 0, c, anim);
-      let first = -1;
-      let prev = -1;
-      for (let i = 0; i < pts; i++) {
-        const ang = (i / pts) * TAU;
-        const rad = size * (i % 2 === 0 ? 1 : fl.leafLobe);
-        const px = Math.cos(ang) * rad;
-        const py = Math.sin(ang) * rad;
-        const v = w.vert(x + ax.x * px + ay.x * py, y + ax.y * px + ay.y * py, z + ax.z * px + ay.z * py, 0, 1, 0, c, anim);
-        if (prev >= 0) w.tri(center, prev, v);
-        else first = v;
-        prev = v;
+      leafFan(w, fl, x, y, z, ax, ay, size, c, [1, fl.leafSway, rng.float() * TAU]);
+    }
+  }
+}
+
+/** 落ち葉：地面に寝たもみじ（参道と草地に散らす）。 */
+export function addFallenLeaves(b, S, terrain, rng, mul) {
+  const w = rawWriter(b);
+  const fl = S.flora;
+  const ax = new Vector3();
+  const ay = new Vector3();
+  const c = new Color();
+  const still = [0, 0, 0];
+  for (const [cx, cz, r, count] of S.fallenLeaves) {
+    const n = Math.max(1, Math.round(count * mul));
+    for (let k = 0; k < n; k++) {
+      const [x, z] = inDisc(rng, cx, cz, r);
+      const a = rng.float() * TAU;
+      const tilt = rng.range(-fl.fallenTilt, fl.fallenTilt);
+      ax.set(Math.cos(a), tilt, Math.sin(a)).normalize();
+      ay.set(-Math.sin(a), rng.range(-fl.fallenTilt, fl.fallenTilt), Math.cos(a)).normalize();
+      c.copy(b.color(rng.pick(S.palette.fallen)));
+      const size = S.maple.leafM * fl.fallenSize * rng.range(HALF, 1 + HALF);
+      leafFan(w, fl, x, terrain.height(x, z) + fl.fallenLiftM, z, ax, ay, size, c, still);
+    }
+  }
+}
+
+/** 小石・岩・茂みを散らす（参道の縁、岸、丘の斜面）。 */
+export function addScatter(b, S, terrain, rng) {
+  const pathX = (z) => {
+    const P = S.path;
+    if (z <= P[0][1]) return P[0][0];
+    for (let i = 1; i < P.length; i++) {
+      if (z <= P[i][1]) return P[i - 1][0] + ((P[i][0] - P[i - 1][0]) * (z - P[i - 1][1])) / (P[i][1] - P[i - 1][1]);
+    }
+    return P[P.length - 1][0];
+  };
+  for (const sc of S.scatter) {
+    for (let k = 0; k < sc.count; k++) {
+      let x = 0;
+      let z = 0;
+      if (sc.edge) {
+        z = rng.range(sc.edge[0], sc.edge[1]);
+        const side = rng.float() < HALF ? -1 : 1;
+        x = pathX(z) + side * rng.range(sc.offM[0], sc.offM[1]);
+      } else {
+        [x, z] = inDisc(rng, sc.disc[0], sc.disc[1], sc.disc[2]);
       }
-      w.tri(center, prev, first);
+      const s = rng.range(sc.scale[0], sc.scale[1]);
+      b.add({ s: 'ref', model: rng.pick(sc.models), at: [x, terrain.height(x, z) - sc.sink * s, z], rot: [rng.range(-sc.tilt, sc.tilt), rng.float() * (TAU * RAD2DEG), rng.range(-sc.tilt, sc.tilt)], scale: s });
     }
   }
 }

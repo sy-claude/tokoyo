@@ -7,7 +7,7 @@ import {
 } from 'three';
 import { DEG2RAD } from '../../core/math.js';
 import { fbm3 } from '../../core/noise.js';
-import { HALF, N3, N4, SEG_DEFAULT } from './consts.js';
+import { HALF, N3, N4, SEG_DEFAULT, TAU } from './consts.js';
 
 const ZERO4 = [0, 0, 0, 0];
 const ONE3 = [1, 1, 1];
@@ -127,25 +127,63 @@ function shapeGeometry(p) {
   }
 }
 
+/** 縦のひだ（袴・畳んだ傘）：Y軸まわりに半径を山谷に変える。flute=[山の数, 深さ, 上で消える割合]。 */
+function fluteGeometry(g, flute) {
+  const [n, depth, topFade] = flute;
+  g.computeBoundingBox();
+  const bb = g.boundingBox;
+  const span = Math.max(bb.max.y - bb.min.y, Number.EPSILON);
+  const pos = g.attributes.position;
+  const ao = new Float32Array(pos.count);
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i);
+    const z = pos.getZ(i);
+    const t = (Math.atan2(z, x) / TAU) * n;
+    const tri = Math.abs(t - Math.floor(t) - HALF) * 2;
+    const k = 1 + depth * (tri * 2 - 1) * (1 - topFade * ((pos.getY(i) - bb.min.y) / span));
+    pos.setX(i, x * k);
+    pos.setZ(i, z * k);
+    ao[i] = (tri - HALF) * (1 - topFade * ((pos.getY(i) - bb.min.y) / span));
+  }
+  // ひだの谷を暗く、山を明るく塗る
+  g.setAttribute('ao', new BufferAttribute(ao, 1));
+  g.computeVertexNormals();
+}
+
+/** 反り（鳥居の笠木）：両端ほど上へ持ち上げる。 */
+function bendGeometry(g, bendY, halfLen) {
+  const pos = g.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const k = pos.getX(i) / halfLen;
+    pos.setY(i, pos.getY(i) + bendY * k * k);
+  }
+  g.computeVertexNormals();
+}
+
 /** ノイズで頂点を法線方向へ出し入れする（岩・古い石の凹凸）。 */
 function jitterGeometry(g, amount, freq, seed, oct) {
   const pos = g.attributes.position;
   const nor = g.attributes.normal;
   const v = new Vector3();
   const n = new Vector3();
+  const ao = new Float32Array(pos.count);
   for (let i = 0; i < pos.count; i++) {
     v.fromBufferAttribute(pos, i);
     n.fromBufferAttribute(nor, i);
     // 尾根のように尖らせる（丸い山ではなく、割れた岩の稜）
     const f = fbm3(v.x * freq + seed, v.y * freq + seed * 2, v.z * freq - seed, oct);
-    const d = (1 - Math.abs(f - HALF) * N4 - HALF) * amount;
+    const k = 1 - Math.abs(f - HALF) * N4 - HALF;
+    const d = k * amount;
     pos.setXYZ(i, v.x + n.x * d, v.y + n.y * d, v.z + n.z * d);
+    ao[i] = k;
   }
+  // 出っ張りは明るく、くぼみは暗く塗るための値（−0.5〜0.5）
+  g.setAttribute('ao', new BufferAttribute(ao, 1));
 }
 
 /**
  * 部品の表をためて、最後に1つのジオメトリにする。
- * @param {{models?:Record<string, any>, palette?:Record<string, any>}} [lib] ref で引く部品の表と、色の名前の表
+ * @param {{models?:Record<string, any>, palette?:Record<string, any>, aoGain?:number}} [lib] ref で引く部品の表と、色の名前の表
  */
 export function createBuilder(lib = {}) {
   /** @type {number[]} */ const P = [];
@@ -182,6 +220,8 @@ export function createBuilder(lib = {}) {
       return;
     }
     let g = shapeGeometry(p);
+    if (p.flute) fluteGeometry(g, p.flute);
+    if (p.bendY) bendGeometry(g, p.bendY, p.size[0] * HALF);
     if (p.jitter) {
       jitterGeometry(g, p.jitter, p.jfreq ?? 1, p.seed ?? 1, p.joct ?? N3);
       g.computeVertexNormals();
@@ -201,6 +241,8 @@ export function createBuilder(lib = {}) {
     const pos = g.attributes.position;
     const nor = g.attributes.normal;
     const uv = g.attributes.uv;
+    const aoAttr = g.attributes.ao;
+    const aoGain = p.ao ?? lib.aoGain ?? 0;
     const base = P.length / N3;
     const normalM = m.clone().invert().transpose();
     for (let i = 0; i < pos.count; i++) {
@@ -212,6 +254,7 @@ export function createBuilder(lib = {}) {
       N.push(v.x, v.y, v.z);
       const tc = p.gradUv && uv ? uv.getY(i) : ty;
       tmpC.copy(c0).lerp(c1, tc);
+      if (aoAttr) tmpC.multiplyScalar(1 + aoAttr.getX(i) * aoGain);
       C.push(tmpC.r, tmpC.g, tmpC.b);
       F.push(fx[0], fx[1], fx[2], fx[N3]);
       const w = animGrad && uv ? animGrad[0] + (animGrad[1] - animGrad[0]) * (p.s === 'tube' ? uv.getX(i) : uv.getY(i)) : anim[1];
