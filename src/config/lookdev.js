@@ -62,6 +62,8 @@ export const lookdev = {
   outlinePx: { v: 0.6, min: 0.3, max: 3, step: 0.05, desc: '輪郭線の太さ（px）' },
   outlineDepthRatio: { v: 0.03, min: 0.001, max: 0.2, step: 0.001, desc: '輪郭線：奥行きの段差の感度（小さいほど線が増える）' },
   outlineColorRatio: { v: 0.0, min: 0, max: 1, step: 0.01, desc: '輪郭線：色の境にも引く量' },
+  creaseRatio: { v: 0.5, min: 0, max: 1, step: 0.01, desc: '形の内側の線（面の折れ目）の濃さ。輪郭線に対する比' },
+  creaseDepthRatio: { v: 0.002, min: 0.0002, max: 0.1, step: 0.0002, desc: '形の内側の線：折れ目の感度（小さいほど線が増える）' },
   saturationMul: { v: 0.86, min: 0, max: 2, step: 0.01, desc: '彩度（倍）' },
   contrastMul: { v: 1.14, min: 0.5, max: 2, step: 0.01, desc: 'コントラスト（倍）' },
   paperLiftRatio: { v: 0.04, min: 0, max: 0.6, step: 0.01, desc: '全体を紙の白へ寄せる量' },
@@ -83,5 +85,7 @@ export const lookdev = {
   floraMul: { v: { high: 1, mid: 0.6, low: 0.3 }, desc: '草・花・葉の量（倍）' },
   mistCount: { v: { high: 60, mid: 36, low: 16 }, desc: '靄の粒の数' },
   leafCount: { v: { high: 70, mid: 40, low: 16 }, desc: '舞う葉の数' },
+  meshDetailMul: { v: { high: 1, mid: 0.8, low: 0.6 }, desc: '形の細かさ（円や球の分割数に掛ける。スマホ向けに三角形を減らす）' },
+  scatterMul: { v: { high: 1, mid: 0.8, low: 0.5 }, desc: '散らす岩・茂みの数（倍）' },
   bloomDivCount: { v: 4, min: 2, max: 8, step: 1, desc: '光のにじみの解像度（画面の何分の1か）' },
 };

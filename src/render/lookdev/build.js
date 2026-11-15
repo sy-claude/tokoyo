@@ -135,8 +135,9 @@ function loftGeometry(p) {
   return g;
 }
 
-/** 部品1つ → three のジオメトリ（局所座標）。 */
-function shapeGeometry(p) {
+/** 部品1つ → three のジオメトリ（局所座標）。segMul＝円周の分割数に掛ける倍率（品質ごと）。ひだのある形は山の数を保つ。 */
+function shapeGeometry(p0, segMul) {
+  const p = segMul === 1 || p0.seg === undefined || p0.flute ? p0 : { ...p0, seg: Math.max(N4, Math.round(p0.seg * segMul)) };
   switch (p.s) {
     case 'box': {
       const g = new BoxGeometry(p.size[0], p.size[1], p.size[2], p.segs?.[0] ?? 1, p.segs?.[1] ?? 1, p.segs?.[2] ?? 1);
@@ -243,7 +244,7 @@ function jitterGeometry(g, amount, freq, seed, oct) {
 
 /**
  * 部品の表をためて、最後に1つのジオメトリにする。
- * @param {{models?:Record<string, any>, palette?:Record<string, any>, aoGain?:number}} [lib] ref で引く部品の表と、色の名前の表
+ * @param {{models?:Record<string, any>, palette?:Record<string, any>, aoGain?:number, segMul?:number}} [lib] ref で引く部品の表と、色の名前の表
  */
 export function createBuilder(lib = {}) {
   /** @type {number[]} */ const P = [];
@@ -279,7 +280,7 @@ export function createBuilder(lib = {}) {
       for (const q of parts) add(q, m, sub);
       return;
     }
-    let g = shapeGeometry(p);
+    let g = shapeGeometry(p, lib.segMul ?? 1);
     if (p.flute) fluteGeometry(g, p.flute);
     if (p.bendY) bendGeometry(g, p.bendY, p.size[0] * HALF);
     if (p.jitter) {

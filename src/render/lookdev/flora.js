@@ -218,7 +218,7 @@ export function addFallenLeaves(b, S, terrain, rng, mul) {
 }
 
 /** 小石・岩・茂みを散らす（参道の縁、岸、丘の斜面）。 */
-export function addScatter(b, S, terrain, rng) {
+export function addScatter(b, S, terrain, rng, mul = 1) {
   const pathX = (z) => {
     const P = S.path;
     if (z <= P[0][1]) return P[0][0];
@@ -228,7 +228,8 @@ export function addScatter(b, S, terrain, rng) {
     return P[P.length - 1][0];
   };
   for (const sc of S.scatter) {
-    for (let k = 0; k < sc.count; k++) {
+    const count = Math.max(1, Math.round(sc.count * mul));
+    for (let k = 0; k < count; k++) {
       let x = 0;
       let z = 0;
       if (sc.edge) {

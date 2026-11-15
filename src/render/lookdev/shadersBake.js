@@ -142,7 +142,7 @@ void main() {
   float cs = fbm2(q + wv * 1.6 + vec2(0.0, 0.22));
   float puff = fbm2(q * 3.3 + wv * 3.0 + 5.0);
   float ripple = fbm2(q * vec2(7.0, 9.0) + wv * 4.0 + 21.0);
-  float field = c * 0.56 + puff * 0.3 + ripple * 0.14;
+  float field = c * 0.52 + puff * 0.28 + ripple * 0.2;
   float cover = mix(0.56, 0.4, smoothstep(0.06, 0.5, h)) - (uSky.y - 0.5) * 0.3;
   float dens = smoothstep(cover, cover + 0.14, field) * smoothstep(-0.01, 0.05, e);
   float under = clamp((c - cs) * 4.5 + 0.5, 0.0, 1.0); // 夕日を向いた側

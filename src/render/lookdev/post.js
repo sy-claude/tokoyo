@@ -47,6 +47,7 @@ export function createPost(cfg, S) {
       uLine: { value: new Vector4() },
       uTone: { value: new Vector4() },
       uGlow: { value: new Vector4() },
+      uCrease: { value: new Vector2() },
     },
     depthTest: false,
     depthWrite: false,
@@ -112,6 +113,7 @@ export function createPost(cfg, S) {
       u.uNearFar.value.set(camera.near, camera.far);
       u.uWash.value.set(L.wobblePx * k, L.bleedPx * k, L.poolRatio, L.granulationRatio);
       u.uLine.value.set(L.outlineRatio, linePx, L.outlineDepthRatio, L.outlineColorRatio);
+      u.uCrease.value.set(L.creaseDepthRatio, L.creaseRatio);
       u.uTone.value.set(L.saturationMul, L.contrastMul, L.paperLiftRatio, L.borderRatio);
       u.uGlow.value.set(o.bloom ? L.bloomRatio : 0, L.paperGrainRatio, L.bleedMixRatio, o.time);
       pass(three, postMat, null);

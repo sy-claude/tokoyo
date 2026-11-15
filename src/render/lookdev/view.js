@@ -32,7 +32,6 @@ const col = (hex, gain = 1) => new Color(hex).multiplyScalar(gain);
 export function createLookdevView(renderer, cfg) {
   const scene = new Scene();
   const cameraView = createCameraView(cfg);
-  const lib = { models, palette: S.palette, aoGain: S.aoGain };
   const terrain = createTerrain(S.terrain, S.path);
   const post = createPost(cfg, S);
   const sun = new Vector3(S.sunDir[0], S.sunDir[1], S.sunDir[2]).normalize();
@@ -159,6 +158,7 @@ export function createLookdevView(renderer, cfg) {
     const oct = L.octaveCount[q];
     const mul = L.floraMul[q];
     const o = world.stage.playerStart.pos;
+    const lib = { models, palette: S.palette, aoGain: S.aoGain, segMul: L.meshDetailMul[q] };
     const rng = createRng(presentationSeed(world.stage.seed));
     root = new Group();
     root.position.set(o[0], o[1], o[2]);
@@ -210,7 +210,7 @@ export function createLookdevView(renderer, cfg) {
     const washMat = washMaterial(baseDefines, {}, still);
     const sb = createBuilder(lib);
     placeAll(sb, S.placements, terrain);
-    addScatter(sb, S, terrain, rng.fork('scatter'));
+    addScatter(sb, S, terrain, rng.fork('scatter'), L.scatterMul[q]);
     addSenbon(sb, S, terrain);
     addIslands(sb, S);
     addBareTrees(sb, S, terrain, rng.fork('trees'));

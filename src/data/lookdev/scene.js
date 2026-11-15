@@ -324,6 +324,7 @@ export const scene = {
   scatter: [
     { models: ['pebbleA', 'pebbleB'], count: 46, edge: [-13, 9], offM: [2.4, 3.5], scale: [0.14, 0.42], sink: 0.12, tilt: 20 },
     { models: ['rockA', 'rockB', 'rockC'], count: 14, edge: [-13, 9], offM: [3.0, 4.2], scale: [0.4, 0.8], sink: 0.2, tilt: 14 },
+    { models: ['rockC', 'rockB', 'pebbleA'], count: 16, edge: [9.8, 16], offM: [2.5, 4.2], scale: [0.45, 1.2], sink: 0.3, tilt: 16 },
     { models: ['pebbleB', 'rockShore'], count: 26, disc: [7.5, 0, 9], scale: [0.4, 1.3], sink: 0.3, tilt: 20 },
     { models: ['rockC', 'rockB'], count: 12, disc: [-16, 6, 8], scale: [0.5, 1.2], sink: 0.35, tilt: 16 },
     { models: ['rockC', 'rockB'], count: 10, disc: [0, 19, 7], scale: [0.4, 1.0], sink: 0.35, tilt: 16 },
