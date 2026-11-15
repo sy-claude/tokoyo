@@ -4,7 +4,7 @@
 import { createSceneWorld, hasSceneWorld } from '../sim/world.js';
 
 /** 遊ぶ場面（シムが動く場面）。 */
-const PLAY_SCENES = new Set(['sandbox', 'stage', 'boss', 'fu-test']);
+const PLAY_SCENES = new Set(['sandbox', 'stage', 'boss', 'fu-test', 'lookdev']);
 
 /**
  * @param {Object} game  boot が作るゲーム全体の入れ物（world・cfg・frame・bus・ui・router・loop を持つ）

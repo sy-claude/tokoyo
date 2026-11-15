@@ -56,6 +56,13 @@ export function createRenderer(canvas, cfg, quality) {
       last.calls = three.info.render.calls;
       last.triangles = three.info.render.triangles;
     },
+    /** 複数の描画（後処理つき）を1フレームとして数える。fn の中で three.render を呼ぶ。 */
+    drawWith(fn) {
+      three.info.reset();
+      fn(three);
+      last.calls = three.info.render.calls;
+      last.triangles = three.info.render.triangles;
+    },
     /** 直前に描いたフレームの情報。 */
     info() {
       return {
