@@ -29,7 +29,7 @@ const col = (hex, gain = 1) => new Color(hex).multiplyScalar(gain);
 /**
  * @param {ReturnType<typeof import('../renderer.js').createRenderer>} renderer
  * @param {Cfg} cfg
- * @param {{atelierModel?:string|null}} [opts] 工房：形の名前を渡すと、その形だけを台の上に大きく映す（docs/12 4章）
+ * @param {{atelierModel?:string|null, atelierFocus?:string|null}} [opts] 工房：形の名前を渡すと、その形だけを台の上に大きく映す（docs/12 4章）
  */
 export function createLookdevView(renderer, cfg, opts = {}) {
   const atelier = opts.atelierModel && models[opts.atelierModel] ? opts.atelierModel : null;
@@ -236,6 +236,12 @@ export function createLookdevView(renderer, cfg, opts = {}) {
       staticMesh.geometry.computeBoundingSphere();
       atelierFrame.y = staticMesh.geometry.boundingSphere.center.y;
       atelierFrame.r = staticMesh.geometry.boundingSphere.radius;
+      // 寄り：形ごとに登録した [中心の高さ, 半径]（全身・顔など）。無ければ形全体
+      const f = S.atelier.focus[atelier]?.[opts.atelierFocus ?? 'all'];
+      if (f) {
+        atelierFrame.y = f[0];
+        atelierFrame.r = f[1];
+      }
     }
     root.add(staticMesh);
     addCaster(staticMesh);

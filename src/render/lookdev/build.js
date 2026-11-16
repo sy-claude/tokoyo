@@ -89,6 +89,7 @@ function loftGeometry(p) {
   const rings = p.n ?? st.length * N3;
   const seg = p.seg ?? SEG_DEFAULT;
   const side = v3(p.side ?? [1, 0, 0]);
+  const arc = p.arc ?? null; // 開いた筒（V5）：[始まり, 終わり]（度）。前の開いた羽織など。ふたは付けない
   const pos = [];
   const uv = [];
   const idx = [];
@@ -105,7 +106,7 @@ function loftGeometry(p) {
     A.copy(side).addScaledVector(tan, -side.dot(tan)).normalize();
     B.crossVectors(tan, A);
     for (let j = 0; j <= seg; j++) {
-      const a = (j / seg) * TAU;
+      const a = arc ? (arc[0] + ((arc[1] - arc[0]) * j) / seg) * DEG2RAD : (j / seg) * TAU;
       const ca = Math.cos(a) * Math.max(r.x, 0);
       const sa = Math.sin(a) * Math.max(r.y, 0);
       pos.push(c.x + A.x * ca + B.x * sa, c.y + A.y * ca + B.y * sa, c.z + A.z * ca + B.z * sa);
@@ -117,7 +118,7 @@ function loftGeometry(p) {
     }
   }
   // 両端のふた
-  for (const end of [0, rings - 1]) {
+  for (const end of arc ? [] : [0, rings - 1]) {
     centers.getPoint(end === 0 ? 0 : 1, c);
     const center = pos.length / N3;
     pos.push(c.x, c.y, c.z);

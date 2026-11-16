@@ -1,5 +1,5 @@
 // 工房（docs/12 4章）の撮影：1つの形を決まった6視点で撮り、1枚の一覧にする。
-// 使い方：node scripts/atelier-shot.mjs <形の名前> [--url=http://localhost:5199/] [--q=high] [--ref=参考画像のパス] [--out=tests/artifacts/atelier]
+// 使い方：node scripts/atelier-shot.mjs <形の名前> [--url=http://localhost:5199/] [--q=high] [--ref=参考画像のパス] [--focus=head など（寄り）] [--out=tests/artifacts/atelier]
 // 参考画像（--ref）があれば一覧の左に並べる。
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -11,6 +11,7 @@ const model = args.find((a) => !a.startsWith('--')) ?? 'toriiMain';
 const url = opt('url', 'http://localhost:5199/');
 const q = opt('q', 'high');
 const ref = opt('ref', '');
+const focus = opt('focus', '');
 const OUT = opt('out', 'tests/artifacts/atelier');
 const W = 900, H = 700;
 // 視点：[名前, 横の向き(度), 縦の向き(度)]。最後の2つは寄り（画面の一部を2倍で撮る）
@@ -23,7 +24,7 @@ try {
   const errors = [];
   page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') errors.push(m.text()); });
   page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
-  await page.goto(`${url}?test=1&scene=lookdev&q=${q}&model=${model}`);
+  await page.goto(`${url}?test=1&scene=lookdev&q=${q}&model=${model}${focus ? `&focus=${focus}` : ''}`);
   await page.waitForFunction(() => Boolean(window.__game));
   await page.evaluate(() => window.__game.ready);
   await page.addStyleTag({ content: '#hud,#input,#menus{display:none !important}' });
@@ -65,7 +66,7 @@ try {
     }
     return c.toDataURL('image/png');
   }, [shots, refUrl, W, H]);
-  const file = join(OUT, `${model}.png`);
+  const file = join(OUT, `${model}${focus ? `_${focus}` : ''}.png`);
   writeFileSync(file, Buffer.from(sheet.split(',')[1], 'base64'));
   console.log(`${file}  calls=${info.calls} tris=${info.triangles} q=${info.quality}`);
   if (errors.length) console.log(`console:\n${errors.slice(0, 12).join('\n')}`);

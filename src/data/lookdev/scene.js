@@ -63,10 +63,10 @@ export const scene = {
     poleMetal: '#7b7f8c',
     wire: '#6a5c66',
     // 主人公
-    haori: '#8c9869',
-    haoriLo: '#74805a',
-    hakama: '#75676a',
-    hakamaLo: '#5a4e52',
+    haori: '#5f8563',
+    haoriLo: '#466a50',
+    hakama: '#554a49',
+    hakamaLo: '#3d3536',
     obi: '#7a3f38',
     kyahan: '#d8d0c2',
     skin: '#e3c5a9',
@@ -407,6 +407,10 @@ export const scene = {
   atelier: {
     floorParts: [{ s: 'cyl', r: [9, 9], h: 0.2, seg: 32, at: [0, -0.2, 0], col: 'paveHi' }],
     distMul: 1.5,
+    // 寄りの枠 [中心の高さ(m), 半径(m)]。all＝全身（長い武器や鉢巻の尾を枠の基準にしない）
+    focus: {
+      hero: { all: [0.88, 1.28], head: [1.56, 0.26], body: [1.1, 0.5], legs: [0.35, 0.45] },
+    },
   },
 
   // 歩きの見た目：腰の高さ（m）
