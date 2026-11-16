@@ -11,12 +11,12 @@ export const scene = {
     paperWhite: '#f4efe6',
     ink: '#4b3b45',
     // 鳥居
-    toriiRed: '#a63f30',
-    toriiRedLo: '#8f382e',
-    toriiRedHi: '#b54e3a',
+    toriiRed: '#b24c3a',
+    toriiRedLo: '#a34a3c',
+    toriiRedHi: '#c25c45',
     toriiRoof: '#5c5560',
     toriiFar: '#b4604c',
-    peel: '#bfb0aa',
+    peel: '#cdc2b6',
     vine: '#5d6248',
     // 石・岩
     stone: '#948a86',
@@ -402,6 +402,12 @@ export const scene = {
 
   // 落ち影の図の中心（この周りだけ影を落とす）
   shadowCenter: [-1, 1, 4],
+
+  // 工房（?scene=lookdev&model=形の名前）：台と、カメラの距離（形の半径の何倍か）
+  atelier: {
+    floorParts: [{ s: 'cyl', r: [9, 9], h: 0.2, seg: 32, at: [0, -0.2, 0], col: 'paveHi' }],
+    distMul: 1.5,
+  },
 
   // 歩きの見た目：腰の高さ（m）
   heroHipM: 1.0,

@@ -28,9 +28,9 @@
 
 ## 4. 工房（最初に作る。V5-0）
 1体だけを大きく映して、回して見る画面。これが無いと作り込めない。
-- URL：`?scene=atelier&model=<形の名前>`（場面の一覧に `atelier` を足す。09 §10.1 と CLAUDE.md の URL 欄も更新）。
+- URL：`?scene=lookdev&model=<形の名前>`（V5 第1回で実装済み。専用の場面は作らず lookdev に引数を足した）。
 - 表示：無地の紙色の背景、台座、本編と同じ光・同じ水彩の仕上げ。指のドラッグで回転、2本指で拡大。
-- 撮影：`node scripts/atelier-shot.mjs <形の名前>` で**決まった6視点**（正面・背面・左・右・斜め上・顔や要所の寄り）を1枚の一覧にする。参考画像（5章のファイル）があれば左に並べる。出力は `tests/artifacts/atelier/`、依頼者に見せる版は `design-notes/lookdev/atelier/<名前>_vN.png`。
+- 撮影：`node scripts/atelier-shot.mjs <形の名前> --ref=<参考画像>` で**決まった6視点**（実装済み。寄りの視点と動きの連続写真はまだ）（正面・背面・左・右・斜め上・顔や要所の寄り）を1枚の一覧にする。参考画像（5章のファイル）があれば左に並べる。出力は `tests/artifacts/atelier/`、依頼者に見せる版は `design-notes/lookdev/atelier/<名前>_vN.png`。
 - 表示する数：三角形・描画命令（上限は 8章）。
 - 動きの確認：待機・歩きなどを切り替えて、8コマの連続写真を作れること（V4 の `v4_yokai_motion.png` と同じ形式）。
 

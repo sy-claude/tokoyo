@@ -17,7 +17,7 @@ export const lookdev = {
   grainRatio: { v: 0.5, min: 0, max: 2, step: 0.05, desc: '石の粒の強さ' },
   strokeRatio: { v: 0.22, min: 0, max: 1, step: 0.01, desc: '筆の筋（木目・層）の強さ' },
   inkCrackRatio: { v: 0.7, min: 0, max: 1, step: 0.01, desc: '墨線：石・岩の割れ目を線として描く濃さ' },
-  inkGrainRatio: { v: 0.45, min: 0, max: 1, step: 0.01, desc: '墨線：木目・布のしわを線として描く濃さ' },
+  inkGrainRatio: { v: 0.3, min: 0, max: 1, step: 0.01, desc: '墨線：木目・布のしわを線として描く濃さ' },
   paveJointM: { v: 0.03, min: 0.005, max: 0.2, step: 0.005, desc: '敷石の目地の太さ（升に対する比。小さいほど細い線）' },
   castShadowRatio: { v: 0.7, min: 0, max: 1, step: 0.05, desc: '落ち影の濃さ' },
   shadowElevDeg: { v: 22, min: 5, max: 80, step: 1, desc: '落ち影：光の仰角（deg。低いほど影が長い）' },

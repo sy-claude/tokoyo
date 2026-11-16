@@ -8,27 +8,49 @@ const STONE_FX = [0.75, 0, 1, 0];
 const TORII_FX = [0.3, 0.55, 0, 0];
 
 export const models = {
-  // ---- 朱の大鳥居（明神鳥居。笠木が反り、塗りがはげ、屋根に苔） ----
+  // ---- 朱の大鳥居（明神鳥居。V5 で作り直し：細身の柱が内へ転び、笠木が反り、塗りは半分ほどはげ、上面に苔） ----
   toriiMain: {
     parts: [
-      { s: 'cyl', r: [0.78, 0.64], h: 0.5, seg: 12, at: [2.3, 0, 0], col: 'stone', col2: 'stoneHi', fx: STONE_FX, jitter: 0.06, jfreq: 2 },
-      { s: 'cyl', r: [0.78, 0.64], h: 0.5, seg: 12, at: [-2.3, 0, 0], col: 'stone', col2: 'stoneHi', fx: STONE_FX, jitter: 0.06, jfreq: 2, seed: 4 },
-      { s: 'cyl', r: [0.48, 0.4], h: 5.5, seg: 14, hseg: 8, at: [2.3, 0.3, 0], rot: [0, 0, 1.8], col: 'toriiRedLo', col2: 'toriiRedHi', fx: TORII_FX, jitter: 0.03, jfreq: 1.2 },
-      { s: 'cyl', r: [0.48, 0.4], h: 5.5, seg: 14, hseg: 8, at: [-2.3, 0.3, 0], rot: [0, 0, -1.8], col: 'toriiRedLo', col2: 'toriiRedHi', fx: TORII_FX, jitter: 0.03, jfreq: 1.2, seed: 9 },
-      // 貫（柱を貫いて外へ出る）と楔
-      { s: 'box', size: [6.9, 0.56, 0.42], at: [0, 4.02, 0], col: 'toriiRed', fx: TORII_FX, segs: [6, 1, 1] },
-      { s: 'box', size: [0.2, 0.3, 0.6], at: [1.72, 4.6, 0], rot: [0, 0, 12], col: 'toriiRedLo', fx: TORII_FX },
-      { s: 'box', size: [0.2, 0.3, 0.6], at: [-1.72, 4.6, 0], rot: [0, 0, -12], col: 'toriiRedLo', fx: TORII_FX },
+      // 礎石（四角い沓石の上に丸い亀腹）
+      { s: 'box', size: [1.2, 0.2, 1.2], at: [2.3, -0.06, 0], rot: [0, 6, 0], bevel: 0.05, col: 'stoneDark', col2: 'stone', fx: STONE_FX, jitter: 0.02, jfreq: 3 },
+      { s: 'box', size: [1.2, 0.2, 1.2], at: [-2.3, -0.06, 0], rot: [0, -4, 0], bevel: 0.05, col: 'stoneDark', col2: 'stone', fx: STONE_FX, jitter: 0.02, jfreq: 3, seed: 5 },
+      { s: 'lathe', seg: 20, at: [2.3, 0.12, 0], col: 'stone', col2: 'stoneHi', fx: STONE_FX, jitter: 0.02, jfreq: 3,
+        pts: [[0.5, 0], [0.5, 0.1], [0.45, 0.22], [0.36, 0.3], [0.2, 0.33], [0, 0.33]] },
+      { s: 'lathe', seg: 20, at: [-2.3, 0.12, 0], col: 'stone', col2: 'stoneHi', fx: STONE_FX, jitter: 0.02, jfreq: 3, seed: 4,
+        pts: [[0.5, 0], [0.5, 0.1], [0.45, 0.22], [0.36, 0.3], [0.2, 0.33], [0, 0.33]] },
+      // 柱（内へ転ぶ。縦の割れ目・根元ほど塗りがはげる）と台輪
+      { s: 'group', at: [2.3, 0.3, 0], rot: [0, 0, 2.2], parts: [
+        { s: 'cyl', r: [0.33, 0.27], h: 5.2, seg: 28, hseg: 18, col: 'toriiRedLo', col2: 'toriiRedHi', fx: [0.2, 0.98, 0, 0], fx2: [0.5, 0.74, 0, 0], jitter: 0.012, jfreq: 1.6, ao: 0.5,
+          grooves: [[20, 7, 0.035, 0.02, 0.62], [95, 5, 0.025, 0.3, 0.95], [150, 8, 0.04, 0.0, 0.4], [215, 5, 0.03, 0.45, 1.0], [262, 6, 0.03, 0.1, 0.7], [320, 5, 0.025, 0.55, 0.98]] },
+        { s: 'cyl', r: [0.32, 0.36], h: 0.12, seg: 20, at: [0, 4.9, 0], col: 'toriiRedLo', fx: TORII_FX },
+      ] },
+      { s: 'group', at: [-2.3, 0.3, 0], rot: [0, 0, -2.2], parts: [
+        { s: 'cyl', r: [0.33, 0.27], h: 5.2, seg: 28, hseg: 18, col: 'toriiRedLo', col2: 'toriiRedHi', fx: [0.2, 1.0, 0, 0], fx2: [0.5, 0.72, 0, 0], jitter: 0.012, jfreq: 1.6, seed: 9, ao: 0.5,
+          grooves: [[340, 7, 0.04, 0.0, 0.5], [60, 5, 0.025, 0.35, 0.9], [120, 6, 0.03, 0.05, 0.6], [190, 8, 0.035, 0.4, 1.0], [250, 5, 0.03, 0.0, 0.35], [295, 5, 0.025, 0.5, 0.95]] },
+        { s: 'cyl', r: [0.32, 0.36], h: 0.12, seg: 20, at: [0, 4.9, 0], col: 'toriiRedLo', fx: TORII_FX },
+      ] },
+      // 貫（柱を貫いて外へ出る）と楔（柱の両側に1つずつ）
+      { s: 'box', size: [7.0, 0.5, 0.34], at: [0, 3.94, 0], bevel: 0.035, col: 'toriiRedLo', col2: 'toriiRed', fx: [0.45, 0.72, 0, 0], segs: [12, 1, 1], jitter: 0.012, jfreq: 2 },
+      { s: 'box', size: [0.13, 0.24, 0.42], at: [2.5, 4.4, 0], rot: [0, 0, -9], bevel: 0.02, col: 'toriiRedLo', fx: TORII_FX },
+      { s: 'box', size: [0.13, 0.2, 0.42], at: [1.8, 4.4, 0], rot: [0, 0, 11], bevel: 0.02, col: 'toriiRedLo', fx: TORII_FX },
+      { s: 'box', size: [0.13, 0.24, 0.42], at: [-2.5, 4.4, 0], rot: [0, 0, 9], bevel: 0.02, col: 'toriiRedLo', fx: TORII_FX },
+      { s: 'box', size: [0.13, 0.2, 0.42], at: [-1.8, 4.4, 0], rot: [0, 0, -11], bevel: 0.02, col: 'toriiRedLo', fx: TORII_FX },
       // 額束
-      { s: 'box', size: [0.5, 0.82, 0.36], at: [0, 4.58, 0], col: 'toriiRed', fx: TORII_FX },
-      // 島木と笠木（両端が反り上がる）、黒ずんだ屋根
-      { s: 'box', size: [7.3, 0.5, 0.62], at: [0, 5.34, 0], col: 'toriiRed', col2: 'toriiRedHi', fx: TORII_FX, segs: [14, 1, 1], bendY: 0.34 },
-      { s: 'box', size: [7.9, 0.36, 0.86], at: [0, 5.83, 0], col: 'toriiRedLo', col2: 'toriiRoof', fx: [0.75, 0.35, 0, 0], segs: [14, 1, 1], bendY: 0.44 },
-      { s: 'box', size: [8.1, 0.1, 1.0], at: [0, 6.18, 0], col: 'toriiRoof', fx: [0.9, 0.2, 0, 0], segs: [14, 1, 1], bendY: 0.47 },
-      // 柱に絡む蔦
-      { s: 'tube', path: [[2.6, 0.4, 0.34], [2.1, 1.6, 0.42], [2.66, 2.8, 0.26], [2.2, 4.0, 0.36], [1.6, 4.5, 0.26]], r: [0.035, 0.015], col: 'vine' },
-      { s: 'tube', path: [[-2.0, 4.4, 0.24], [-1.2, 4.1, 0.28], [-0.4, 4.05, 0.24]], r: [0.03, 0.012], col: 'vine' },
-      { s: 'tube', path: [[-2.6, 0.5, -0.3], [-2.75, 1.8, -0.1], [-2.2, 2.9, 0.38], [-2.7, 3.9, 0.2]], r: [0.03, 0.012], col: 'vine' },
+      { s: 'box', size: [0.34, 0.95, 0.26], at: [0, 4.4, 0], bevel: 0.03, col: 'toriiRedLo', col2: 'toriiRed', fx: [0.2, 0.7, 0, 0] },
+      // 島木と笠木（両端が反り上がる）、黒ずんで苔むした上面の板
+      { s: 'box', size: [7.3, 0.46, 0.58], at: [0, 5.28, 0], bevel: 0.04, col: 'toriiRedLo', col2: 'toriiRedHi', fx: [0.3, 0.74, 0, 0], segs: [16, 1, 1], bendY: 0.34, jitter: 0.012, jfreq: 2 },
+      { s: 'box', size: [7.9, 0.34, 0.74], at: [0, 5.72, 0], bevel: 0.05, col: 'toriiRedLo', col2: 'toriiRoof', fx: [0.7, 0.66, 0, 0], segs: [16, 1, 1], bendY: 0.44, jitter: 0.015, jfreq: 2 },
+      { s: 'box', size: [8.1, 0.09, 0.94], at: [0, 6.04, 0], bevel: 0.03, col: 'toriiRoof', fx: [0.95, 0.3, 0, 0], segs: [16, 1, 2], bendY: 0.47, jitter: 0.02, jfreq: 2.4 },
+      // めくれた塗りの薄片（輪郭に小さな欠けを作る）
+      { s: 'fan', pts: [[2.02, 1.3, 0.12], [1.93, 1.12, 0.2], [2.04, 1.0, 0.16]], col: 'peel' },
+      { s: 'fan', pts: [[2.47, 2.6, 0.14], [2.58, 2.42, 0.2], [2.46, 2.3, 0.18]], col: 'toriiRedHi' },
+      { s: 'fan', pts: [[-2.0, 2.0, 0.14], [-1.9, 1.84, 0.22], [-2.02, 1.72, 0.16]], col: 'peel' },
+      { s: 'fan', pts: [[-2.5, 3.2, 0.1], [-2.6, 3.02, 0.18], [-2.48, 2.92, 0.14]], col: 'toriiRedHi' },
+      { s: 'fan', pts: [[0.9, 4.0, 0.16], [1.0, 3.88, 0.22], [1.12, 4.0, 0.16]], col: 'peel' },
+      { s: 'fan', pts: [[-1.2, 4.0, 0.16], [-1.08, 3.9, 0.24], [-0.98, 4.0, 0.16]], col: 'toriiRedHi' },
+      // 柱に絡む蔦（細く控えめに）
+      { s: 'tube', path: [[2.56, 0.4, 0.2], [2.2, 1.5, 0.3], [2.5, 2.7, 0.2], [2.2, 3.9, 0.26], [1.7, 4.45, 0.18]], r: [0.022, 0.01], col: 'vine' },
+      { s: 'tube', path: [[-2.5, 0.5, -0.22], [-2.6, 1.8, -0.05], [-2.2, 2.9, 0.26], [-2.5, 3.9, 0.12]], r: [0.02, 0.01], col: 'vine' },
     ],
   },
   // ---- 千本鳥居の1基（遠景用の簡単な形） ----
