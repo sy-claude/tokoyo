@@ -11,12 +11,12 @@ export const scene = {
     paperWhite: '#f4efe6',
     ink: '#4b3b45',
     // 鳥居
-    toriiRed: '#a63f30',
-    toriiRedLo: '#8f382e',
-    toriiRedHi: '#b54e3a',
+    toriiRed: '#b24c3a',
+    toriiRedLo: '#a34a3c',
+    toriiRedHi: '#c25c45',
     toriiRoof: '#5c5560',
     toriiFar: '#b4604c',
-    peel: '#bfb0aa',
+    peel: '#cdc2b6',
     vine: '#5d6248',
     // 石・岩
     stone: '#948a86',
@@ -218,15 +218,37 @@ export const scene = {
     { model: 'rockShore', at: [7.2, -2.9, 9.6], rot: [0, 250, 0], scale: 1.1 },
     // 山犬の岩棚
     { model: 'rockC', at: [-9.3, -0.5, 14.9], rot: [0, 30, 0], scale: 1.5, ground: true },
-    // 石段（鳥居の先を右へ上る）
-    { model: 'step', at: [-2.9, 0, 10.4], rot: [0, 22, 0], ground: true },
-    { model: 'step', at: [-3.4, 0, 11.3], rot: [0, 26, 0], ground: true },
-    { model: 'step', at: [-3.95, 0, 12.2], rot: [0, 30, 0], ground: true },
-    { model: 'step', at: [-4.55, 0, 13.05], rot: [0, 36, 0], ground: true },
-    { model: 'step', at: [-5.25, 0, 13.85], rot: [0, 40, 0], ground: true },
-    { model: 'step', at: [-6.0, 0, 14.65], rot: [0, 42, 0], ground: true },
-    { model: 'step', at: [-6.8, 0, 15.4], rot: [0, 44, 0], ground: true },
-    { model: 'step', at: [-7.6, 0, 16.15], rot: [0, 46, 0], ground: true },
+    // 石段（鳥居の先を右へ上る。幅の狭い薄い踏み石を細かく刻む。少しずつ傾いて不ぞろい）
+    { model: 'stepSlab', at: [-2.90, 0, 10.40], rot: [0, 20, 1], ground: true },
+    { model: 'stepSlab', at: [-3.13, 0, 10.82], rot: [-2, 21, 2], ground: true },
+    { model: 'stepSlab', at: [-3.37, 0, 11.24], rot: [-2, 25, 2], ground: true },
+    { model: 'stepSlab', at: [-3.62, 0, 11.66], rot: [-2, 29, -1], ground: true },
+    { model: 'stepSlab', at: [-3.88, 0, 12.08], rot: [-2, 26, 1], ground: true },
+    { model: 'stepSlab', at: [-4.15, 0, 12.48], rot: [1, 29, -1], ground: true },
+    { model: 'stepSlab', at: [-4.43, 0, 12.88], rot: [-2, 36, 1], ground: true },
+    { model: 'stepSlab', at: [-4.74, 0, 13.26], rot: [-2, 40, 2], ground: true },
+    { model: 'stepSlab', at: [-5.06, 0, 13.64], rot: [-2, 37, 2], ground: true },
+    { model: 'stepSlab', at: [-5.40, 0, 14.01], rot: [-2, 41, 2], ground: true },
+    { model: 'stepSlab', at: [-5.75, 0, 14.38], rot: [1, 38, -1], ground: true },
+    { model: 'stepSlab', at: [-6.11, 0, 14.75], rot: [-2, 43, -1], ground: true },
+    { model: 'stepSlab', at: [-6.48, 0, 15.10], rot: [0, 43, -1], ground: true },
+    { model: 'stepSlab', at: [-6.85, 0, 15.45], rot: [2, 41, 2], ground: true },
+    { model: 'stepSlab', at: [-7.23, 0, 15.80], rot: [0, 46, -1], ground: true },
+    { model: 'stepSlab', at: [-7.60, 0, 16.15], rot: [-2, 47, 2], ground: true },
+    // 崩れた石垣（石段の両脇。奥ほど低く崩れる）と転がった石
+    { model: 'ishigaki', at: [-1.26, -0.1, 9.90], rot: [2, 110, 1], scale: 1.00, ground: true },
+    { model: 'ishigaki', at: [-4.93, -0.1, 11.64], rot: [-3, 116, -3], scale: 1.00, ground: true },
+    { model: 'ishigakiBroken', at: [-2.40, -0.1, 11.36], rot: [1, 115, -1], scale: 0.90, ground: true },
+    { model: 'ishigaki', at: [-5.93, -0.1, 13.79], rot: [0, 128, 4], scale: 1.05, ground: true },
+    { model: 'ishigakiBroken', at: [-6.96, -0.1, 15.36], rot: [0, 137, 1], scale: 0.90, ground: true },
+    { model: 'ishigaki', at: [-4.23, -0.1, 13.05], rot: [0, 134, 3], scale: 1.00, ground: true },
+    { model: 'ishigakiBroken', at: [-5.65, -0.1, 14.26], rot: [-1, 133, -1], scale: 0.85, ground: true },
+    { model: 'ishigaki', at: [-8.58, -0.1, 17.15], rot: [3, 131, -1], scale: 0.90, ground: true },
+    // 木の根（斜面を這って石段の縁へ出る）
+    { model: 'roots', at: [-5.92, 0.02, 12.86], rot: [0, 200, 0], scale: 1.00, ground: true },
+    { model: 'roots', at: [-6.89, 0.02, 14.96], rot: [0, 150, 0], scale: 1.20, ground: true },
+    { model: 'roots', at: [-4.41, 0.02, 13.18], rot: [0, 20, 0], scale: 1.00, ground: true },
+    { model: 'roots', at: [-2.45, 0.02, 11.52], rot: [0, 330, 0], scale: 0.90, ground: true },
     // 電柱（左奥。傾いている）
     { model: 'pole', at: [4.2, 0, 16.5], rot: [3, 0, -9], ground: true },
     { model: 'pole', at: [6.6, 0, 11.6], rot: [-2, 0, 7], scale: 0.82, ground: true },
@@ -237,11 +259,14 @@ export const scene = {
     { model: 'lighthouse', at: [62, 3, 170], rot: [0, 0, 0], scale: 0.75 },
   ],
 
-  // 妖怪（1体＝1メッシュ）
+  // 妖怪（1体＝1メッシュ）。motion＝身じろぎ：pivot＝支点（形の座標 m）、swayDeg＝[前後, 左右] の揺れ、bob＝呼吸の上下、hop＝小跳び、phase＝ずらし
   yokai: [
-    { model: 'chochin', at: [-1.45, 2.5, 7.0], rot: [4, 186, -3], scale: 1.0 },
-    { model: 'karakasa', at: [-6.5, 0.05, 10.4], rot: [5, 160, -9], scale: 1.2, ground: true },
-    { model: 'yamainu', at: [-9.2, 0.95, 14.6], rot: [6, 122, 0], scale: 1.6, ground: true },
+    { model: 'chochin', at: [-1.45, 2.5, 7.0], rot: [4, 186, -3], scale: 1.0,
+      motion: { pivot: [0.3, 2.06, 0], swayDeg: [3.5, 5], swayHz: 0.31, bobM: 0, bobHz: 0, hopM: 0, hopHz: 0, phase: 0.4 } },
+    { model: 'karakasa', at: [-6.5, 0.05, 10.4], rot: [5, 160, -9], scale: 1.2, ground: true,
+      motion: { pivot: [0, 0, 0], swayDeg: [4, 5], swayHz: 0.42, bobM: 0, bobHz: 0, hopM: 0.2, hopHz: 0.42, phase: 1.1 } },
+    { model: 'yamainu', at: [-9.2, 0.95, 14.6], rot: [6, 122, 0], scale: 1.6, ground: true,
+      motion: { pivot: [0, 0.4, -0.5], swayDeg: [2.2, 1.2], swayHz: 0.5, bobM: 0.012, bobHz: 0.5, hopM: 0, hopHz: 0, phase: 2.3 } },
   ],
 
   // 電線 [始点, 終点, たるみ(m)]
@@ -377,6 +402,12 @@ export const scene = {
 
   // 落ち影の図の中心（この周りだけ影を落とす）
   shadowCenter: [-1, 1, 4],
+
+  // 工房（?scene=lookdev&model=形の名前）：台と、カメラの距離（形の半径の何倍か）
+  atelier: {
+    floorParts: [{ s: 'cyl', r: [9, 9], h: 0.2, seg: 32, at: [0, -0.2, 0], col: 'paveHi' }],
+    distMul: 1.5,
+  },
 
   // 歩きの見た目：腰の高さ（m）
   heroHipM: 1.0,

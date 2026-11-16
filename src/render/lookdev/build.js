@@ -8,7 +8,7 @@ import {
 import { DEG2RAD } from '../../core/math.js';
 import { fbm3 } from '../../core/noise.js';
 import { createRng } from '../../core/rng.js';
-import { HALF, N3, N4, SEG_DEFAULT, TAU } from './consts.js';
+import { BYTE_MAX, HALF, N3, N4, SEG_DEFAULT, TAU } from './consts.js';
 
 const ZERO4 = [0, 0, 0, 0];
 const ONE3 = [1, 1, 1];
@@ -141,7 +141,9 @@ function shapeGeometry(p0, segMul) {
   const p = segMul === 1 || p0.seg === undefined || p0.flute ? p0 : { ...p0, seg: Math.max(N4, Math.round(p0.seg * segMul)) };
   switch (p.s) {
     case 'box': {
-      const g = new BoxGeometry(p.size[0], p.size[1], p.size[2], p.segs?.[0] ?? 1, p.segs?.[1] ?? 1, p.segs?.[2] ?? 1);
+      const extra = p.bevel ? 2 : 0; // 面取りは各辺の両端に1区画ずつ足して作る
+      const g = new BoxGeometry(p.size[0], p.size[1], p.size[2], (p.segs?.[0] ?? 1) + extra, (p.segs?.[1] ?? 1) + extra, (p.segs?.[2] ?? 1) + extra);
+      if (p.bevel) bevelBox(g, p.size, p.bevel);
       g.translate(0, p.size[1] * HALF, 0); // 底面の中心が原点
       return g;
     }
@@ -208,6 +210,87 @@ function fluteGeometry(g, flute) {
     ao[i] = (tri - HALF) * (1 - topFade * ((pos.getY(i) - bb.min.y) / span));
   }
   // ひだの谷を暗く、山を明るく塗る
+  g.setAttribute('ao', new BufferAttribute(ao, 1));
+  g.computeVertexNormals();
+}
+
+/**
+ * 面取り（V5）：箱の角と辺を丸める。各辺の端の1区画を面取りの幅に詰め、内側の箱からの距離を幅にそろえる。
+ * @param {BufferGeometry} g 中心が原点の箱 @param {number[]} size @param {number} bevel 面取りの幅（m）
+ */
+function bevelBox(g, size, bevel) {
+  const pos = g.attributes.position;
+  const nor = g.attributes.normal;
+  const r = Math.min(bevel, Math.min(size[0], size[1], size[2]) * HALF * HALF);
+  const half = [size[0] * HALF, size[1] * HALF, size[2] * HALF];
+  const eps = Math.min(half[0], half[1], half[2]) / BYTE_MAX;
+  const c = [0, 0, 0];
+  const inner = [0, 0, 0];
+  for (let i = 0; i < pos.count; i++) {
+    c[0] = pos.getX(i);
+    c[1] = pos.getY(i);
+    c[2] = pos.getZ(i);
+    for (let a = 0; a < N3; a++) {
+      const h = half[a];
+      // 端の区画を面取りの幅に詰める（端から1つ目の頂点を「内側の箱」の面へ寄せる）。区画の幅は 全長÷区画数
+      const segN = Math.round((g.parameters[a === 0 ? 'widthSegments' : a === 1 ? 'heightSegments' : 'depthSegments']));
+      const step = (h * 2) / segN;
+      const idx = Math.round((c[a] + h) / step);
+      if (idx === 1) c[a] = -h + r;
+      else if (idx === segN - 1) c[a] = h - r;
+      else if (idx > 1 && idx < segN - 1) c[a] = -h + r + ((idx - 1) / (segN - 2)) * (h * 2 - r * 2);
+      inner[a] = Math.max(-h + r, Math.min(h - r, c[a]));
+    }
+    const dx = c[0] - inner[0];
+    const dy = c[1] - inner[1];
+    const dz = c[2] - inner[2];
+    const d = Math.hypot(dx, dy, dz);
+    if (d > eps) {
+      pos.setXYZ(i, inner[0] + (dx / d) * r, inner[1] + (dy / d) * r, inner[2] + (dz / d) * r);
+      nor.setXYZ(i, dx / d, dy / d, dz / d);
+    } else {
+      pos.setXYZ(i, c[0], c[1], c[2]);
+    }
+  }
+  pos.needsUpdate = true;
+}
+
+/**
+ * 彫り込み（V5）：円柱・回転体の側面に、縦の割れ目や欠けを彫る。場所と深さを表で指定する。
+ * grooves＝[[向き(度), 幅(度), 深さ(m), 下端(0..1), 上端(0..1)], …]。割れ目は上下の端へ向けて浅くなり、少し蛇行する。
+ */
+function grooveGeometry(g, grooves) {
+  g.computeBoundingBox();
+  const bb = g.boundingBox;
+  const span = Math.max(bb.max.y - bb.min.y, Number.EPSILON);
+  const pos = g.attributes.position;
+  const ao = g.attributes.ao ? g.attributes.ao.array : new Float32Array(pos.count);
+  const turn = TAU / DEG2RAD;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i);
+    const z = pos.getZ(i);
+    const rad = Math.hypot(x, z);
+    if (rad < Number.EPSILON) continue;
+    const ty = (pos.getY(i) - bb.min.y) / span;
+    const ang = Math.atan2(z, x) / DEG2RAD;
+    let cut = 0;
+    for (const [a0, w, depth, y0, y1] of grooves) {
+      if (ty < y0 || ty > y1) continue;
+      const u = (ty - y0) / Math.max(y1 - y0, Number.EPSILON);
+      const wander = Math.sin(u * TAU + a0) * w * HALF; // 蛇行
+      let da = Math.abs(ang - a0 - wander) % turn;
+      if (da > turn * HALF) da = turn - da;
+      const across = Math.max(0, 1 - da / w);
+      const along = Math.sin(u * Math.PI);
+      cut = Math.max(cut, across * Math.sqrt(along) * depth);
+    }
+    if (cut > 0) {
+      const k = (rad - cut) / rad;
+      pos.setX(i, x * k);
+      pos.setZ(i, z * k);
+      ao[i] -= Math.min(1, cut / (rad * HALF)) * 2;
+    }
+  }
   g.setAttribute('ao', new BufferAttribute(ao, 1));
   g.computeVertexNormals();
 }
@@ -315,6 +398,7 @@ export function createBuilder(lib = {}) {
     let g = shapeGeometry(p, lib.segMul ?? 1);
     if (p.chisel) chiselGeometry(g, p.chisel);
     if (p.flute) fluteGeometry(g, p.flute);
+    if (p.grooves) grooveGeometry(g, p.grooves);
     if (p.bendY) bendGeometry(g, p.bendY, p.size[0] * HALF);
     if (p.jitter) {
       jitterGeometry(g, p.jitter, p.jfreq ?? 1, p.seed ?? 1, p.joct ?? N3);
@@ -330,6 +414,7 @@ export function createBuilder(lib = {}) {
     const c0 = color(inh.col ?? 'paperWhite');
     const c1 = p.col2 ? color(p.col2) : c0;
     const fx = inh.fx ?? ZERO4;
+    const fx2 = p.fx2 ?? null; // 下端 fx → 上端 fx2 へ変える（塗りのはげ・苔を高さで変える）
     const anim = inh.anim ?? ZERO4;
     const animGrad = p.animGrad ?? null; // 帯や草：道のりに沿って重みを 0→1 にする
     const pos = g.attributes.position;
@@ -350,7 +435,8 @@ export function createBuilder(lib = {}) {
       tmpC.copy(c0).lerp(c1, tc);
       if (aoAttr) tmpC.multiplyScalar(1 + aoAttr.getX(i) * aoGain);
       C.push(tmpC.r, tmpC.g, tmpC.b);
-      F.push(fx[0], fx[1], fx[2], fx[N3]);
+      if (fx2) F.push(fx[0] + (fx2[0] - fx[0]) * ty, fx[1] + (fx2[1] - fx[1]) * ty, fx[2] + (fx2[2] - fx[2]) * ty, fx[N3] + (fx2[N3] - fx[N3]) * ty);
+      else F.push(fx[0], fx[1], fx[2], fx[N3]);
       const w = animGrad && uv ? animGrad[0] + (animGrad[1] - animGrad[0]) * (p.s === 'tube' ? uv.getX(i) : uv.getY(i)) : anim[1];
       A.push(anim[0], w, anim[2] ?? 0, anim[N3] ?? 0);
     }

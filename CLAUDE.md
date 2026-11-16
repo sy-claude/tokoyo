@@ -4,7 +4,7 @@
 依頼者は非エンジニア。設計は `docs/` に確定済み。**あなたの仕事は設計どおりに実装し、自分で検証すること**。
 
 ## 毎セッションの手順
-1. `PROGRESS.md` を読む（無ければ M0a から）。指示されたマイルストーン（M）の節を `docs/10_milestones.md` で読む。
+1. `PROGRESS.md` を読む（無ければ M0a から）。見た目の作業（lookdev・工房）のときは `docs/12_visual_plan.md` も読み、その進め方に従う。指示されたマイルストーン（M）の節を `docs/10_milestones.md` で読む。
 2. そのMの「読む文書と節」**だけ**を読む（全文書を読まない。`docs/00_core.md` は毎回読む）。
 3. 実装 → `npm run verify:fast` → `npm run verify`（ブラウザが無ければ縮退。09 11.4）→ スクリーンショットの縮小一覧を自分で見て確認。
 4. `PROGRESS.md` を更新 → commit → push。最終メッセージに「PR本文」（題名・要約5行以内・verify結果・依頼者が試すこと3行）を書く。
@@ -35,7 +35,7 @@
 - `npm run verify:fast` 型検査＋単体テスト＋ビルド（90秒以内）
 - `npm run verify` 上記＋ヘッドレスChromiumのスマホ横画面e2e＋スクリーンショット（10分以内）
 - `npm run replays:update` 意図して挙動を変えたときだけリプレイを更新
-- URL：`?debug=1` 調整パネル ／ `?test=1&seed=N` テストモード ／ `?bench=1` 性能測定 ／ `?scene=sandbox|stage|boss|fu-test|title`、見本室 `gallery-rigs|gallery-vfx|stage-view|gallery-ui`（10 §G）、見た目の試作 `lookdev`（V1。PROGRESS.md）
+- URL：`?debug=1` 調整パネル ／ `?test=1&seed=N` テストモード ／ `?bench=1` 性能測定 ／ `?scene=sandbox|stage|boss|fu-test|title`、見本室 `gallery-rigs|gallery-vfx|stage-view|gallery-ui`（10 §G）、見た目の試作 `lookdev`（PROGRESS.md）、工房 `?scene=lookdev&model=形の名前`（1つの形を大きく映す。docs/12）
 
 ## 文書の地図
-00_core（原則・用語・時間・不変条件）／01 操作とUI／02 移動とカメラ／03 戦闘と陰陽術／04 敵とボス／05 ステージ／06 キャラと強化・保存／07 美術／08 音／09 技術／10 マイルストーン／11 外部素材（3Dモデル・質感画像）／decisions（決定の理由）
+00_core（原則・用語・時間・不変条件）／01 操作とUI／02 移動とカメラ／03 戦闘と陰陽術／04 敵とボス／05 ステージ／06 キャラと強化・保存／07 美術／08 音／09 技術／10 マイルストーン／11 外部素材（3Dモデル・質感画像）／12 見た目の作業方針（V5 以降。1体ずつ作り込む進め方）／decisions（決定の理由）

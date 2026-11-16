@@ -13,7 +13,8 @@ import { createRng, presentationSeed } from '../../core/rng.js';
 import { scene as S } from '../../data/lookdev/scene.js';
 import { models } from '../../data/lookdev/models.js';
 import { createCameraView } from '../cameraView.js';
-import { createBuilder } from './build.js';
+import { createBuilder, partMatrix } from './build.js';
+import { yokaiMatrix } from './yokaiMotion.js';
 import { HALF, N3, N4, TAU } from './consts.js';
 import { addBareTrees, addDaisies, addGrass, addFallenLeaves, addIslands, addMaple, addMapleBranches, addScatter, addSenbon, addWires, placeAll } from './flora.js';
 import { createPost } from './post.js';
@@ -28,12 +29,17 @@ const col = (hex, gain = 1) => new Color(hex).multiplyScalar(gain);
 /**
  * @param {ReturnType<typeof import('../renderer.js').createRenderer>} renderer
  * @param {Cfg} cfg
+ * @param {{atelierModel?:string|null}} [opts] 工房：形の名前を渡すと、その形だけを台の上に大きく映す（docs/12 4章）
  */
-export function createLookdevView(renderer, cfg) {
+export function createLookdevView(renderer, cfg, opts = {}) {
+  const atelier = opts.atelierModel && models[opts.atelierModel] ? opts.atelierModel : null;
+  /** 工房で映す形の中心の高さと半径（カメラの距離を決める） */
+  const atelierFrame = { y: 0, r: 1 };
   const scene = new Scene();
   const cameraView = createCameraView(cfg);
   const terrain = createTerrain(S.terrain, S.path);
   const post = createPost(cfg, S);
+  const camDir = new Vector3();
   const sun = new Vector3(S.sunDir[0], S.sunDir[1], S.sunDir[2]).normalize();
   /** @type {{dispose:()=>void}[]} */
   let disposables = [];
@@ -52,6 +58,8 @@ export function createLookdevView(renderer, cfg) {
   let casters = [];
   /** 影を落とさない物（影の図を描く間は隠す） @type {any[]} */
   let nonCasters = [];
+  /** 妖怪（毎フレーム身じろぎの行列を掛ける） @type {{mesh:any, place:Matrix4, motion:any}[]} */
+  let yokai = [];
   const shadowCam = new OrthographicCamera(-1, 1, 1, -1, 0, 1);
   /** @type {any} */
   let shadowRT = null;
@@ -83,6 +91,7 @@ export function createLookdevView(renderer, cfg) {
     uShadowMat: { value: new Matrix4() },
     uShadowOffset: { value: 0 },
     uShadow: { value: new Vector4() },
+    uInk: { value: new Vector4() },
   };
   const still = { value: new Vector4() }; // 動かない物の uWalk
   const heroWalk = { value: new Vector4() };
@@ -144,6 +153,7 @@ export function createLookdevView(renderer, cfg) {
     for (const d of disposables) d.dispose();
     disposables = [];
     casters = [];
+    yokai = [];
     nonCasters = [];
     shadowRT = null;
     root = null;
@@ -195,7 +205,8 @@ export function createLookdevView(renderer, cfg) {
     // 地形（石畳・裂け目はシェーダが描く。座標はワールドへ直して渡す）
     const toWorld3 = (p) => new Vector3(p[0] + o[0], p[1] + o[2], p[2]);
     const tb = createBuilder(lib);
-    terrain.addTo(tb);
+    if (atelier) tb.addAll(S.atelier.floorParts, new Matrix4(), {});
+    else terrain.addTo(tb);
     const terrainMat = washMaterial({ ...baseDefines, TERRAIN: 1, PATH_N: S.path.length, FIS_N: S.fissure.length, CAST_N: S.casters.length }, {
       uPath: { value: S.path.map(toWorld3) },
       uFis: { value: S.fissure.map(toWorld3) },
@@ -209,23 +220,34 @@ export function createLookdevView(renderer, cfg) {
     // 小道具・木の枝・千本鳥居・島（動かない物を1つにまとめる）
     const washMat = washMaterial(baseDefines, {}, still);
     const sb = createBuilder(lib);
-    placeAll(sb, S.placements, terrain);
-    addScatter(sb, S, terrain, rng.fork('scatter'), L.scatterMul[q]);
-    addSenbon(sb, S, terrain);
-    addIslands(sb, S);
-    addBareTrees(sb, S, terrain, rng.fork('trees'));
-    addWires(sb, S);
-    addMapleBranches(sb, S);
+    if (atelier) {
+      sb.addAll(models[atelier].parts, new Matrix4(), {});
+    } else {
+      placeAll(sb, S.placements, terrain);
+      addScatter(sb, S, terrain, rng.fork('scatter'), L.scatterMul[q]);
+      addSenbon(sb, S, terrain);
+      addIslands(sb, S);
+      addBareTrees(sb, S, terrain, rng.fork('trees'));
+      addWires(sb, S);
+      addMapleBranches(sb, S);
+    }
     const staticMesh = meshOf(sb, washMat);
+    if (atelier) {
+      staticMesh.geometry.computeBoundingSphere();
+      atelierFrame.y = staticMesh.geometry.boundingSphere.center.y;
+      atelierFrame.r = staticMesh.geometry.boundingSphere.radius;
+    }
     root.add(staticMesh);
     addCaster(staticMesh);
 
     // 草・野菊・紅葉・落ち葉（風で動く）
     const fb = createBuilder(lib);
-    addGrass(fb, S, terrain, rng.fork('grass'), mul);
-    addDaisies(fb, S, terrain, rng.fork('daisy'), mul);
-    addFallenLeaves(fb, S, terrain, rng.fork('fallen'), mul);
-    addMaple(fb, S, rng.fork('maple'), mul);
+    if (!atelier) {
+      addGrass(fb, S, terrain, rng.fork('grass'), mul);
+      addDaisies(fb, S, terrain, rng.fork('daisy'), mul);
+      addFallenLeaves(fb, S, terrain, rng.fork('fallen'), mul);
+      addMaple(fb, S, rng.fork('maple'), mul);
+    }
     // 草や葉は奥行きを書かない：後処理の輪郭線が細い葉の1枚ずつに付いて黒ずむのを防ぐ（ほかの不透明な物の後に描く）
     const floraMat = washMaterial(baseDefines, {}, still);
     floraMat.depthWrite = false;
@@ -234,13 +256,18 @@ export function createLookdevView(renderer, cfg) {
     root.add(flora);
     addCaster(flora);
 
-    // 妖怪（1体＝1メッシュ。動かない）
-    for (const y of S.yokai) {
+    // 妖怪（1体＝1メッシュ。形は自分の座標で作り、配置と身じろぎはメッシュの行列で掛ける）
+    for (const y of atelier ? [] : S.yokai) {
       const yb = createBuilder(lib);
-      placeAll(yb, [y], terrain);
+      yb.addAll(models[y.model].parts, new Matrix4(), {});
       const ym = meshOf(yb, washMat);
+      const at = y.ground ? [y.at[0], y.at[1] + terrain.height(y.at[0], y.at[2]), y.at[2]] : y.at;
+      const place = partMatrix({ at, rot: y.rot, scale: y.scale });
+      ym.matrixAutoUpdate = false;
+      ym.matrix.copy(place);
       root.add(ym);
       addCaster(ym);
+      yokai.push({ mesh: ym, place, motion: y.motion });
     }
 
     // 主人公（1メッシュ＋1素材。歩きと布の動きは頂点シェーダ）
@@ -248,6 +275,7 @@ export function createLookdevView(renderer, cfg) {
     hb.addAll(models.hero.parts, new Matrix4(), {});
     hero = meshOf(hb, washMaterial(baseDefines, {}, heroWalk));
     scene.add(hero);
+    hero.visible = !atelier;
     addCaster(hero, shadowMaterial(heroWalk));
 
     // 空（焼いた絵を、カメラを中心にした球の内側に貼る）
@@ -262,7 +290,7 @@ export function createLookdevView(renderer, cfg) {
       uCloudLit: { value: col(S.sky.cloudLit) },
       uCloudEdge: { value: col(S.sky.cloudEdge) },
       uSunCol: { value: col(S.sky.sun) },
-      uSky: { value: new Vector4(0, L.cloudRatio, 0, L.skyBleedRatio) },
+      uSky: { value: new Vector4(L.cloudFleckRatio, L.cloudRatio, 0, L.skyBleedRatio) },
     }, L.skyPx[q], L.skyOctaveCount);
     const skyGeo = new SphereGeometry(S.sky.radiusM, N4 * N4, N4 * N3);
     const skyMat = new ShaderMaterial({
@@ -319,6 +347,7 @@ export function createLookdevView(renderer, cfg) {
     sea.position.y = world.stage.seaLevelM - o[1];
     sea.frustumCulled = false;
     root.add(sea);
+    sea.userData.hidden = Boolean(atelier);
     nonCasters.push(sea);
     disposables.push(hmTex, seaGeo, seaMat);
 
@@ -351,6 +380,7 @@ export function createLookdevView(renderer, cfg) {
       mesh.frustumCulled = false;
       mesh.renderOrder = 2;
       root.add(mesh);
+      mesh.userData.hidden = Boolean(atelier);
       nonCasters.push(mesh);
       disposables.push(mat);
       return mat;
@@ -391,10 +421,12 @@ export function createLookdevView(renderer, cfg) {
     leaves.position.set(box.center[0], box.center[1], box.center[2]);
     leaves.frustumCulled = false;
     root.add(leaves);
+    leaves.userData.hidden = Boolean(atelier);
     nonCasters.push(leaves);
     disposables.push(leafMat);
 
     // 毎フレーム cfg から書き換える uniform の置き場
+    for (const n of nonCasters) n.visible = !n.userData.hidden;
     root.userData = { skyMat, seaMat, mistMat, sprayMat, leafMat, origin: o };
     builtQuality = q;
     builtWorld = world;
@@ -410,6 +442,7 @@ export function createLookdevView(renderer, cfg) {
     U.uWind.value.set(L.windM, L.windHz, L.windM * HALF * HALF);
     U.uLook.value.set(L.mottleRatio, L.rimRatio, L.wetRatio, 1 / L.paveCellM);
     U.uTexScale.value.set(1 / L.texLargeTileM, 1 / L.texFineTileM, 1 / L.texBTileM, L.grainRatio);
+    U.uInk.value.set(L.inkCrackRatio, L.inkGrainRatio, L.paveJointM, 0);
     m.skyMat.uniforms.uSky.value.set(L.sunRadiusDeg * DEG2RAD, 0, 0, 0);
     m.seaMat.uniforms.uSea.value.set(L.seaSpeedRatio, L.seaGlitterRatio, L.seaFoamRatio, L.seaLaneRatio);
     m.mistMat.uniforms.uMist.value.set(L.mistSizeM, L.mistRiseRatio, L.mistAlphaRatio, L.mistRiseM);
@@ -451,7 +484,7 @@ export function createLookdevView(renderer, cfg) {
     three.clear();
     three.render(scene, shadowCam);
     for (const c of casters) c.mesh.material = c.mat;
-    for (const n of nonCasters) n.visible = true;
+    for (const n of nonCasters) n.visible = !n.userData.hidden;
   }
 
   return {
@@ -477,9 +510,18 @@ export function createLookdevView(renderer, cfg) {
       const amount = Math.min(1, speed / cfg.movement.runSpeedMps);
       heroWalk.value.set(time * L.walkStepHz * TAU, amount, S.heroHipM, L.walkSwingDeg * DEG2RAD);
       U.uPlayer.value.set(x, y, z, L.shadowRatio);
+      for (const k of yokai) yokaiMatrix(k.place, k.motion, time, k.mesh.matrix);
 
       const [w, h] = renderer.viewPx();
       cameraView.update(world.camera, alpha, w / h);
+      if (atelier) {
+        // 工房：向きはシムのカメラのまま、距離だけ形の大きさに合わせる（開発用の見本。遊びの場面では使わない）
+        const c = cameraView.three;
+        c.getWorldDirection(camDir);
+        const d = atelierFrame.r * S.atelier.distMul;
+        c.position.set(x - camDir.x * d, y + atelierFrame.y - camDir.y * d, z - camDir.z * d);
+        c.updateMatrixWorld();
+      }
       const q = renderer.quality;
       renderer.drawWith((three) => {
         if (shadowRT) renderShadow(three);

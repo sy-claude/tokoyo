@@ -8,7 +8,7 @@ const QUALITIES = ['high', 'mid', 'low'];
 /**
  * @param {string} search 例 '?test=1&seed=3&scene=sandbox'
  * @returns {{debug:boolean, test:boolean, audio:boolean, bench:boolean, benchS:number|null, seed:number,
- *   scene:string|null, char:string, q:QualityLevel|null}}
+ *   scene:string|null, char:string, q:QualityLevel|null, model:string|null}}
  */
 export function parseUrlParams(search) {
   const p = new URLSearchParams(search);
@@ -18,6 +18,7 @@ export function parseUrlParams(search) {
   const scene = p.get('scene');
   const char = p.get('char');
   const q = p.get('q');
+  const model = p.get('model');
   return {
     debug: flag('debug'),
     test: flag('test'),
@@ -28,5 +29,7 @@ export function parseUrlParams(search) {
     scene: scene !== null && SCENES.includes(scene) ? scene : null,
     char: char !== null && CHARS.includes(char) ? char : 'fuma',
     q: q !== null && QUALITIES.includes(q) ? /** @type {QualityLevel} */ (q) : null,
+    // 工房（docs/12 4章）：?scene=lookdev&model=形の名前 で、その形だけを大きく映す
+    model: model !== null && /^[A-Za-z0-9]+$/.test(model) ? model : null,
   };
 }

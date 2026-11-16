@@ -1,34 +1,56 @@
 // 見た目の試作（lookdev）の形の表。部品（box・cyl・sph・lathe・tube・loft・ribbon・fan・group・ref）を並べて1体を作る。
 // loft＝肉付けした管：st＝[[x, y, z, 半径A, 半径B], …]、A の向きは side（既定は x）、B は道のり×A。
 // 単位は m・度。模型の正面は +Z、足元（底面の中心）が原点。色は palette の名前か '#rrggbb'。
-// fx＝[苔, 塗りのはげ, 石畳, 発光]。anim＝[動きの種類, 重み, 位相]（1=風 2・3=脚 4=腕 5=布）。
+// fx＝[苔, 塗りのはげ, 石畳, 発光]。anim＝[動きの種類, 重み, 位相]（1=風 2・3=脚 4=腕 5=布 7=まぶた［伸びる倍率, 上端の高さ, 面の傾き］）。
 // 参考画像（design-notes/lookdev/reference.png）を見て決めた形（設計書に無い「見た目の創作部分」）。
 
 const STONE_FX = [0.75, 0, 1, 0];
 const TORII_FX = [0.3, 0.55, 0, 0];
 
 export const models = {
-  // ---- 朱の大鳥居（明神鳥居。笠木が反り、塗りがはげ、屋根に苔） ----
+  // ---- 朱の大鳥居（明神鳥居。V5 で作り直し：細身の柱が内へ転び、笠木が反り、塗りは半分ほどはげ、上面に苔） ----
   toriiMain: {
     parts: [
-      { s: 'cyl', r: [0.78, 0.64], h: 0.5, seg: 12, at: [2.3, 0, 0], col: 'stone', col2: 'stoneHi', fx: STONE_FX, jitter: 0.06, jfreq: 2 },
-      { s: 'cyl', r: [0.78, 0.64], h: 0.5, seg: 12, at: [-2.3, 0, 0], col: 'stone', col2: 'stoneHi', fx: STONE_FX, jitter: 0.06, jfreq: 2, seed: 4 },
-      { s: 'cyl', r: [0.48, 0.4], h: 5.5, seg: 14, hseg: 8, at: [2.3, 0.3, 0], rot: [0, 0, 1.8], col: 'toriiRedLo', col2: 'toriiRedHi', fx: TORII_FX, jitter: 0.03, jfreq: 1.2 },
-      { s: 'cyl', r: [0.48, 0.4], h: 5.5, seg: 14, hseg: 8, at: [-2.3, 0.3, 0], rot: [0, 0, -1.8], col: 'toriiRedLo', col2: 'toriiRedHi', fx: TORII_FX, jitter: 0.03, jfreq: 1.2, seed: 9 },
-      // 貫（柱を貫いて外へ出る）と楔
-      { s: 'box', size: [6.9, 0.56, 0.42], at: [0, 4.02, 0], col: 'toriiRed', fx: TORII_FX, segs: [6, 1, 1] },
-      { s: 'box', size: [0.2, 0.3, 0.6], at: [1.72, 4.6, 0], rot: [0, 0, 12], col: 'toriiRedLo', fx: TORII_FX },
-      { s: 'box', size: [0.2, 0.3, 0.6], at: [-1.72, 4.6, 0], rot: [0, 0, -12], col: 'toriiRedLo', fx: TORII_FX },
+      // 礎石（四角い沓石の上に丸い亀腹）
+      { s: 'box', size: [1.2, 0.2, 1.2], at: [2.3, -0.06, 0], rot: [0, 6, 0], bevel: 0.05, col: 'stoneDark', col2: 'stone', fx: STONE_FX, jitter: 0.02, jfreq: 3 },
+      { s: 'box', size: [1.2, 0.2, 1.2], at: [-2.3, -0.06, 0], rot: [0, -4, 0], bevel: 0.05, col: 'stoneDark', col2: 'stone', fx: STONE_FX, jitter: 0.02, jfreq: 3, seed: 5 },
+      { s: 'lathe', seg: 20, at: [2.3, 0.12, 0], col: 'stone', col2: 'stoneHi', fx: STONE_FX, jitter: 0.02, jfreq: 3,
+        pts: [[0.5, 0], [0.5, 0.1], [0.45, 0.22], [0.36, 0.3], [0.2, 0.33], [0, 0.33]] },
+      { s: 'lathe', seg: 20, at: [-2.3, 0.12, 0], col: 'stone', col2: 'stoneHi', fx: STONE_FX, jitter: 0.02, jfreq: 3, seed: 4,
+        pts: [[0.5, 0], [0.5, 0.1], [0.45, 0.22], [0.36, 0.3], [0.2, 0.33], [0, 0.33]] },
+      // 柱（内へ転ぶ。縦の割れ目・根元ほど塗りがはげる）と台輪
+      { s: 'group', at: [2.3, 0.3, 0], rot: [0, 0, 2.2], parts: [
+        { s: 'cyl', r: [0.33, 0.27], h: 5.2, seg: 28, hseg: 18, col: 'toriiRedLo', col2: 'toriiRedHi', fx: [0.2, 0.98, 0, 0], fx2: [0.5, 0.74, 0, 0], jitter: 0.012, jfreq: 1.6, ao: 0.5,
+          grooves: [[20, 7, 0.035, 0.02, 0.62], [95, 5, 0.025, 0.3, 0.95], [150, 8, 0.04, 0.0, 0.4], [215, 5, 0.03, 0.45, 1.0], [262, 6, 0.03, 0.1, 0.7], [320, 5, 0.025, 0.55, 0.98]] },
+        { s: 'cyl', r: [0.32, 0.36], h: 0.12, seg: 20, at: [0, 4.9, 0], col: 'toriiRedLo', fx: TORII_FX },
+      ] },
+      { s: 'group', at: [-2.3, 0.3, 0], rot: [0, 0, -2.2], parts: [
+        { s: 'cyl', r: [0.33, 0.27], h: 5.2, seg: 28, hseg: 18, col: 'toriiRedLo', col2: 'toriiRedHi', fx: [0.2, 1.0, 0, 0], fx2: [0.5, 0.72, 0, 0], jitter: 0.012, jfreq: 1.6, seed: 9, ao: 0.5,
+          grooves: [[340, 7, 0.04, 0.0, 0.5], [60, 5, 0.025, 0.35, 0.9], [120, 6, 0.03, 0.05, 0.6], [190, 8, 0.035, 0.4, 1.0], [250, 5, 0.03, 0.0, 0.35], [295, 5, 0.025, 0.5, 0.95]] },
+        { s: 'cyl', r: [0.32, 0.36], h: 0.12, seg: 20, at: [0, 4.9, 0], col: 'toriiRedLo', fx: TORII_FX },
+      ] },
+      // 貫（柱を貫いて外へ出る）と楔（柱の両側に1つずつ）
+      { s: 'box', size: [7.0, 0.5, 0.34], at: [0, 3.94, 0], bevel: 0.035, col: 'toriiRedLo', col2: 'toriiRed', fx: [0.45, 0.72, 0, 0], segs: [12, 1, 1], jitter: 0.012, jfreq: 2 },
+      { s: 'box', size: [0.13, 0.24, 0.42], at: [2.5, 4.4, 0], rot: [0, 0, -9], bevel: 0.02, col: 'toriiRedLo', fx: TORII_FX },
+      { s: 'box', size: [0.13, 0.2, 0.42], at: [1.8, 4.4, 0], rot: [0, 0, 11], bevel: 0.02, col: 'toriiRedLo', fx: TORII_FX },
+      { s: 'box', size: [0.13, 0.24, 0.42], at: [-2.5, 4.4, 0], rot: [0, 0, 9], bevel: 0.02, col: 'toriiRedLo', fx: TORII_FX },
+      { s: 'box', size: [0.13, 0.2, 0.42], at: [-1.8, 4.4, 0], rot: [0, 0, -11], bevel: 0.02, col: 'toriiRedLo', fx: TORII_FX },
       // 額束
-      { s: 'box', size: [0.5, 0.82, 0.36], at: [0, 4.58, 0], col: 'toriiRed', fx: TORII_FX },
-      // 島木と笠木（両端が反り上がる）、黒ずんだ屋根
-      { s: 'box', size: [7.3, 0.5, 0.62], at: [0, 5.34, 0], col: 'toriiRed', col2: 'toriiRedHi', fx: TORII_FX, segs: [14, 1, 1], bendY: 0.34 },
-      { s: 'box', size: [7.9, 0.36, 0.86], at: [0, 5.83, 0], col: 'toriiRedLo', col2: 'toriiRoof', fx: [0.75, 0.35, 0, 0], segs: [14, 1, 1], bendY: 0.44 },
-      { s: 'box', size: [8.1, 0.1, 1.0], at: [0, 6.18, 0], col: 'toriiRoof', fx: [0.9, 0.2, 0, 0], segs: [14, 1, 1], bendY: 0.47 },
-      // 柱に絡む蔦
-      { s: 'tube', path: [[2.6, 0.4, 0.34], [2.1, 1.6, 0.42], [2.66, 2.8, 0.26], [2.2, 4.0, 0.36], [1.6, 4.5, 0.26]], r: [0.035, 0.015], col: 'vine' },
-      { s: 'tube', path: [[-2.0, 4.4, 0.24], [-1.2, 4.1, 0.28], [-0.4, 4.05, 0.24]], r: [0.03, 0.012], col: 'vine' },
-      { s: 'tube', path: [[-2.6, 0.5, -0.3], [-2.75, 1.8, -0.1], [-2.2, 2.9, 0.38], [-2.7, 3.9, 0.2]], r: [0.03, 0.012], col: 'vine' },
+      { s: 'box', size: [0.34, 0.95, 0.26], at: [0, 4.4, 0], bevel: 0.03, col: 'toriiRedLo', col2: 'toriiRed', fx: [0.2, 0.7, 0, 0] },
+      // 島木と笠木（両端が反り上がる）、黒ずんで苔むした上面の板
+      { s: 'box', size: [7.3, 0.46, 0.58], at: [0, 5.28, 0], bevel: 0.04, col: 'toriiRedLo', col2: 'toriiRedHi', fx: [0.3, 0.74, 0, 0], segs: [16, 1, 1], bendY: 0.34, jitter: 0.012, jfreq: 2 },
+      { s: 'box', size: [7.9, 0.34, 0.74], at: [0, 5.72, 0], bevel: 0.05, col: 'toriiRedLo', col2: 'toriiRoof', fx: [0.7, 0.66, 0, 0], segs: [16, 1, 1], bendY: 0.44, jitter: 0.015, jfreq: 2 },
+      { s: 'box', size: [8.1, 0.09, 0.94], at: [0, 6.04, 0], bevel: 0.03, col: 'toriiRoof', fx: [0.95, 0.3, 0, 0], segs: [16, 1, 2], bendY: 0.47, jitter: 0.02, jfreq: 2.4 },
+      // めくれた塗りの薄片（輪郭に小さな欠けを作る）
+      { s: 'fan', pts: [[2.02, 1.3, 0.12], [1.93, 1.12, 0.2], [2.04, 1.0, 0.16]], col: 'peel' },
+      { s: 'fan', pts: [[2.47, 2.6, 0.14], [2.58, 2.42, 0.2], [2.46, 2.3, 0.18]], col: 'toriiRedHi' },
+      { s: 'fan', pts: [[-2.0, 2.0, 0.14], [-1.9, 1.84, 0.22], [-2.02, 1.72, 0.16]], col: 'peel' },
+      { s: 'fan', pts: [[-2.5, 3.2, 0.1], [-2.6, 3.02, 0.18], [-2.48, 2.92, 0.14]], col: 'toriiRedHi' },
+      { s: 'fan', pts: [[0.9, 4.0, 0.16], [1.0, 3.88, 0.22], [1.12, 4.0, 0.16]], col: 'peel' },
+      { s: 'fan', pts: [[-1.2, 4.0, 0.16], [-1.08, 3.9, 0.24], [-0.98, 4.0, 0.16]], col: 'toriiRedHi' },
+      // 柱に絡む蔦（細く控えめに）
+      { s: 'tube', path: [[2.56, 0.4, 0.2], [2.2, 1.5, 0.3], [2.5, 2.7, 0.2], [2.2, 3.9, 0.26], [1.7, 4.45, 0.18]], r: [0.022, 0.01], col: 'vine' },
+      { s: 'tube', path: [[-2.5, 0.5, -0.22], [-2.6, 1.8, -0.05], [-2.2, 2.9, 0.26], [-2.5, 3.9, 0.12]], r: [0.02, 0.01], col: 'vine' },
     ],
   },
   // ---- 千本鳥居の1基（遠景用の簡単な形） ----
@@ -148,6 +170,35 @@ export const models = {
     ],
   },
   // ---- 石段の1段 ----
+  // 薄い踏み石（V4）。前の縁が欠けて丸い
+  stepSlab: { parts: [
+    { s: 'box', size: [2.9, 0.34, 0.74], at: [0, -0.15, 0], col: 'pave', col2: 'paveHi', fx: [0.55, 0, 1, 0], jitter: 0.035, jfreq: 2.4, segs: [5, 1, 2] },
+    { s: 'box', size: [0.9, 0.3, 0.5], at: [-1.75, -0.2, 0.05], rot: [0, 8, 3], col: 'stoneDark', col2: 'stone', fx: [0.6, 0, 1, 0], jitter: 0.04, jfreq: 3, segs: [2, 1, 1] },
+    { s: 'box', size: [0.8, 0.28, 0.46], at: [1.72, -0.22, -0.04], rot: [0, -6, -4], col: 'stoneDark', col2: 'stone', fx: [0.6, 0, 1, 0], jitter: 0.04, jfreq: 3, segs: [2, 1, 1] },
+  ] },
+  // 石垣（V4）。不ぞろいな切り石を2段に積む。苔むす
+  ishigaki: { parts: [
+    { s: 'box', size: [0.78, 0.46, 0.5], at: [-0.72, 0.2, 0], rot: [0, 3, 0], col: 'stoneDark', col2: 'stone', fx: [0.6, 0, 1, 0], jitter: 0.04, jfreq: 3, segs: [2, 2, 1] },
+    { s: 'box', size: [0.62, 0.42, 0.52], at: [0.0, 0.18, 0.02], rot: [0, -4, 0], col: 'stone', col2: 'stoneHi', fx: [0.5, 0, 1, 0], jitter: 0.04, jfreq: 3, segs: [2, 2, 1] },
+    { s: 'box', size: [0.84, 0.5, 0.48], at: [0.76, 0.22, -0.02], rot: [0, 2, 2], col: 'stoneDark', col2: 'stone', fx: [0.6, 0, 1, 0], jitter: 0.04, jfreq: 3, segs: [2, 2, 1] },
+    { s: 'box', size: [0.7, 0.36, 0.46], at: [-0.4, 0.6, 0], rot: [0, -3, -2], col: 'stone', col2: 'stoneHi', fx: [0.75, 0, 1, 0], jitter: 0.04, jfreq: 3, segs: [2, 2, 1] },
+    { s: 'box', size: [0.66, 0.38, 0.5], at: [0.34, 0.62, 0.01], rot: [0, 5, 3], col: 'stoneDark', col2: 'stone', fx: [0.75, 0, 1, 0], jitter: 0.04, jfreq: 3, segs: [2, 2, 1] },
+  ] },
+  // 崩れた石垣（V4）。上の段が落ち、石が手前へ転がっている
+  ishigakiBroken: { parts: [
+    { s: 'box', size: [0.8, 0.44, 0.5], at: [-0.6, 0.18, 0], rot: [0, 4, -3], col: 'stoneDark', col2: 'stone', fx: [0.6, 0, 1, 0], jitter: 0.045, jfreq: 3, segs: [2, 2, 1] },
+    { s: 'box', size: [0.7, 0.4, 0.5], at: [0.2, 0.16, 0.03], rot: [0, -6, 4], col: 'stone', col2: 'stoneHi', fx: [0.55, 0, 1, 0], jitter: 0.045, jfreq: 3, segs: [2, 2, 1] },
+    { s: 'box', size: [0.6, 0.36, 0.44], at: [-0.5, 0.56, 0.04], rot: [6, 12, -9], col: 'stone', col2: 'stoneHi', fx: [0.7, 0, 1, 0], jitter: 0.045, jfreq: 3, segs: [2, 2, 1] },
+    { s: 'box', size: [0.56, 0.36, 0.42], at: [0.86, 0.1, 0.5], rot: [24, 40, 16], col: 'stoneDark', col2: 'stone', fx: [0.5, 0, 1, 0], jitter: 0.045, jfreq: 3, segs: [2, 2, 1] },
+    { s: 'box', size: [0.44, 0.3, 0.36], at: [0.3, 0.06, 0.78], rot: [-14, 70, 30], col: 'stone', col2: 'stoneHi', fx: [0.4, 0, 1, 0], jitter: 0.045, jfreq: 3, segs: [2, 2, 1] },
+  ] },
+  // 木の根（V4）。地面を這う太い根と細い根
+  roots: { parts: [
+    { s: 'tube', r: [0.13, 0.035], seg: 14, rseg: 6, col: 'bark', col2: 'barkHi', path: [[0, 0.12, 0], [0.5, 0.2, 0.25], [1.0, 0.05, 0.3], [1.6, 0.14, 0.7], [2.3, -0.05, 0.9]] },
+    { s: 'tube', r: [0.1, 0.03], seg: 12, rseg: 6, col: 'bark', col2: 'barkHi', path: [[0, 0.1, 0], [0.4, 0.16, -0.4], [0.9, 0.02, -0.7], [1.5, 0.1, -0.8], [1.9, -0.06, -1.2]] },
+    { s: 'tube', r: [0.07, 0.02], seg: 10, rseg: 5, col: 'bark', col2: 'barkHi', path: [[0.5, 0.2, 0.25], [0.8, 0.22, 0.05], [1.3, 0.04, -0.1], [1.8, -0.04, 0.2]] },
+    { s: 'tube', r: [0.15, 0.1], seg: 6, rseg: 6, col: 'bark', col2: 'barkHi', path: [[-0.5, -0.1, 0.1], [-0.2, 0.08, 0.02], [0, 0.12, 0]] },
+  ] },
   step: { parts: [{ s: 'box', size: [4.4, 0.5, 1.15], at: [0, -0.32, 0], col: 'pave', col2: 'paveHi', fx: [0.5, 0, 1, 0], jitter: 0.03, jfreq: 2, segs: [4, 1, 1] }] },
 
   // ---- 主人公（後ろ姿。萌葱の羽織・墨色の袴・白い鉢巻の尾・長巻） ----
@@ -237,7 +288,7 @@ export const models = {
         { s: 'sph', r: [0.25, 0.18, 0.07], seg: 12, at: [0, 0.95, 0.6], col: 'paperWhite' },
         { s: 'sph', r: [0.12, 0.12, 0.05], seg: 10, at: [0, 0.94, 0.65], col: 'eyeAmber', fx: [0, 0, 0, 0.35] },
         { s: 'sph', r: [0.055, 0.075, 0.04], seg: 6, at: [0, 0.94, 0.69], col: 'ink' },
-        { s: 'sph', r: [0.27, 0.07, 0.08], seg: 10, at: [0, 1.1, 0.585], rot: [0, 0, -4], col: 'chochinRib' },
+        { s: 'sph', r: [0.27, 0.07, 0.08], seg: 10, at: [0, 1.1, 0.585], rot: [0, 0, -4], col: 'chochinRib', anim: [7, 2.2, 1.18, 0] },
         // 裂けた口と舌
         { s: 'sph', r: [0.36, 0.09, 0.1], seg: 10, at: [0, 0.47, 0.56], col: 'mouth' },
         { s: 'loft', seg: 10, n: 26, col: 'tongue', col2: 'tongueHi', gradUv: true, anim: [1, 0.2, 0], animGrad: [0.15, 0.75],
@@ -272,7 +323,7 @@ export const models = {
       { s: 'sph', r: [0.26, 0.2, 0.08], seg: 12, at: [0, 1.66, 0.77], rot: [-40, 0, 0], col: 'paperWhite' },
       { s: 'sph', r: [0.125, 0.125, 0.05], seg: 10, at: [0, 1.64, 0.83], rot: [-40, 0, 0], col: 'eyeAmber', fx: [0, 0, 0, 0.3] },
       { s: 'sph', r: [0.055, 0.075, 0.04], seg: 6, at: [0, 1.63, 0.87], rot: [-40, 0, 0], col: 'ink' },
-      { s: 'sph', r: [0.28, 0.07, 0.09], seg: 10, at: [0, 1.83, 0.7], rot: [-40, 0, -5], col: 'kasaLo' },
+      { s: 'sph', r: [0.28, 0.07, 0.09], seg: 10, at: [0, 1.83, 0.7], rot: [-40, 0, -5], col: 'kasaLo', anim: [7, 2.4, 1.9, 0.84] },
       { s: 'sph', r: [0.3, 0.07, 0.07], seg: 8, at: [0, 1.26, 0.98], rot: [-30, 0, 0], col: 'mouth' },
       { s: 'loft', seg: 8, n: 14, col: 'tongue', col2: 'tongueHi', gradUv: true, anim: [1, 0.12, 0], animGrad: [0.05, 0.4],
         st: [[0, 1.26, 0.96, 0.11, 0.03], [0.03, 1.08, 1.1, 0.1, 0.03], [0.08, 0.84, 1.12, 0.08, 0.028], [0.14, 0.7, 1.06, 0.02, 0.012]] },

@@ -57,7 +57,7 @@ try {
       return c.toDataURL('image/png');
     }, [toUrl(REF), toUrl(file)]);
     writeFileSync(join(OUT, `${name}_compare.png`), Buffer.from(cmp.split(',')[1], 'base64'));
-    // 計測：画面を 8×4 に分け、参考との差（明るさ L・彩度 S・描き込みの量 D＝明るさの細かな変化）を出す
+    // 計測：画面を 8×4 に分け、参考との差（明るさ L・彩度 S・D＝明暗の細かさ。太い線や紙の目も数えるので、描き込みの量の指標ではない。docs/12 3章）を出す
     const m = await page.evaluate(async ([a, b]) => {
       const load = async (src) => { const i = new Image(); i.src = src; await i.decode(); return i; };
       const W = 640, H = 360, GX = 8, GY = 4;
@@ -96,7 +96,7 @@ try {
         rows.push(row.join(' | '));
       }
       const n = GX * GY;
-      return { rows, summary: `色の差 平均 ${(eC / n).toFixed(1)} / 明るさの差 平均 ${(eL / n).toFixed(1)} / 描き込み量 参考比 ${(dB / dA).toFixed(2)}` };
+      return { rows, summary: `色の差 平均 ${(eC / n).toFixed(1)} / 明るさの差 平均 ${(eL / n).toFixed(1)} / 明暗の細かさ 参考比 ${(dB / dA).toFixed(2)}（描き込みの量ではない。進み具合の根拠にしない）` };
     }, [toUrl(REF), toUrl(file)]);
     if (args.includes('--grid')) console.log(m.rows.join('\n'));
     console.log(`計測：${m.summary}`);

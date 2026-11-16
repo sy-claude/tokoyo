@@ -39,7 +39,7 @@ void main() {
  * @param {ReturnType<typeof import('./renderer.js').createRenderer>} renderer
  * @param {Cfg} cfg
  */
-export function createFrame(renderer, cfg) {
+export function createFrame(renderer, cfg, opts = {}) {
   const scene = new Scene();
   const cameraView = createCameraView(cfg);
   const bg = new Color(cfg.debug.grayBgColor);
@@ -85,7 +85,7 @@ export function createFrame(renderer, cfg) {
       clear();
       useLookdev = world.stage.id === LOOKDEV_STAGE;
       if (useLookdev) {
-        lookdev ??= createLookdevView(renderer, cfg);
+        lookdev ??= createLookdevView(renderer, cfg, opts);
         lookdev.setWorld(world);
         return;
       }
