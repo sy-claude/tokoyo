@@ -6,6 +6,8 @@ import { FOG_GLSL, NOISE_GLSL, OUT_GLSL } from './shaders.js';
 export const WASH_VERT = /* glsl */ `
 attribute vec4 aFx;
 attribute vec4 aAnim;
+attribute vec3 aFace;
+varying vec3 vFace;
 uniform float uTime;
 uniform vec3 uWind;   // xz=向き×強さ(m) y=速さ
 uniform vec4 uWalk;   // x=歩きの位相 y=歩きの量(0..1) z=腰の高さ(m) w=脚の振り(rad)
@@ -58,6 +60,7 @@ void main() {
   vNormal = normalize(mat3(modelMatrix) * n);
   vColor = color;
   vFx = aFx;
+  vFace = aFace;
   vShadow = (uShadowMat * vec4(w.xyz + vNormal * uShadowOffset, 1.0)).xyz;
   gl_Position = projectionMatrix * viewMatrix * w;
 }`;
@@ -77,6 +80,7 @@ uniform sampler2D uTexA;
 uniform sampler2D uTexB;
 uniform sampler2D uShadowMap;
 uniform vec4 uTexScale; // x=大きな柄(1/m) y=細かな柄(1/m) z=texB(1/m) w=粒の強さ
+uniform sampler2D uFaceTex; // 顔の絵（地は透明。線と塗りだけ）
 uniform vec4 uInk;      // x=石の割れ目の線 y=木目・しわの線 z=敷石の目地の太さ
 uniform vec4 uShadow;   // x=影の濃さ(0で無効) y=奥行きの余裕 z=ぼかし(uv) w=筆の筋の強さ
 uniform vec3 uLightCol;
@@ -100,6 +104,7 @@ varying vec3 vWorld;
 varying vec3 vNormal;
 varying vec3 vColor;
 varying vec4 vFx;
+varying vec3 vFace;
 varying vec3 vShadow;
 
 // 質感テクスチャを三方向から貼る。A は側面で「u=高さ」（筋が縦に走る）、B は「v=高さ」（垂れが縦に走る）
@@ -249,6 +254,12 @@ void main() {
 
   // 筆のむら：面の向きを少し乱して、陰影が筆触のように割れる
   N = normalize(N + (vec3(dF.r, dF.g, dA.r) - 0.5) * 0.6);
+
+  // --- 顔の絵（目・眉・口）：色むらを掛けた後に重ねる。線はむらで薄れない ---
+  if (vFace.z > 0.01) {
+    vec4 fc = texture2D(uFaceTex, vFace.xy);
+    base = mix(base, fc.rgb, fc.a * min(vFace.z * 2.0, 1.0));
+  }
 
   // --- 落ち影（影の図を5点で引いて縁をぼかす。縁は粒でゆらぐ） ---
   float lit = 1.0;

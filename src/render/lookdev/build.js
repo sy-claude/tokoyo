@@ -360,7 +360,7 @@ function jitterGeometry(g, amount, freq, seed, oct) {
 
 /**
  * 部品の表をためて、最後に1つのジオメトリにする。
- * @param {{models?:Record<string, any>, palette?:Record<string, any>, aoGain?:number, segMul?:number}} [lib] ref で引く部品の表と、色の名前の表
+ * @param {{models?:Record<string, any>, palette?:Record<string, any>, aoGain?:number, segMul?:number, faceOf?:(name:string)=>any}} [lib] ref で引く部品の表と、色の名前の表
  */
 export function createBuilder(lib = {}) {
   /** @type {number[]} */ const P = [];
@@ -369,6 +369,7 @@ export function createBuilder(lib = {}) {
   /** @type {number[]} */ const F = [];
   /** @type {number[]} */ const A = [];
   /** @type {number[]} */ const I = [];
+  /** 顔の絵を貼る頂点（V5）：[頂点の番号, u, v, 濃さ] を並べる。ほかの頂点は 0 @type {number[]} */ const FACE = [];
   const colorCache = new Map();
   const color = (name) => {
     let c = colorCache.get(name);
@@ -424,10 +425,21 @@ export function createBuilder(lib = {}) {
     const aoAttr = g.attributes.ao;
     const aoGain = p.ao ?? lib.aoGain ?? 0;
     const base = P.length / N3;
+    const face = p.face ? lib.faceOf?.(p.face) ?? null : null;
     const normalM = m.clone().invert().transpose();
     for (let i = 0; i < pos.count; i++) {
       v.fromBufferAttribute(pos, i);
       const ty = (v.y - bb.min.y) / spanY;
+      if (face) {
+        // 顔の絵：部品の座標で正面から平らに写す。前を向いた面だけ
+        const fu = (v.x - face.rect.x[0]) / (face.rect.x[1] - face.rect.x[0]);
+        const fv = (v.y - face.rect.y[0]) / (face.rect.y[1] - face.rect.y[0]);
+        // 面の向きの符号は部品の作り方で変わるので、前後は位置（zMin より前）で決め、濃さは面の傾きで決める
+        const front = v.z > face.rect.zMin ? Math.min(1, Math.max(0, Math.abs(nor.getZ(i)) * N4 - HALF)) : 0;
+        // 絵を貼らない頂点にも同じ座標を持たせる（濃さ0）。座標が途中で飛ぶと、境目に絵が細く縮んで写る
+        const inside = fu >= 0 && fu <= 1 && fv >= 0 && fv <= 1;
+        FACE.push(base + i, face.u0 + Math.min(1, Math.max(0, fu)) * face.size, face.v0 + Math.min(1, Math.max(0, fv)) * face.size, inside ? front : 0);
+      }
       v.applyMatrix4(m);
       P.push(v.x, v.y, v.z);
       v.fromBufferAttribute(nor, i).transformDirection(normalM);
@@ -466,6 +478,9 @@ export function createBuilder(lib = {}) {
       g.setAttribute('color', new BufferAttribute(new Float32Array(C), N3));
       g.setAttribute('aFx', new BufferAttribute(new Float32Array(F), N4));
       g.setAttribute('aAnim', new BufferAttribute(new Float32Array(A), N4));
+      const fa = new Float32Array(P.length);
+      for (let i = 0; i < FACE.length; i += N4) fa.set([FACE[i + 1], FACE[i + 2], FACE[i + N3]], FACE[i] * N3);
+      g.setAttribute('aFace', new BufferAttribute(fa, N3));
       g.setIndex(I);
       g.computeBoundingSphere();
       return g;

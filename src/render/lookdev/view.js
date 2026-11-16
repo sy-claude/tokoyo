@@ -14,6 +14,8 @@ import { scene as S } from '../../data/lookdev/scene.js';
 import { models } from '../../data/lookdev/models.js';
 import { createCameraView } from '../cameraView.js';
 import { createBuilder, partMatrix } from './build.js';
+import { createFaceAtlas, faceCellRect } from './faceAtlas.js';
+import { faces } from '../../data/lookdev/faces.js';
 import { yokaiMatrix } from './yokaiMotion.js';
 import { HALF, N3, N4, TAU } from './consts.js';
 import { addBareTrees, addDaisies, addGrass, addFallenLeaves, addIslands, addMaple, addMapleBranches, addScatter, addSenbon, addWires, placeAll } from './flora.js';
@@ -49,6 +51,8 @@ export function createLookdevView(renderer, cfg, opts = {}) {
   let root = null;
   /** @type {any} */
   let sky = null;
+  /** 顔の絵（起動時に1度だけ描く） @type {any} */
+  let faceTex = null;
   let builtQuality = '';
   /** @type {any} */
   let builtWorld = null;
@@ -92,6 +96,7 @@ export function createLookdevView(renderer, cfg, opts = {}) {
     uShadowOffset: { value: 0 },
     uShadow: { value: new Vector4() },
     uInk: { value: new Vector4() },
+    uFaceTex: { value: /** @type {any} */ (null) },
   };
   const still = { value: new Vector4() }; // 動かない物の uWalk
   const heroWalk = { value: new Vector4() };
@@ -168,7 +173,11 @@ export function createLookdevView(renderer, cfg, opts = {}) {
     const oct = L.octaveCount[q];
     const mul = L.floraMul[q];
     const o = world.stage.playerStart.pos;
-    const lib = { models, palette: S.palette, aoGain: S.aoGain, segMul: L.meshDetailMul[q] };
+    /** 顔の絵の升と貼る範囲（部品の face: '名前' から引く） */
+    const faceOf = (name) => (faces[name] ? { ...faceCellRect(faces[name].cell), rect: faces[name].rect } : null);
+    const lib = { models, palette: S.palette, aoGain: S.aoGain, segMul: L.meshDetailMul[q], faceOf };
+    if (!faceTex) faceTex = createFaceAtlas(S.palette);
+    U.uFaceTex.value = faceTex;
     const rng = createRng(presentationSeed(world.stage.seed));
     root = new Group();
     root.position.set(o[0], o[1], o[2]);
@@ -544,6 +553,7 @@ export function createLookdevView(renderer, cfg, opts = {}) {
       for (const d of detailCache.values()) d.dispose();
       detailCache.clear();
       post.dispose();
+      faceTex?.dispose();
     },
   };
 }
