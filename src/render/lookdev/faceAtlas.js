@@ -2,7 +2,7 @@
 // 地は透明（肌は頂点の色のまま）。線と塗りだけを重ねる。色は THREE.Color を通す（不変条件10）。
 import { CanvasTexture, Color, LinearFilter, SRGBColorSpace } from 'three';
 import { faces } from '../../data/lookdev/faces.js';
-import { HALF, TAU } from './consts.js';
+import { BYTE_MAX, HALF, TAU } from './consts.js';
 
 /** 升の位置（アトラスの uv の左下と1升の幅）。 @param {number} cell */
 export function faceCellRect(cell) {
@@ -69,6 +69,19 @@ export function createFaceAtlas(palette) {
         ctx.lineWidth = op.w * px;
         trace(P(op.pts), false);
         ctx.stroke();
+      } else if (op.t === 'soft') {
+        // ぼかした陰影：中心が濃く、縁へ向けて消える楕円
+        const c = mirrored ? [1 - op.c[0], op.c[1]] : op.c;
+        ctx.translate(X(c[0]), Y(c[1]));
+        ctx.scale(op.r[0] * px, op.r[1] * px);
+        const g = ctx.createRadialGradient(0, 0, 0, 0, 0, 1);
+        g.addColorStop(0, style(op.col));
+        tmp.set(typeof palette[op.col] === 'string' ? palette[op.col] : op.col);
+        g.addColorStop(1, `rgba(${Math.round(tmp.r * BYTE_MAX)}, ${Math.round(tmp.g * BYTE_MAX)}, ${Math.round(tmp.b * BYTE_MAX)}, 0)`);
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(0, 0, 1, 0, TAU);
+        ctx.fill();
       } else if (op.t === 'disc') {
         if (op.clip) {
           trace(P(op.clip), true);
