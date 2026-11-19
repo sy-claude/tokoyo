@@ -413,6 +413,4 @@ export const scene = {
     },
   },
 
-  // 歩きの見た目：腰の高さ（m）
-  heroHipM: 1.0,
 };

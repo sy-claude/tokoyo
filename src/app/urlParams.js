@@ -8,7 +8,7 @@ const QUALITIES = ['high', 'mid', 'low'];
 /**
  * @param {string} search 例 '?test=1&seed=3&scene=sandbox'
  * @returns {{debug:boolean, test:boolean, audio:boolean, bench:boolean, benchS:number|null, seed:number,
- *   scene:string|null, char:string, q:QualityLevel|null, model:string|null, focus:string|null}}
+ *   scene:string|null, char:string, q:QualityLevel|null, model:string|null, focus:string|null, anim:string|null}}
  */
 export function parseUrlParams(search) {
   const p = new URLSearchParams(search);
@@ -20,6 +20,7 @@ export function parseUrlParams(search) {
   const q = p.get('q');
   const model = p.get('model');
   const focus = p.get('focus');
+  const anim = p.get('anim');
   return {
     debug: flag('debug'),
     test: flag('test'),
@@ -34,5 +35,7 @@ export function parseUrlParams(search) {
     model: model !== null && /^[A-Za-z0-9]+$/.test(model) ? model : null,
     // 工房の寄り：&focus=head など（data/lookdev/scene.js の atelier.focus に登録した名前）
     focus: focus !== null && /^[A-Za-z0-9]+$/.test(focus) ? focus : null,
+    // 工房の動き：&anim=walk|run（主人公をその速さで歩かせて見る）
+    anim: anim === 'walk' || anim === 'run' ? anim : null,
   };
 }

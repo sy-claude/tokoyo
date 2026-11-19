@@ -493,7 +493,7 @@ function jitterGeometry(g, amount, freq, seed, oct) {
 
 /**
  * 部品の表をためて、最後に1つのジオメトリにする。
- * @param {{models?:Record<string, any>, palette?:Record<string, any>, aoGain?:number, segMul?:number, faceOf?:(name:string)=>any}} [lib] ref で引く部品の表と、色の名前の表
+ * @param {{models?:Record<string, any>, palette?:Record<string, any>, aoGain?:number, segMul?:number, faceOf?:(name:string)=>any, boneIndex?:(name:string)=>number}} [lib] ref で引く部品の表と、色の名前の表
  */
 export function createBuilder(lib = {}) {
   /** @type {number[]} */ const P = [];
@@ -502,6 +502,7 @@ export function createBuilder(lib = {}) {
   /** @type {number[]} */ const F = [];
   /** @type {number[]} */ const A = [];
   /** @type {number[]} */ const I = [];
+  /** 頂点ごとの骨の番号（剛体スキン。lib.boneIndex があるときだけ使う） @type {number[]} */ const B = [];
   /** 顔の絵を貼る頂点（V5）：[頂点の番号, u, v, 濃さ] を並べる。ほかの頂点は 0 @type {number[]} */ const FACE = [];
   const colorCache = new Map();
   const color = (name) => {
@@ -518,15 +519,15 @@ export function createBuilder(lib = {}) {
 
   /**
    * @param {any} p 部品 @param {Matrix4} parent 親の行列
-   * @param {{col?:string, fx?:number[], anim?:number[]}} [inherit]
+   * @param {{col?:string, fx?:number[], anim?:number[], bone?:string}} [inherit]
    */
   function add(p, parent = new Matrix4(), inherit = {}) {
     const m = parent.clone().multiply(partMatrix(p));
-    const inh = { col: p.col ?? inherit.col, fx: p.fx ?? inherit.fx, anim: p.anim ?? inherit.anim };
+    const inh = { col: p.col ?? inherit.col, fx: p.fx ?? inherit.fx, anim: p.anim ?? inherit.anim, bone: p.bone ?? inherit.bone };
     if (p.s === 'group' || p.s === 'ref') {
       const parts = p.s === 'ref' ? lib.models?.[p.model]?.parts : p.parts;
       if (!parts) throw new Error(`lookdev: 部品の表が無い ${p.model}`);
-      const sub = p.s === 'ref' ? { fx: inh.fx, anim: inh.anim } : inh;
+      const sub = p.s === 'ref' ? { fx: inh.fx, anim: inh.anim, bone: inh.bone } : inh;
       for (const q of parts) add(q, m, sub);
       return;
     }
@@ -547,7 +548,7 @@ export function createBuilder(lib = {}) {
     if (p.folds && p.foldInk) {
       const lg = foldInkGeometry(g, p.folds, p.foldInk);
       if (lg) {
-        add({ s: 'geom', geom: lg, col: p.foldInkCol ?? 'ink', anim: p.anim, animGrad: p.animGrad, gradUv: true }, m, inherit);
+        add({ s: 'geom', geom: lg, col: p.foldInkCol ?? 'ink', anim: p.anim, animGrad: p.animGrad, gradUv: true, bone: inh.bone }, m, inherit);
         lg.dispose();
       }
     }
@@ -567,6 +568,7 @@ export function createBuilder(lib = {}) {
     const aoGain = p.ao ?? lib.aoGain ?? 0;
     const base = P.length / N3;
     const face = p.face ? lib.faceOf?.(p.face) ?? null : null;
+    const boneId = lib.boneIndex ? lib.boneIndex(inh.bone ?? 'root') : 0;
     const normalM = m.clone().invert().transpose();
     for (let i = 0; i < pos.count; i++) {
       v.fromBufferAttribute(pos, i);
@@ -593,6 +595,7 @@ export function createBuilder(lib = {}) {
       else F.push(fx[0], fx[1], fx[2], fx[N3]);
       const w = animGrad && uv ? animGrad[0] + (animGrad[1] - animGrad[0]) * (p.s === 'tube' ? uv.getX(i) : uv.getY(i)) : anim[1];
       A.push(anim[0], w, anim[2] ?? 0, anim[N3] ?? 0);
+      B.push(boneId);
     }
     const idx = g.index;
     if (idx) for (let i = 0; i < idx.count; i++) I.push(base + idx.getX(i));
@@ -622,6 +625,17 @@ export function createBuilder(lib = {}) {
       const fa = new Float32Array(P.length);
       for (let i = 0; i < FACE.length; i += N4) fa.set([FACE[i + 1], FACE[i + 2], FACE[i + N3]], FACE[i] * N3);
       g.setAttribute('aFace', new BufferAttribute(fa, N3));
+      if (lib.boneIndex) {
+        // 剛体スキン（07 §6.1）：骨は1頂点に1本、重みは (1,0,0,0)
+        const si = new Uint16Array(B.length * N4);
+        const sw = new Float32Array(B.length * N4);
+        for (let i = 0; i < B.length; i++) {
+          si[i * N4] = B[i];
+          sw[i * N4] = 1;
+        }
+        g.setAttribute('skinIndex', new BufferAttribute(si, N4));
+        g.setAttribute('skinWeight', new BufferAttribute(sw, N4));
+      }
       g.setIndex(I);
       g.computeBoundingSphere();
       return g;

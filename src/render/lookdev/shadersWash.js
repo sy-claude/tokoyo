@@ -10,7 +10,6 @@ attribute vec3 aFace;
 varying vec3 vFace;
 uniform float uTime;
 uniform vec3 uWind;   // xz=向き×強さ(m) y=速さ
-uniform vec4 uWalk;   // x=歩きの位相 y=歩きの量(0..1) z=腰の高さ(m) w=脚の振り(rad)
 uniform mat4 uShadowMat;
 uniform float uShadowOffset;
 varying vec3 vWorld;
@@ -18,19 +17,11 @@ varying vec3 vNormal;
 varying vec3 vColor;
 varying vec4 vFx;
 varying vec3 vShadow;
-vec3 rotX(vec3 p, float a) { float c = cos(a), s = sin(a); return vec3(p.x, c * p.y - s * p.z, s * p.y + c * p.z); }
+#include <skinning_pars_vertex>
 void main() {
   vec3 p = position;
   vec3 n = normal;
   float kind = aAnim.x;
-  // 2・3：脚（腰を軸に前後へ振る）。4：腕（肩を軸に少し振る。aAnim.z＝軸の高さ）
-  if (kind > 1.5 && kind < 4.5) {
-    float sgn = kind < 2.5 ? 1.0 : (kind < 3.5 ? -1.0 : 0.35);
-    float pivot = kind < 3.5 ? uWalk.z : aAnim.z;
-    float a = sin(uWalk.x) * uWalk.w * uWalk.y * sgn;
-    p = rotX(p - vec3(0.0, pivot, 0.0), a) + vec3(0.0, pivot, 0.0);
-    n = rotX(n, a);
-  }
   // 7：まぶた（まばたき）。上端（aAnim.z＝形の座標の高さ）を止めたまま下へ伸び、目の前へ出る（aAnim.y＝伸びる倍率、aAnim.w＝面の傾き）
   if (kind > 6.5 && kind < 7.5) {
     float bl = pow(max(sin(uTime * 0.9 + modelMatrix[3].x * 1.7), 0.0), 26.0);
@@ -38,10 +29,12 @@ void main() {
     p.y -= drop;
     p.z += drop * aAnim.w + 0.1 * bl;
   }
-  // 体の上下（歩き）
-  if (kind > 1.5) p.y += abs(sin(uWalk.x)) * uWalk.y * 0.035;
-  // 待機の呼吸：胴から上がわずかに上下する（脚は動かさない）
-  if (kind > 3.5 && kind < 6.5) p.y += sin(uTime * 1.7) * 0.005 * smoothstep(0.7, 1.4, p.y) * (1.0 - uWalk.y);
+  // 骨組み（剛体スキン。07 §6.1）：骨は1頂点に1本なので、その骨の行列を掛けるだけ
+#ifdef USE_SKINNING
+  mat4 skinM = bindMatrixInverse * getBoneMatrix(skinIndex.x) * bindMatrix;
+  p = (skinM * vec4(p, 1.0)).xyz;
+  n = normalize(mat3(skinM) * n);
+#endif
   vec4 w = modelMatrix * vec4(p, 1.0);
   float ph = dot(w.xz, vec2(0.37, 0.29)) + aAnim.z;
   // 1：風にしなる（草・枝先の葉）

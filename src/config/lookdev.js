@@ -34,8 +34,6 @@ export const lookdev = {
   // ---- 風・動き ----
   windM: { v: 0.2, min: 0, max: 1, step: 0.01, desc: '風で草の先が動く幅（m）' },
   windHz: { v: 1.5, min: 0, max: 6, step: 0.1, desc: '風の揺れの速さ' },
-  walkSwingDeg: { v: 26, min: 0, max: 60, step: 1, desc: '歩きの脚の振り（deg）' },
-  walkStepHz: { v: 2.3, min: 0.5, max: 5, step: 0.1, desc: '歩きの歩調（1秒あたりの往復）' },
   // ---- 空・海 ----
   sunRadiusDeg: { v: 3.2, min: 0.5, max: 10, step: 0.1, desc: '夕日の見かけの半径（deg）' },
   cloudRatio: { v: 0.85, min: 0, max: 1, step: 0.01, desc: '雲の量' },
