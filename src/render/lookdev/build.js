@@ -296,6 +296,54 @@ function grooveGeometry(g, grooves) {
   g.computeVertexNormals();
 }
 
+/**
+ * 布のしわ（V5）：管（loft）の面の上で、場所を uv（u＝周り 0〜1、v＝道のり 0〜1）で指定して、面を法線の向きへ押し込む（谷）／盛り上げる（山）。
+ * folds＝[[u, 幅(u), 深さ(m。正＝谷、負＝山), v0, v1, 一番深い所(0〜1。省くと真ん中)], …]
+ * 谷は細い V 字、山はなだらか。谷を暗く・山を明るく塗る（ao）。周りの向き u は継ぎ目をまたいでよい。
+ */
+function foldGeometry(g, folds) {
+  const pos = g.attributes.position;
+  const nor = g.attributes.normal;
+  const uv = g.attributes.uv;
+  if (!uv) return;
+  const ao = g.attributes.ao ? g.attributes.ao.array : new Float32Array(pos.count);
+  let maxDepth = Number.EPSILON;
+  for (const f of folds) maxDepth = Math.max(maxDepth, Math.abs(f[2]));
+  // 面の向きは作り方で内向きにも外向きにもなる（管 loft は内向き）。形の中心から見て外向きになるよう符号をそろえる
+  g.computeBoundingBox();
+  const mid = g.boundingBox.getCenter(new Vector3());
+  let facing = 0;
+  for (let i = 0; i < pos.count; i++) {
+    facing += (pos.getX(i) - mid.x) * nor.getX(i) + (pos.getY(i) - mid.y) * nor.getY(i) + (pos.getZ(i) - mid.z) * nor.getZ(i);
+  }
+  const out = facing < 0 ? -1 : 1;
+  for (let i = 0; i < pos.count; i++) {
+    const u = uv.getX(i);
+    const t = uv.getY(i);
+    let d = 0;
+    let shade = 0; // 塗り：谷の暗い帯は形のくぼみより広く取る（細い谷は1頂点しか沈まず、色が見えないため）
+    for (const [u0, w, depth, v0, v1, peak = HALF] of folds) {
+      if (t < v0 || t > v1) continue;
+      let du = Math.abs(u - u0);
+      du = Math.min(du, 1 - du);
+      if (du >= w) continue;
+      const k = 1 - du / w;
+      const across = depth > 0 ? k * k : k * k * (N3 - 2 * k);
+      const s = (t - v0) / Math.max(v1 - v0, Number.EPSILON);
+      const a = s < peak ? s / Math.max(peak, Number.EPSILON) : (1 - s) / Math.max(1 - peak, Number.EPSILON);
+      const along = Math.sin(Math.min(1, a) * HALF * Math.PI);
+      d += depth * across * along;
+      shade += depth * (depth > 0 ? k : across) * along;
+    }
+    if (d === 0) continue;
+    const push = d * out;
+    pos.setXYZ(i, pos.getX(i) - nor.getX(i) * push, pos.getY(i) - nor.getY(i) * push, pos.getZ(i) - nor.getZ(i) * push);
+    ao[i] -= shade / maxDepth;
+  }
+  g.setAttribute('ao', new BufferAttribute(ao, 1));
+  g.computeVertexNormals();
+}
+
 /** 反り（鳥居の笠木）：両端ほど上へ持ち上げる。 */
 function bendGeometry(g, bendY, halfLen) {
   const pos = g.attributes.position;
@@ -401,6 +449,7 @@ export function createBuilder(lib = {}) {
     if (p.chisel) chiselGeometry(g, p.chisel);
     if (p.flute) fluteGeometry(g, p.flute);
     if (p.grooves) grooveGeometry(g, p.grooves);
+    if (p.folds) foldGeometry(g, p.folds);
     if (p.bendY) bendGeometry(g, p.bendY, p.size[0] * HALF);
     if (p.jitter) {
       jitterGeometry(g, p.jitter, p.jfreq ?? 1, p.seed ?? 1, p.joct ?? N3);

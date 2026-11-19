@@ -65,8 +65,8 @@ export const scene = {
     // 主人公
     haori: '#5f8563',
     haoriLo: '#466a50',
-    hakama: '#554a49',
-    hakamaLo: '#3d3536',
+    hakama: '#6f645c',
+    hakamaLo: '#4d4440',
     obi: '#7a3f38',
     kyahan: '#d8d0c2',
     skin: '#e3c5a9',
