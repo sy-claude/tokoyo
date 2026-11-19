@@ -11,6 +11,8 @@ import { createRng } from '../../core/rng.js';
 import { BYTE_MAX, HALF, N3, N4, SEG_DEFAULT, TAU } from './consts.js';
 
 const ZERO4 = [0, 0, 0, 0];
+/** しわの谷で、筋を引き始める所（谷の中心からの近さ 0〜1）。形の作り方の定数 */
+const FOLD_LINE_FROM = 0.6; // num-ok: 谷の芯の範囲（形の作り方の定数）
 const ONE3 = [1, 1, 1];
 const ZERO3 = [0, 0, 0];
 
@@ -134,13 +136,23 @@ function loftGeometry(p) {
   g.setAttribute('uv', new BufferAttribute(new Float32Array(uv), 2));
   g.setIndex(idx);
   g.computeVertexNormals();
+  g.userData.seg = seg;
+  g.userData.rings = rings;
   return g;
 }
 
 /** 部品1つ → three のジオメトリ（局所座標）。segMul＝円周の分割数に掛ける倍率（品質ごと）。ひだのある形は山の数を保つ。 */
 function shapeGeometry(p0, segMul) {
-  const p = segMul === 1 || p0.seg === undefined || p0.flute ? p0 : { ...p0, seg: Math.max(N4, Math.round(p0.seg * segMul)) };
+  // 品質ごとの細かさ：円周の分割（ひだのある形は山の数を保つため変えない）と、管（loft）の道のりの輪の数を減らす
+  let p = p0;
+  if (segMul !== 1) {
+    p = { ...p0 };
+    if (p0.seg !== undefined && !p0.flute) p.seg = Math.max(N4, Math.round(p0.seg * segMul));
+    if (p0.s === 'loft' && p0.n !== undefined) p.n = Math.max(p0.st.length, Math.round(p0.n * segMul));
+  }
   switch (p.s) {
+    case 'geom':
+      return p.geom.clone(); // 描画側で作った形（しわの墨線など）
     case 'box': {
       const extra = p.bevel ? 2 : 0; // 面取りは各辺の両端に1区画ずつ足して作る
       const g = new BoxGeometry(p.size[0], p.size[1], p.size[2], (p.segs?.[0] ?? 1) + extra, (p.segs?.[1] ?? 1) + extra, (p.segs?.[2] ?? 1) + extra);
@@ -296,12 +308,91 @@ function grooveGeometry(g, grooves) {
   g.computeVertexNormals();
 }
 
+/** 面の向きは作り方で内向きにも外向きにもなる（管 loft は内向き）。形の中心から見て外向きなら 1、内向きなら -1。 */
+function outwardSign(g) {
+  const pos = g.attributes.position;
+  const nor = g.attributes.normal;
+  g.computeBoundingBox();
+  const mid = g.boundingBox.getCenter(new Vector3());
+  let facing = 0;
+  for (let i = 0; i < pos.count; i++) {
+    facing += (pos.getX(i) - mid.x) * nor.getX(i) + (pos.getY(i) - mid.y) * nor.getY(i) + (pos.getZ(i) - mid.z) * nor.getZ(i);
+  }
+  return facing < 0 ? -1 : 1;
+}
+
+/**
+ * しわの墨線（V5）：谷（深さが正）の芯に沿って、布の表面に貼りつく細い帯を作る。管（loft）の頂点の並び（輪×(seg+1)）を使う。
+ * 帯は谷の両端へ向けて細くなる。ink＝[幅(m), 浮かせる量(m), 引く谷の最短の長さ(道のりの比。省くと全部)]
+ */
+function foldInkGeometry(g, folds, ink) {
+  const pos = g.attributes.position;
+  const nor = g.attributes.normal;
+  const uv = g.attributes.uv;
+  const seg = g.userData.seg;
+  const rings = g.userData.rings;
+  if (!seg || !rings) return null;
+  const out = outwardSign(g);
+  const [width, lift, minLen = 0] = ink;
+  const P2 = [];
+  const N2 = [];
+  const UV2 = [];
+  const I2 = [];
+  const a = new Vector3();
+  const b = new Vector3();
+  const na = new Vector3();
+  const nb = new Vector3();
+  const side = new Vector3();
+  const at = (r, j, target, ntarget) => {
+    const k = r * (seg + 1) + j;
+    target.fromBufferAttribute(pos, k);
+    ntarget.fromBufferAttribute(nor, k);
+  };
+  for (const [u0, , depth, v0, v1, peak = HALF] of folds) {
+    if (depth <= 0 || v1 - v0 < minLen) continue;
+    const start = P2.length / N3;
+    let count = 0;
+    for (let r = 0; r < rings; r++) {
+      const t = uv.getY(r * (seg + 1));
+      if (t < v0 || t > v1) continue;
+      if (r % 2 === 1 && r < rings - 1) continue; // 筋は輪を1つおきに拾う（ほぼまっすぐなので形は変わらず、三角形が半分）
+      const s = (t - v0) / Math.max(v1 - v0, Number.EPSILON);
+      const along = s < peak ? s / Math.max(peak, Number.EPSILON) : (1 - s) / Math.max(1 - peak, Number.EPSILON);
+      const f = u0 * seg;
+      const j0 = Math.min(seg - 1, Math.max(0, Math.floor(f)));
+      const w = f - j0;
+      at(r, j0, a, na);
+      at(r, j0 + 1, b, nb);
+      side.copy(b).sub(a).normalize();
+      const c = a.clone().lerp(b, w);
+      const n = na.lerp(nb, w).normalize().multiplyScalar(out);
+      c.addScaledVector(n, lift);
+      const half = width * HALF * Math.sin(Math.min(1, along) * HALF * Math.PI);
+      P2.push(c.x - side.x * half, c.y - side.y * half, c.z - side.z * half, c.x + side.x * half, c.y + side.y * half, c.z + side.z * half);
+      N2.push(n.x, n.y, n.z, n.x, n.y, n.z);
+      UV2.push(0, t, 1, t);
+      if (count > 0) {
+        const q = start + (count - 1) * 2;
+        I2.push(q, q + 2, q + 1, q + 1, q + 2, q + N3);
+      }
+      count++;
+    }
+  }
+  if (I2.length === 0) return null;
+  const lg = new BufferGeometry();
+  lg.setAttribute('position', new BufferAttribute(new Float32Array(P2), N3));
+  lg.setAttribute('normal', new BufferAttribute(new Float32Array(N2), N3));
+  lg.setAttribute('uv', new BufferAttribute(new Float32Array(UV2), 2));
+  lg.setIndex(I2);
+  return lg;
+}
+
 /**
  * 布のしわ（V5）：管（loft）の面の上で、場所を uv（u＝周り 0〜1、v＝道のり 0〜1）で指定して、面を法線の向きへ押し込む（谷）／盛り上げる（山）。
- * folds＝[[u, 幅(u), 深さ(m。正＝谷、負＝山), v0, v1, 一番深い所(0〜1。省くと真ん中)], …]
+ * folds＝[[u, 幅(u), 深さ(m。正＝谷、負＝山), v0, v1, 一番深い所(0〜1。省くと真ん中)], …]。部品の foldLine＝谷の芯の筋の濃さ（0〜）
  * 谷は細い V 字、山はなだらか。谷を暗く・山を明るく塗る（ao）。周りの向き u は継ぎ目をまたいでよい。
  */
-function foldGeometry(g, folds) {
+function foldGeometry(g, folds, lineRatio = 0) {
   const pos = g.attributes.position;
   const nor = g.attributes.normal;
   const uv = g.attributes.uv;
@@ -309,14 +400,7 @@ function foldGeometry(g, folds) {
   const ao = g.attributes.ao ? g.attributes.ao.array : new Float32Array(pos.count);
   let maxDepth = Number.EPSILON;
   for (const f of folds) maxDepth = Math.max(maxDepth, Math.abs(f[2]));
-  // 面の向きは作り方で内向きにも外向きにもなる（管 loft は内向き）。形の中心から見て外向きになるよう符号をそろえる
-  g.computeBoundingBox();
-  const mid = g.boundingBox.getCenter(new Vector3());
-  let facing = 0;
-  for (let i = 0; i < pos.count; i++) {
-    facing += (pos.getX(i) - mid.x) * nor.getX(i) + (pos.getY(i) - mid.y) * nor.getY(i) + (pos.getZ(i) - mid.z) * nor.getZ(i);
-  }
-  const out = facing < 0 ? -1 : 1;
+  const out = outwardSign(g);
   for (let i = 0; i < pos.count; i++) {
     const u = uv.getX(i);
     const t = uv.getY(i);
@@ -333,7 +417,8 @@ function foldGeometry(g, folds) {
       const a = s < peak ? s / Math.max(peak, Number.EPSILON) : (1 - s) / Math.max(1 - peak, Number.EPSILON);
       const along = Math.sin(Math.min(1, a) * HALF * Math.PI);
       d += depth * across * along;
-      shade += depth * (depth > 0 ? k : across) * along;
+      // 谷：広く淡い陰と、芯の細く濃い筋（墨の線のように見せる。lineRatio＝筋の濃さ）
+      shade += depth * (depth > 0 ? k + lineRatio * Math.max(0, (k - FOLD_LINE_FROM) / (1 - FOLD_LINE_FROM)) : across) * along;
     }
     if (d === 0) continue;
     const push = d * out;
@@ -449,7 +534,7 @@ export function createBuilder(lib = {}) {
     if (p.chisel) chiselGeometry(g, p.chisel);
     if (p.flute) fluteGeometry(g, p.flute);
     if (p.grooves) grooveGeometry(g, p.grooves);
-    if (p.folds) foldGeometry(g, p.folds);
+    if (p.folds) foldGeometry(g, p.folds, p.foldLine ?? 0);
     if (p.bendY) bendGeometry(g, p.bendY, p.size[0] * HALF);
     if (p.jitter) {
       jitterGeometry(g, p.jitter, p.jfreq ?? 1, p.seed ?? 1, p.joct ?? N3);
@@ -458,6 +543,13 @@ export function createBuilder(lib = {}) {
     if (p.flat) {
       g = g.toNonIndexed();
       g.computeVertexNormals();
+    }
+    if (p.folds && p.foldInk) {
+      const lg = foldInkGeometry(g, p.folds, p.foldInk);
+      if (lg) {
+        add({ s: 'geom', geom: lg, col: p.foldInkCol ?? 'ink', anim: p.anim, animGrad: p.animGrad, gradUv: true }, m, inherit);
+        lg.dispose();
+      }
     }
     g.computeBoundingBox();
     const bb = g.boundingBox;

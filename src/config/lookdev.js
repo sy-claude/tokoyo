@@ -96,5 +96,9 @@ export const lookdev = {
   leafCount: { v: { high: 70, mid: 40, low: 16 }, desc: '舞う葉の数' },
   meshDetailMul: { v: { high: 1, mid: 0.8, low: 0.6 }, desc: '形の細かさ（円や球の分割数に掛ける。スマホ向けに三角形を減らす）' },
   scatterMul: { v: { high: 1, mid: 0.8, low: 0.5 }, desc: '散らす岩・茂みの数（倍）' },
+  // ---- 形の三角形の上限（docs/11_assets §5。単体テスト lookdevTriBudget で検査。影の図の分は含まない） ----
+  budgetHeroTriCount: { v: 12000, min: 1000, max: 50000, step: 100, desc: '祓人1体（武器を除く）の三角形の上限' },
+  budgetWeaponTriCount: { v: 2000, min: 100, max: 10000, step: 100, desc: '武器の三角形の上限' },
+  budgetSmallEnemyTriCount: { v: 6000, min: 500, max: 30000, step: 100, desc: '小型の敵1体の三角形の上限' },
   bloomDivCount: { v: 4, min: 2, max: 8, step: 1, desc: '光のにじみの解像度（画面の何分の1か）' },
 };

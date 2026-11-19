@@ -73,3 +73,24 @@ test('lookdevYokaiMotion：妖怪の身じろぎは時刻だけで決まり、�
   }
   for (let c = 0; c < 2; c += 0.01) assert.ok(hopRatio(c) >= 0 && hopRatio(c) <= 1);
 });
+
+test('lookdevTriBudget：主人公（本体・武器）と妖怪の三角形が上限以内（11_assets §5。品質「高」）', async () => {
+  const { Matrix4 } = await import('three');
+  const { createBuilder } = await import('../../src/render/lookdev/build.js');
+  const { lookdev: L } = await import('../../src/config/lookdev.js');
+  const count = (parts) => {
+    const b = createBuilder({ models, palette: scene.palette, aoGain: scene.aoGain, segMul: L.meshDetailMul.v.high, faceOf: () => null });
+    b.addAll(parts, new Matrix4(), {});
+    return b.raw.I.length / 3;
+  };
+  const heroParts = models.hero.parts;
+  const weapon = heroParts[heroParts.length - 1];
+  const body = count(heroParts.slice(0, -1));
+  assert.ok(weapon.parts.some((p) => p.col === 'steel'), '主人公の部品表の最後は武器');
+  assert.ok(body <= L.budgetHeroTriCount.v, `主人公の本体 ${body}`);
+  assert.ok(count([weapon]) <= L.budgetWeaponTriCount.v, '武器');
+  for (const name of ['chochin', 'karakasa', 'yamainu']) {
+    const n = count(models[name].parts);
+    assert.ok(n <= L.budgetSmallEnemyTriCount.v, `${name} ${n}`);
+  }
+});
