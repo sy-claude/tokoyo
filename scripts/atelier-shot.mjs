@@ -20,6 +20,8 @@ const every = Number(opt('every', 4));
 const OUT = opt('out', 'tests/artifacts/atelier');
 const W = 900, H = 700;
 const N_SETTLE = 4; // 1コマの中で向きを合わせるのに使う tick
+/** 角度の差を −180〜180 に直す（一回りして逆へ回らないように） */
+const wrap = (d) => ((((d + 180) % 360) + 360) % 360) - 180;
 // 視点：[名前, 横の向き(度), 縦の向き(度)]。最後の2つは寄り（画面の一部を2倍で撮る）
 const VIEWS = [['正面', 180, 0], ['背面', 0, 0], ['左', 90, 0], ['右', 270, 0], ['斜め上', 215, 22], ['見上げ', 150, -14]];
 mkdirSync(OUT, { recursive: true });
@@ -30,7 +32,7 @@ try {
   const errors = [];
   page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') errors.push(m.text()); });
   page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
-  await page.goto(`${url}?test=1&scene=lookdev&q=${q}&model=${model}${focus ? `&focus=${focus}` : ''}${animName ? `&anim=${animName}` : ''}`);
+  await page.goto(`${url}?test=1&scene=lookdev&q=${q}&model=${model}${focus ? `&focus=${focus}` : ''}${animName ? `&anim=${animName}` : ''}${strip ? `&view=${VIEWS[stripView][1]},${VIEWS[stripView][2]}` : ''}`);
   await page.waitForFunction(() => Boolean(window.__game));
   await page.evaluate(() => window.__game.ready);
   await page.addStyleTag({ content: '#hud,#input,#menus{display:none !important}' });
@@ -42,12 +44,12 @@ try {
     await page.evaluate(([dy, dp]) => {
       const g = window.__game;
       g.setInput({ camDeg: [dy, dp] }); g.step(1); g.setInput({ camDeg: [0, 0] }); g.step(2); g.render();
-    }, [y - yaw, p - pitch]);
+    }, [wrap(y - yaw), p - pitch]);
     if (strip) {
       // 進めている間にカメラが背後へ回り込むので、進めた後に向きを戻してから撮る
       await page.evaluate((n) => { window.__game.step(n); }, every - N_SETTLE);
       const c = await page.evaluate(() => { const k = window.__game.getState().camera; return [k.yawDeg, k.pitchDeg]; });
-      await page.evaluate(([dy, dp]) => { const g = window.__game; g.setInput({ camDeg: [dy, dp] }); g.step(1); g.setInput({ camDeg: [0, 0] }); g.render(); }, [y - c[0], p - c[1]]);
+      await page.evaluate(([dy, dp]) => { const g = window.__game; g.setInput({ camDeg: [dy, dp] }); g.step(1); g.setInput({ camDeg: [0, 0] }); g.render(); }, [wrap(y - c[0]), p - c[1]]);
     }
     const now = await page.evaluate(() => { const c = window.__game.getState().camera; return [c.yawDeg, c.pitchDeg]; });
     [yaw, pitch] = now;

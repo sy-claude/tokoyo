@@ -4,7 +4,7 @@
 /** @import {BoneDef} from '../../data/lookdev/rigs.js' */
 import { Euler, Quaternion } from 'three';
 import { DEG2RAD } from '../../core/math.js';
-import { N3, N4, TAU } from '../lookdev/consts.js';
+import { HALF, N3, N4, TAU } from '../lookdev/consts.js';
 
 const e = new Euler();
 const q = new Quaternion();
@@ -31,15 +31,21 @@ export function locomotion(loco) {
   const bob = mix(A.walkBobM, A.runBobM, run) * moving;
   const lean = mix(A.walkLeanDeg, A.runLeanDeg, run) * moving;
   const s = Math.sin(phase);
+  const thighL = -s * thigh;
+  const thighR = s * thigh;
+  const thighAvg = (thighL + thighR) * HALF;
   // 角度の向き：骨は −Y に伸びるので、X の負の回転で足先が前（+Z）へ出る。膝は正で後ろへ曲がる
   return {
     joints: {
-      thighL: [-s * thigh, 0, 0],
-      thighR: [s * thigh, 0, 0],
+      thighL: [thighL, 0, 0],
+      thighR: [thighR, 0, 0],
       shinL: [Math.max(0, Math.cos(phase)) * knee, 0, 0],
       shinR: [Math.max(0, -Math.cos(phase)) * knee, 0, 0],
       armL: [s * arm, 0, 0],
       armR: [-s * arm, 0, 0],
+      // 袴（ばね専用の骨。基準の向きは 07 §6.2：自分の太もも50%＋両脚の平均50%）
+      hakamaL: [thighL * HALF + thighAvg * HALF, 0, 0],
+      hakamaR: [thighR * HALF + thighAvg * HALF, 0, 0],
       spine: [lean, 0, 0],
       chest: [Math.sin((TAU * t) / A.idleBreathS) * A.idleBreathDeg * (1 - moving), 0, 0],
     },

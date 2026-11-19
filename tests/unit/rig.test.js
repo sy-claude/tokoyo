@@ -5,16 +5,17 @@ import { Matrix4 } from 'three';
 import { createBuilder } from '../../src/render/lookdev/build.js';
 import { models } from '../../src/data/lookdev/models.js';
 import { scene } from '../../src/data/lookdev/scene.js';
-import { humanBones } from '../../src/data/lookdev/rigs.js';
+import { heroSpringBones, heroSprings, humanBones } from '../../src/data/lookdev/rigs.js';
 import { poseAt } from '../../src/render/rig/pose.js';
 import { anim } from '../../src/config/anim.js';
 
-const boneIndex = new Map(humanBones.map((b, i) => [b.name, i]));
+const heroBones = [...humanBones, ...heroSpringBones];
+const boneIndex = new Map(heroBones.map((b, i) => [b.name, i]));
 const animCfg = Object.fromEntries(Object.entries(anim).map(([k, e]) => [k, e.v]));
 
-test('rigBonesValid：骨の親は先に出ていて、名前は重複しない（07 §6.3）', () => {
+test('rigBonesValid：骨の親は先に出ていて、名前は重複しない（07 §6.3。ばね専用の骨を含む）', () => {
   const seen = new Set();
-  for (const b of humanBones) {
+  for (const b of heroBones) {
     assert.ok(!seen.has(b.name), b.name);
     if (b.parent !== null) assert.ok(seen.has(b.parent), `${b.name} の親 ${b.parent}`);
     seen.add(b.name);
@@ -41,7 +42,9 @@ test('rigRigidSkin：主人公の全頂点が骨を1本だけ持ち、重みは 
     used.add(si.getX(i));
   }
   // 脚・腕・頭・刀がそれぞれの骨に付いている
-  for (const name of ['thighL', 'shinR', 'footL', 'armR', 'handL', 'head', 'hips', 'weapon']) assert.ok(used.has(boneIndex.get(name)), name);
+  for (const name of ['shinR', 'footL', 'handL', 'head', 'hips', 'weapon', 'sleeveL', 'hakamaR', 'hair1', 'hachiA3', 'hachiB2']) assert.ok(used.has(boneIndex.get(name)), name);
+  // 揺れの表の骨はすべて骨の表にある
+  for (const sp of heroSprings) assert.ok(boneIndex.has(sp.bone), sp.bone);
 });
 
 test('rigPosePure：poseAt は同じ入力で同じ結果、入力を書き換えない。止まっていれば脚は振らない', () => {
@@ -61,4 +64,33 @@ test('rigPosePure：poseAt は同じ入力で同じ結果、入力を書き換�
     const len = Math.hypot(a[i * 4], a[i * 4 + 1], a[i * 4 + 2], a[i * 4 + 3]);
     assert.ok(Math.abs(len - 1) < 1e-5);
   }
+});
+
+test('rigSprings：親が前へ加速すると、ばねの骨は後ろへ遅れ（X の正）、止まれば戻る。角度は limitDeg で止まる', async () => {
+  const { Bone } = await import('three');
+  const { createSprings } = await import('../../src/render/rig/springs.js');
+  const parent = new Bone();
+  const child = new Bone();
+  child.name = 'c';
+  parent.add(child);
+  const A = { springKRatio: animCfg.springKRatio, springDampingRatio: animCfg.springDampingRatio, springInputMul: animCfg.springInputMul };
+  const sp = createSprings([{ bone: 'c', axes: 'xz', gainMul: 0.1, limitDeg: 70 }], new Map([['c', child]]));
+  const dt = 1 / 60;
+  const angle = () => {
+    child.quaternion.identity();
+    sp.apply();
+    return 2 * Math.asin(child.quaternion.x);
+  };
+  // 止まっている間は揺れない
+  for (let i = 0; i < 10; i++) { parent.updateMatrixWorld(true); sp.step(dt, A); }
+  assert.equal(angle(), 0);
+  // 前（+Z）へ加速
+  let v = 0;
+  for (let i = 0; i < 12; i++) { v += 20 * dt; parent.position.z += v * dt; parent.updateMatrixWorld(true); sp.step(dt, A); }
+  const lag = angle();
+  assert.ok(lag > 0.02, `後ろへ遅れる ${lag}`);
+  assert.ok(lag <= (70 * Math.PI) / 180 + 1e-6);
+  // 等速になると戻っていく
+  for (let i = 0; i < 240; i++) { parent.position.z += v * dt; parent.updateMatrixWorld(true); sp.step(dt, A); }
+  assert.ok(Math.abs(angle()) < lag * 0.2, '等速では戻る');
 });

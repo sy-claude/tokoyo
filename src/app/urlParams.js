@@ -8,7 +8,7 @@ const QUALITIES = ['high', 'mid', 'low'];
 /**
  * @param {string} search 例 '?test=1&seed=3&scene=sandbox'
  * @returns {{debug:boolean, test:boolean, audio:boolean, bench:boolean, benchS:number|null, seed:number,
- *   scene:string|null, char:string, q:QualityLevel|null, model:string|null, focus:string|null, anim:string|null}}
+ *   scene:string|null, char:string, q:QualityLevel|null, model:string|null, focus:string|null, anim:string|null, view:number[]|null}}
  */
 export function parseUrlParams(search) {
   const p = new URLSearchParams(search);
@@ -21,6 +21,7 @@ export function parseUrlParams(search) {
   const model = p.get('model');
   const focus = p.get('focus');
   const anim = p.get('anim');
+  const view = (p.get('view') ?? '').split(',').map(Number);
   return {
     debug: flag('debug'),
     test: flag('test'),
@@ -37,5 +38,7 @@ export function parseUrlParams(search) {
     focus: focus !== null && /^[A-Za-z0-9]+$/.test(focus) ? focus : null,
     // 工房の動き：&anim=walk|run（主人公をその速さで歩かせて見る）
     anim: anim === 'walk' || anim === 'run' ? anim : null,
+    // 工房の視点の固定：&view=横の向き,縦の向き（度）
+    view: view.length === 2 && view.every(Number.isFinite) ? view : null,
   };
 }

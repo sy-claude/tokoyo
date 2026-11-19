@@ -8,7 +8,7 @@ import {
   Bone, Matrix4, Mesh, NearestFilter, Skeleton, SkinnedMesh, OrthographicCamera, PlaneGeometry, RedFormat, Scene, ShaderMaterial, SphereGeometry,
   UnsignedByteType, UnsignedIntType, Vector3, Vector4, WebGLRenderTarget,
 } from 'three';
-import { DEG2RAD, lerp, lerpDeg } from '../../core/math.js';
+import { DEG2RAD, forwardYawPitch, lerp, lerpDeg } from '../../core/math.js';
 import { createRng, presentationSeed } from '../../core/rng.js';
 import { scene as S } from '../../data/lookdev/scene.js';
 import { models } from '../../data/lookdev/models.js';
@@ -17,8 +17,9 @@ import { createBuilder, partMatrix } from './build.js';
 import { createFaceAtlas, faceCellRect } from './faceAtlas.js';
 import { faces } from '../../data/lookdev/faces.js';
 import { yokaiMatrix } from './yokaiMotion.js';
-import { humanBones } from '../../data/lookdev/rigs.js';
+import { heroSpringBones, heroSprings, humanBones } from '../../data/lookdev/rigs.js';
 import { poseAt } from '../rig/pose.js';
+import { createSprings } from '../rig/springs.js';
 import { HALF, N3, N4, TAU } from './consts.js';
 import { addBareTrees, addDaisies, addGrass, addFallenLeaves, addIslands, addMaple, addMapleBranches, addScatter, addSenbon, addWires, placeAll } from './flora.js';
 import { createPost } from './post.js';
@@ -33,7 +34,7 @@ const col = (hex, gain = 1) => new Color(hex).multiplyScalar(gain);
 /**
  * @param {ReturnType<typeof import('../renderer.js').createRenderer>} renderer
  * @param {Cfg} cfg
- * @param {{atelierModel?:string|null, atelierFocus?:string|null, atelierAnim?:string|null}} [opts] 工房：形の名前を渡すと、その形だけを台の上に大きく映す（docs/12 4章）
+ * @param {{atelierModel?:string|null, atelierFocus?:string|null, atelierAnim?:string|null, atelierView?:number[]|null}} [opts] 工房：形の名前を渡すと、その形だけを台の上に大きく映す（docs/12 4章）
  */
 export function createLookdevView(renderer, cfg, opts = {}) {
   const atelier = opts.atelierModel && models[opts.atelierModel] ? opts.atelierModel : null;
@@ -101,11 +102,16 @@ export function createLookdevView(renderer, cfg, opts = {}) {
     uFaceTex: { value: /** @type {any} */ (null) },
   };
   // 主人公の骨組み（剛体スキン。07 §6.1・09 §8.2）。骨は humanBones の順
-  const heroRig = { bones: humanBones };
-  const boneIndex = new Map(humanBones.map((b, i) => [b.name, i]));
-  const heroPose = new Float32Array(humanBones.length * N4 + N3);
+  const heroBoneDefs = [...humanBones, ...heroSpringBones];
+  const heroRig = { bones: heroBoneDefs };
+  const boneIndex = new Map(heroBoneDefs.map((b, i) => [b.name, i]));
+  const heroPose = new Float32Array(heroBoneDefs.length * N4 + N3);
   /** @type {any[]} */
   let heroBones = [];
+  /** 揺れ（ばね）の状態と、最後に積分した tick・その時の主人公の位置と向き @type {ReturnType<typeof createSprings>|null} */
+  let springs = null;
+  let springTick = -1;
+  const springPos = new Vector3();
 
   function washMaterial(defines, extraUniforms) {
     const m = new ShaderMaterial({
@@ -303,13 +309,13 @@ export function createLookdevView(renderer, cfg, opts = {}) {
     hb.addAll(models.hero.parts, new Matrix4(), {});
     const heroGeo = hb.toGeometry();
     disposables.push(heroGeo);
-    heroBones = humanBones.map((d) => {
+    heroBones = heroBoneDefs.map((d) => {
       const b = new Bone();
       b.name = d.name;
       b.position.set(d.posM[0], d.posM[1], d.posM[2]);
       return b;
     });
-    humanBones.forEach((d, i) => {
+    heroBoneDefs.forEach((d, i) => {
       if (d.parent) heroBones[boneIndex.get(d.parent) ?? 0].add(heroBones[i]);
     });
     hero = new SkinnedMesh(heroGeo, washMaterial(baseDefines, {}));
@@ -317,6 +323,8 @@ export function createLookdevView(renderer, cfg, opts = {}) {
     hero.add(heroBones[0]);
     hero.updateMatrixWorld(true);
     hero.bind(new Skeleton(heroBones));
+    springs = createSprings(heroSprings, new Map(heroBones.map((b) => [b.name, b])));
+    springTick = -1;
     scene.add(hero);
     hero.visible = !atelier || atelier === 'hero';
     addCaster(hero, shadowMaterial());
@@ -547,19 +555,42 @@ export function createLookdevView(renderer, cfg, opts = {}) {
       const x = lerp(p.prevPos[0], p.pos[0], alpha);
       const y = lerp(p.prevPos[1], p.pos[1], alpha);
       const z = lerp(p.prevPos[2], p.pos[2], alpha);
-      hero.position.set(x, y, z);
-      hero.rotation.y = lerpDeg(p.prevYawDeg, p.yawDeg, alpha) * DEG2RAD;
       // 姿勢：速さから歩き・走りを混ぜる（07 §6.6）。工房では &anim=walk|run で速さを決めて見る
       const simSpeed = Math.hypot(p.pos[0] - p.prevPos[0], p.pos[2] - p.prevPos[2]) * hz;
       const A = cfg.anim;
       const speed = opts.atelierAnim === 'walk' ? A.walkBlendFromMps : opts.atelierAnim === 'run' ? cfg.movement.runSpeedMps : simSpeed;
-      poseAt(heroRig, null, 0, { timeS: time, speedMps: speed, runSpeedMps: cfg.movement.runSpeedMps, tickRateHz: hz, anim: A }, heroPose);
-      for (let i = 0; i < heroBones.length; i++) {
-        const b = heroBones[i];
-        b.quaternion.set(heroPose[i * N4], heroPose[i * N4 + 1], heroPose[i * N4 + 2], heroPose[i * N4 + N3]);
+      const setPose = (/** @type {number} */ t) => {
+        poseAt(heroRig, null, 0, { timeS: t, speedMps: speed, runSpeedMps: cfg.movement.runSpeedMps, tickRateHz: hz, anim: A }, heroPose);
+        for (let i = 0; i < heroBones.length; i++) {
+          heroBones[i].quaternion.set(heroPose[i * N4], heroPose[i * N4 + 1], heroPose[i * N4 + 2], heroPose[i * N4 + N3]);
+        }
+        const n4 = heroBones.length * N4;
+        heroBones[0].position.set(heroPose[n4], heroPose[n4 + 1], heroPose[n4 + 2]);
+      };
+      // 揺れ：前に積分した tick から今の tick まで、1tick ずつ姿勢と位置を当てて積分する（描画の頻度によらず同じ結果）
+      if (springs) {
+        const now = world.tick;
+        if (springTick < 0 || now < springTick || now - springTick > A.springCatchupMaxCount) {
+          springs.reset();
+          springTick = Math.max(0, now - A.springCatchupMaxCount);
+          springPos.set(p.pos[0], p.pos[1], p.pos[2]);
+        }
+        const from = springTick;
+        for (let k = from + 1; k <= now; k++) {
+          const f = (k - from) / (now - from);
+          hero.position.set(lerp(springPos.x, p.pos[0], f), lerp(springPos.y, p.pos[1], f), lerp(springPos.z, p.pos[2], f));
+          hero.rotation.y = p.yawDeg * DEG2RAD;
+          setPose(k / hz);
+          hero.updateMatrixWorld(true);
+          springs.step(1 / hz, A);
+        }
+        springTick = now;
+        springPos.set(p.pos[0], p.pos[1], p.pos[2]);
       }
-      const n4 = heroBones.length * N4;
-      heroBones[0].position.set(heroPose[n4], heroPose[n4 + 1], heroPose[n4 + 2]);
+      hero.position.set(x, y, z);
+      hero.rotation.y = lerpDeg(p.prevYawDeg, p.yawDeg, alpha) * DEG2RAD;
+      setPose(time);
+      springs?.apply();
       U.uPlayer.value.set(x, y, z, L.shadowRatio);
       for (const k of yokai) yokaiMatrix(k.place, k.motion, time, k.mesh.matrix);
 
@@ -568,9 +599,14 @@ export function createLookdevView(renderer, cfg, opts = {}) {
       if (atelier) {
         // 工房：向きはシムのカメラのまま、距離だけ形の大きさに合わせる（開発用の見本。遊びの場面では使わない）
         const c = cameraView.three;
-        c.getWorldDirection(camDir);
+        if (opts.atelierView) {
+          // 視点を固定（&view=横の向き,縦の向き。度）：撮影で毎コマ同じ角度から見るため
+          const f = forwardYawPitch(opts.atelierView[0], opts.atelierView[1]);
+          camDir.set(f[0], f[1], f[2]);
+        } else c.getWorldDirection(camDir);
         const d = atelierFrame.r * S.atelier.distMul;
         c.position.set(x - camDir.x * d, y + atelierFrame.y - camDir.y * d, z - camDir.z * d);
+        c.lookAt(x, y + atelierFrame.y, z);
         c.updateMatrixWorld();
       }
       const q = renderer.quality;

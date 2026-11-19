@@ -1,7 +1,7 @@
 // 見た目の試作（lookdev）の形の表。部品（box・cyl・sph・lathe・tube・loft・ribbon・fan・group・ref）を並べて1体を作る。
 // loft＝肉付けした管：st＝[[x, y, z, 半径A, 半径B], …]、A の向きは side（既定は x）、B は道のり×A。
 // 単位は m・度。模型の正面は +Z、足元（底面の中心）が原点。色は palette の名前か '#rrggbb'。
-// fx＝[苔, 塗りのはげ, 石畳, 発光]。anim＝[動きの種類, 重み, 位相]（1=風 5=布 7=まぶた［伸びる倍率, 上端の高さ, 面の傾き］）。bone＝付く骨（data/lookdev/rigs.js。主人公だけ）。
+// fx＝[苔, 塗りのはげ, 石畳, 発光]。anim＝[動きの種類, 重み, 位相]（1=風 5=布 7=まぶた［伸びる倍率, 上端の高さ, 面の傾き］）。bone＝付く骨（data/lookdev/rigs.js。主人公だけ）、boneChain＝帯を道のりに沿って等分して順に付ける骨。
 // 参考画像（design-notes/lookdev/reference.png）を見て決めた形（設計書に無い「見た目の創作部分」）。
 
 const STONE_FX = [0.75, 0, 1, 0];
@@ -270,7 +270,7 @@ export const models = {
       // 脚。kind 2＝左、3＝右（腰を軸に振る）
       { s: 'group', bone: 'thighL', parts: [
         // 袴（腰はひだ、膝下で絞って膨らむ）
-        { s: 'loft', seg: 32, n: 16, at: [0.118, 0, 0], col: 'hakamaLo', col2: 'hakama', flute: [9, 0.02, 0.3], ao: 0.75, jitter: 0.01, jfreq: 6, folds: HAKAMA_FOLDS, foldLine: 0.5, foldInk: [0.005, 0.003, 0.4], foldInkCol: 'ink', seed: 3,
+        { bone: 'hakamaL', s: 'loft', seg: 32, n: 16, at: [0.118, 0, 0], col: 'hakamaLo', col2: 'hakama', flute: [9, 0.02, 0.3], ao: 0.75, jitter: 0.01, jfreq: 6, folds: HAKAMA_FOLDS, foldLine: 0.5, foldInk: [0.005, 0.003, 0.4], foldInkCol: 'ink', seed: 3,
           st: [[0, 0.335, 0, 0.055, 0.065], [0, 0.365, 0, 0.105, 0.135], [0, 0.45, 0, 0.132, 0.178], [0, 0.6, 0, 0.128, 0.164], [0, 0.8, 0, 0.108, 0.132], [0, 0.99, 0, 0.102, 0.118]] },
         // 脚絆（ふくらはぎの形）と上下の縄
         { bone: 'shinL', s: 'loft', seg: 12, n: 10, at: [0.122, 0, 0], col: 'kyahan', col2: 'paperWhite', ao: 0.4,
@@ -296,7 +296,7 @@ export const models = {
       ] },
       { s: 'group', bone: 'thighR', parts: [
         // 袴（腰はひだ、膝下で絞って膨らむ）
-        { s: 'loft', seg: 32, n: 16, at: [-0.118, 0, 0], col: 'hakamaLo', col2: 'hakama', flute: [9, 0.02, 0.3], ao: 0.75, jitter: 0.01, jfreq: 6, folds: HAKAMA_FOLDS, foldLine: 0.5, foldInk: [0.005, 0.003, 0.4], foldInkCol: 'ink', seed: 8,
+        { bone: 'hakamaR', s: 'loft', seg: 32, n: 16, at: [-0.118, 0, 0], col: 'hakamaLo', col2: 'hakama', flute: [9, 0.02, 0.3], ao: 0.75, jitter: 0.01, jfreq: 6, folds: HAKAMA_FOLDS, foldLine: 0.5, foldInk: [0.005, 0.003, 0.4], foldInkCol: 'ink', seed: 8,
           st: [[0, 0.335, 0, 0.055, 0.065], [0, 0.365, 0, 0.105, 0.135], [0, 0.45, 0, 0.132, 0.178], [0, 0.6, 0, 0.128, 0.164], [0, 0.8, 0, 0.108, 0.132], [0, 0.99, 0, 0.102, 0.118]] },
         // 脚絆（ふくらはぎの形）と上下の縄
         { bone: 'shinR', s: 'loft', seg: 12, n: 10, at: [-0.122, 0, 0], col: 'kyahan', col2: 'paperWhite', ao: 0.4,
@@ -366,26 +366,26 @@ export const models = {
         { bone: 'head', s: 'sph', r: [0.1, 0.096, 0.108], seg: 14, at: [0, 1.648, -0.016], col: 'hair', ao: 0, jitter: 0.005, jfreq: 16, joct: 2 },
         { bone: 'head', s: 'sph', r: [0.094, 0.08, 0.066], seg: 12, at: [0, 1.56, -0.06], col: 'hair', ao: 0 },
         ...HERO_HAIR,
-        { bone: 'head', s: 'loft', seg: 6, n: 8, col: 'hair', st: [[0, 1.52, -0.105, 0.026, 0.026], [0, 1.5, -0.135, 0.03, 0.028], [0, 1.465, -0.15, 0.02, 0.018], [0, 1.435, -0.15, 0.004, 0.004]] },
+        { bone: 'hair1', s: 'loft', seg: 6, n: 8, col: 'hair', st: [[0, 1.52, -0.105, 0.026, 0.026], [0, 1.5, -0.135, 0.03, 0.028], [0, 1.465, -0.15, 0.02, 0.018], [0, 1.435, -0.15, 0.004, 0.004]] },
         // 鉢巻と結び目
         { bone: 'head', s: 'cyl', r: [0.107, 0.11], h: 0.04, seg: 20, at: [0, 1.632, -0.01], scale: [1, 1, 1.1], col: 'paperWhite', col2: 'kyahan' },
         { bone: 'head', s: 'sph', r: [0.034, 0.028, 0.026], seg: 6, at: [0.012, 1.648, -0.128], col: 'paperWhite' },
       ] },
       // 袖（腕に沿って肩から手首へ下がり、袂が四角く垂れる平たい布）。左は風で少しはためく
-      { bone: 'armL', s: 'loft', seg: 20, n: 15, side: [0, 0, 1], col: 'haori', col2: 'haoriLo', gradUv: true, folds: SLEEVE_FOLDS, foldLine: 0.6, foldInk: [0.005, 0.003], foldInkCol: 'hakamaLo', anim: [5, 0.1, 1], animGrad: [0, 0.22], ao: 0.6, jitter: 0.008, jfreq: 7,
+      { bone: 'sleeveL', s: 'loft', seg: 20, n: 15, side: [0, 0, 1], col: 'haori', col2: 'haoriLo', gradUv: true, folds: SLEEVE_FOLDS, foldLine: 0.6, foldInk: [0.005, 0.003], foldInkCol: 'hakamaLo', anim: [5, 0.1, 1], animGrad: [0, 0.22], ao: 0.6, jitter: 0.008, jfreq: 7,
         st: [[0.200, 1.22, 0, 0.075, 0.14], [0.280, 1.0, 0, 0.06, 0.2], [0.350, 0.91, 0.005, 0.048, 0.16], [0.400, 0.84, 0.01, 0.04, 0.118], [0.416, 0.835, 0.01, 0.036, 0.112]] },
       // 袖口（暗い内側）と、袖口から出る手
-      { bone: 'armL', s: 'sph', r: [0.006, 0.1, 0.03], seg: 8, at: [0.419, 0.835, 0.01], col: 'hakamaLo' },
+      { bone: 'sleeveL', s: 'sph', r: [0.006, 0.1, 0.03], seg: 8, at: [0.419, 0.835, 0.01], col: 'hakamaLo' },
       { bone: 'handL', s: 'loft', seg: 8, n: 8, col: 'skin', st: [[0.405, 0.93, 0.012, 0.02, 0.024], [0.420, 0.87, 0.022, 0.022, 0.03], [0.425, 0.822, 0.03, 0.02, 0.032], [0.420, 0.78, 0.036, 0.009, 0.02]] },
-      { bone: 'armR', s: 'loft', seg: 20, n: 15, side: [0, 0, 1], col: 'haori', col2: 'haoriLo', gradUv: true, folds: SLEEVE_FOLDS, foldLine: 0.6, foldInk: [0.005, 0.003], foldInkCol: 'hakamaLo', ao: 0.6, jitter: 0.008, jfreq: 7,
+      { bone: 'sleeveR', s: 'loft', seg: 20, n: 15, side: [0, 0, 1], col: 'haori', col2: 'haoriLo', gradUv: true, folds: SLEEVE_FOLDS, foldLine: 0.6, foldInk: [0.005, 0.003], foldInkCol: 'hakamaLo', ao: 0.6, jitter: 0.008, jfreq: 7,
         st: [[-0.200, 1.22, 0, 0.075, 0.14], [-0.280, 1.0, 0, 0.06, 0.2], [-0.350, 0.91, 0.005, 0.048, 0.16], [-0.400, 0.84, 0.01, 0.04, 0.118], [-0.416, 0.835, 0.01, 0.036, 0.112]] },
       // 袖口（暗い内側）と、袖口から出る手
-      { bone: 'armR', s: 'sph', r: [0.006, 0.1, 0.03], seg: 8, at: [-0.419, 0.835, 0.01], col: 'hakamaLo' },
+      { bone: 'sleeveR', s: 'sph', r: [0.006, 0.1, 0.03], seg: 8, at: [-0.419, 0.835, 0.01], col: 'hakamaLo' },
       { bone: 'handR', s: 'loft', seg: 8, n: 8, col: 'skin', st: [[-0.405, 0.93, 0.012, 0.02, 0.024], [-0.420, 0.87, 0.022, 0.022, 0.03], [-0.425, 0.822, 0.03, 0.02, 0.032], [-0.420, 0.78, 0.036, 0.009, 0.02]] },
       // 鉢巻の尾（2本。風で左へ長く流れる）
-      { bone: 'head', s: 'ribbon', w: [0.04, 0.062], side: [0, 1, 0.25], col: 'paperWhite', anim: [5, 1, 0], animGrad: [0, 1], seg: 18,
+      { boneChain: ['hachiA1', 'hachiA2', 'hachiA3'], s: 'ribbon', w: [0.04, 0.062], side: [0, 1, 0.25], col: 'paperWhite', anim: [5, 1, 0], animGrad: [0, 1], seg: 18,
         path: [[0.012, 1.648, -0.135], [0.2, 1.62, -0.22], [0.42, 1.55, -0.25], [0.64, 1.56, -0.19], [0.84, 1.48, -0.16], [1.0, 1.49, -0.21], [1.12, 1.43, -0.18]] },
-      { bone: 'head', s: 'ribbon', w: [0.04, 0.058], side: [0, 1, -0.2], col: 'paperWhite', anim: [5, 1, 1.7], animGrad: [0, 1], seg: 18,
+      { boneChain: ['hachiB1', 'hachiB2', 'hachiB3'], s: 'ribbon', w: [0.04, 0.058], side: [0, 1, -0.2], col: 'paperWhite', anim: [5, 1, 1.7], animGrad: [0, 1], seg: 18,
         path: [[0.012, 1.642, -0.135], [0.16, 1.56, -0.23], [0.34, 1.47, -0.28], [0.54, 1.46, -0.24], [0.72, 1.37, -0.28], [0.86, 1.36, -0.23]] },
       // 長巻（右手。長い柄と反りのある刃。刃先は右前の地面すれすれ）と赤い房
       { bone: 'weapon', s: 'group', at: [-0.423, 0.82, 0.04], rot: [0, 30, 124], parts: [
