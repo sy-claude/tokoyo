@@ -496,10 +496,10 @@ function chiselGeometry(g, chisel) {
 }
 
 const TATTER_MIN_RATIO = 0.3; // num-ok: 切れ端の長さの下限（一番長い切れ端に対する比。形の作り方の定数）
-const TATTER_EVERY = 3; // num-ok: 切れ端にする列の間隔（残りの列は切れ込み。切れ端どうしの間にすき間ができる。形の作り方の定数）
+const TATTER_RUN_MAX = 2; // num-ok: 切れ端の幅・すき間の幅の上限（列の数。形の作り方の定数）
 /**
  * ぼろぼろの裾（V5。面鬼の衣）：管（loft）の端の輪を、周りの列ごとに長さを変えて下（部品の −Y）へ伸ばす。
- * 3列に1つを「切れ端」（下へ伸ばす）、残りを「切れ込み」（上へ引く）にするので、切れ端は先が尖り、間にすき間ができる。端の近くほど強く効かせる。
+ * 周りの列を、幅1〜2列の「切れ端」（下へ伸ばす）と幅1〜2列の「切れ込み」（上へ引く）に交互に分ける（幅と長さは種で決まる乱数）。切れ端の幅と長さがそろわない。端の近くほど強く効かせる。
  * 切れ端は道のりに沿って横へ波打たせる（墨の煙のような裾）。三角形は増えない。
  * tatter＝[端（0＝道のりの始まり, 1＝終わり）, 効かせる帯（道のりの割合）, 一番長い切れ端(m), 切れ込みの深さ(m), 波の幅(m), 種]
  * @param {BufferGeometry} g loft（uv の u＝周り、v＝道のり）
@@ -510,10 +510,17 @@ function tatterGeometry(g, tatter) {
   const rng = createRng(seed);
   const lens = [];
   const phase = [];
-  for (let j = 0; j < seg; j++) {
+  let strand = true;
+  while (lens.length < seg) {
+    const run = 1 + rng.int(TATTER_RUN_MAX);
     const r = rng.float();
-    lens.push(j % TATTER_EVERY === 0 ? maxLen * (TATTER_MIN_RATIO + (1 - TATTER_MIN_RATIO) * r * r) : -notch * r);
-    phase.push(rng.float() * TAU);
+    const len = strand ? maxLen * (TATTER_MIN_RATIO + (1 - TATTER_MIN_RATIO) * r * r) : -notch * r;
+    const ph = rng.float() * TAU;
+    for (let q = 0; q < run && lens.length < seg; q++) {
+      lens.push(len);
+      phase.push(ph);
+    }
+    strand = !strand;
   }
   g.computeBoundingBox();
   const c = g.boundingBox.getCenter(new Vector3());
