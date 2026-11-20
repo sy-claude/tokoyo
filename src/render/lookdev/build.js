@@ -12,6 +12,7 @@ import { BYTE_MAX, HALF, N3, N4, SEG_DEFAULT, TAU } from './consts.js';
 
 const ZERO4 = [0, 0, 0, 0];
 /** しわの谷で、筋を引き始める所（谷の中心からの近さ 0〜1）。形の作り方の定数 */
+const FACET_DIR_COUNT = 9; // num-ok: 割れ面の塗り分けに使う向きの数（形の作り方の定数）
 const FOLD_LINE_FROM = 0.6; // num-ok: 谷の芯の範囲（形の作り方の定数）
 const ONE3 = [1, 1, 1];
 const ZERO3 = [0, 0, 0];
@@ -429,6 +430,30 @@ function foldGeometry(g, folds, lineRatio = 0) {
   g.computeVertexNormals();
 }
 
+/**
+ * 四隅の反り（V5。石灯籠の笠など）：回転体を上から見て四角に広げ、四隅（斜め 45°）ほど持ち上げる。
+ * cornerLift＝[持ち上げる量(m), 四角へ寄せる割合(0〜1)]。持ち上げは外側ほど大きい（半径の2乗）
+ */
+function cornerLiftGeometry(g, cornerLift) {
+  const [lift, square] = cornerLift;
+  const pos = g.attributes.position;
+  let rMax = Number.EPSILON;
+  for (let i = 0; i < pos.count; i++) rMax = Math.max(rMax, Math.hypot(pos.getX(i), pos.getZ(i)));
+  const corner = Math.SQRT2 - 1;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i);
+    const z = pos.getZ(i);
+    const r = Math.hypot(x, z);
+    if (r < Number.EPSILON) continue;
+    const c = Math.abs(x) / r;
+    const s = Math.abs(z) / r;
+    const k = 1 + (1 / Math.max(c, s) - 1) * square; // 四角へ広げる
+    const cornerness = (c + s - 1) / corner; // 辺の中ほど 0 → 四隅 1
+    pos.setXYZ(i, x * k, pos.getY(i) + lift * cornerness * (r / rMax) * (r / rMax), z * k);
+  }
+  g.computeVertexNormals();
+}
+
 /** 反り（鳥居の笠木）：両端ほど上へ持ち上げる。 */
 function bendGeometry(g, bendY, halfLen) {
   const pos = g.attributes.position;
@@ -468,6 +493,40 @@ function chiselGeometry(g, chisel) {
     }
   }
   g.computeVertexNormals();
+}
+
+/**
+ * 割れ面の塗り分け（V5）：平らな塗り（flat）の形で、面（三角形）ごとに明暗を変える。画家が割れた面を1枚ずつ塗り分けるのにならう。
+ * 近い向きの面は同じ明るさになるよう、面の向きから明暗を決める（三角形ごとの乱数だと細かい市松になるため）。上を向いた面ほど明るい。
+ * facetTint＝[明暗の幅, 上向きの面を明るくする量]。結果は ao に足す（部品の ao で強さが決まる）
+ */
+function facetTintGeometry(g, facetTint, seed) {
+  const [amount, upLift] = facetTint;
+  const pos = g.attributes.position;
+  const nor = g.attributes.normal;
+  const ao = g.attributes.ao ? g.attributes.ao.array : new Float32Array(pos.count);
+  const rng = createRng(seed);
+  // 向きの空間に置いた数個の「塗りの向き」：面の向きが近い塗りの値を使う
+  const dirs = [];
+  for (let k = 0; k < FACET_DIR_COUNT; k++) {
+    dirs.push({ d: new Vector3(rng.range(-1, 1), rng.range(-1, 1), rng.range(-1, 1)).normalize(), v: rng.range(-1, 1) });
+  }
+  const n = new Vector3();
+  for (let i = 0; i < pos.count; i += N3) {
+    n.fromBufferAttribute(nor, i);
+    let best = -2;
+    let val = 0;
+    for (const q of dirs) {
+      const dot = n.dot(q.d);
+      if (dot > best) {
+        best = dot;
+        val = q.v;
+      }
+    }
+    const t = val * amount + n.y * upLift;
+    for (let k = 0; k < N3; k++) ao[i + k] += t;
+  }
+  g.setAttribute('ao', new BufferAttribute(ao, 1));
 }
 
 /** ノイズで頂点を法線方向へ出し入れする（岩・古い石の凹凸）。 */
@@ -558,6 +617,7 @@ export function createBuilder(lib = {}) {
     if (p.chisel) chiselGeometry(g, p.chisel);
     if (p.flute) fluteGeometry(g, p.flute);
     if (p.grooves) grooveGeometry(g, p.grooves);
+    if (p.cornerLift) cornerLiftGeometry(g, p.cornerLift);
     if (p.folds) foldGeometry(g, p.folds, p.foldLine ?? 0);
     if (p.bendY) bendGeometry(g, p.bendY, p.size[0] * HALF);
     if (p.jitter) {
@@ -567,6 +627,7 @@ export function createBuilder(lib = {}) {
     if (p.flat) {
       g = g.toNonIndexed();
       g.computeVertexNormals();
+      if (p.facetTint) facetTintGeometry(g, p.facetTint, p.seed ?? 1);
     }
     if (p.folds && p.foldInk) {
       const lg = foldInkGeometry(g, p.folds, p.foldInk);

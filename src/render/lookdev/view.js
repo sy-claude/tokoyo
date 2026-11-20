@@ -46,6 +46,7 @@ export function createLookdevView(renderer, cfg, opts = {}) {
   const post = createPost(cfg, S);
   const camDir = new Vector3();
   const heroMottle = { value: 1 };
+  const heroFaceShift = { value: new Vector2() }; // まばたき：主人公の顔の絵だけをずらす（妖怪の顔の絵はずらさない）
   const heroTexScale = { value: new Vector4() };
   const sun = new Vector3(S.sunDir[0], S.sunDir[1], S.sunDir[2]).normalize();
   /** @type {{dispose:()=>void}[]} */
@@ -104,6 +105,7 @@ export function createLookdevView(renderer, cfg, opts = {}) {
     uFaceTex: { value: /** @type {any} */ (null) },
     uFaceShift: { value: new Vector2() },
     uTexMottleMul: { value: 1 },
+    uEdgeGlow: { value: 0 },
   };
   // 主人公の骨組み（剛体スキン。07 §6.1・09 §8.2）。骨は humanBones の順
   const heroBoneDefs = [...humanBones, ...heroSpringBones];
@@ -246,7 +248,7 @@ export function createLookdevView(renderer, cfg, opts = {}) {
     const washMat = washMaterial(baseDefines, {});
     const sb = createBuilder(lib);
     if (atelier) {
-      if (atelier !== 'hero') sb.addAll(models[atelier].parts, new Matrix4(), {});
+      if (atelier !== 'hero') sb.addAll(models[atelier].parts, new Matrix4().makeTranslation(0, S.atelier.liftM[atelier] ?? 0, 0), {});
     } else {
       placeAll(sb, S.placements, terrain);
       addScatter(sb, S, terrain, rng.fork('scatter'), L.scatterMul[q]);
@@ -323,7 +325,7 @@ export function createLookdevView(renderer, cfg, opts = {}) {
       if (d.parent) heroBones[boneIndex.get(d.parent) ?? 0].add(heroBones[i]);
     });
     // 主人公：模様は形の座標で貼る（歩いても服の上を滑らない）。色むらは控えめ、模様は細かく
-    hero = new SkinnedMesh(heroGeo, washMaterial({ ...baseDefines, LOCAL_TEX: 1 }, { uTexMottleMul: heroMottle, uTexScale: heroTexScale }));
+    hero = new SkinnedMesh(heroGeo, washMaterial({ ...baseDefines, LOCAL_TEX: 1 }, { uTexMottleMul: heroMottle, uTexScale: heroTexScale, uFaceShift: heroFaceShift }));
     hero.frustumCulled = false;
     hero.add(heroBones[0]);
     hero.updateMatrixWorld(true);
@@ -497,6 +499,7 @@ export function createLookdevView(renderer, cfg, opts = {}) {
     // 風は海（左）から山（右）へ：鉢巻の尾と草が画面の右→左へ流れて見えるよう、向きは +X
     U.uWind.value.set(L.windM, L.windHz, L.windM * HALF * HALF);
     U.uLook.value.set(L.mottleRatio, L.rimRatio, L.wetRatio, 1 / L.paveCellM);
+    U.uEdgeGlow.value = L.stoneEdgeGlowRatio;
     U.uTexScale.value.set(1 / L.texLargeTileM, 1 / L.texFineTileM, 1 / L.texBTileM, L.grainRatio);
     heroTexScale.value.copy(U.uTexScale.value).multiplyScalar(L.heroTexScaleMul).setW(L.grainRatio);
     heroMottle.value = L.heroMottleRatio;
@@ -601,7 +604,7 @@ export function createLookdevView(renderer, cfg, opts = {}) {
       // まばたき：閉じた目の絵の升へずらす（主人公の顔だけが絵を持つ）
       const fh = faces.hero;
       const shut = blinkAt(time, A, hz);
-      U.uFaceShift.value.set(shut * (faceCellRect(fh.blinkCell).u0 - faceCellRect(fh.cell).u0), shut * (faceCellRect(fh.blinkCell).v0 - faceCellRect(fh.cell).v0));
+      heroFaceShift.value.set(shut * (faceCellRect(fh.blinkCell).u0 - faceCellRect(fh.cell).u0), shut * (faceCellRect(fh.blinkCell).v0 - faceCellRect(fh.cell).v0));
       U.uPlayer.value.set(x, y, z, L.shadowRatio);
       for (const k of yokai) yokaiMatrix(k.place, k.motion, time, k.mesh.matrix);
 
