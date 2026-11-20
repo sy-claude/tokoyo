@@ -94,6 +94,10 @@ test('lookdevTriBudget：主人公（本体・武器）・妖怪・大灯籠の�
   const yumiN = count(models.yumi.parts);
   assert.ok(count(models.shirayuki.parts) - yumiN <= L.budgetHeroTriCount.v, '白雪の本体');
   assert.ok(yumiN <= L.budgetWeaponTriCount.v, '弓');
+  // 岩丈：本体（大槌を除く）と大槌
+  const tsuchiN = count(models.tsuchi.parts);
+  assert.ok(count(models.ganjo.parts) - tsuchiN <= L.budgetHeroTriCount.v, '岩丈の本体');
+  assert.ok(tsuchiN <= L.budgetWeaponTriCount.v, '大槌');
   for (const name of ['chochin', 'karakasa', 'yamainu']) {
     const n = count(models[name].parts);
     assert.ok(n <= L.budgetSmallEnemyTriCount.v, `${name} ${n}`);
