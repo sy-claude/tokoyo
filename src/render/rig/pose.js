@@ -42,7 +42,9 @@ export function locomotion(loco) {
       shinL: [Math.max(0, Math.cos(phase)) * knee, 0, 0],
       shinR: [Math.max(0, -Math.cos(phase)) * knee, 0, 0],
       armL: [s * arm, 0, 0],
-      armR: [-s * arm, 0, 0],
+      // 武器を持つ右腕は振りを小さく。武器は腕の振りを打ち消して向きを保ち、動くほど刃先を後ろへ引く
+      armR: [-s * arm * A.weaponArmSwingMul, 0, 0],
+      weapon: [s * arm * A.weaponArmSwingMul * A.weaponHoldRatio + mix(A.weaponTrailWalkDeg, A.weaponTrailRunDeg, run) * moving, 0, A.weaponLiftRunDeg * run * moving],
       // 袴（ばね専用の骨。基準の向きは 07 §6.2：自分の太もも50%＋両脚の平均50%）
       hakamaL: [thighL * HALF + thighAvg * HALF, 0, 0],
       hakamaR: [thighR * HALF + thighAvg * HALF, 0, 0],

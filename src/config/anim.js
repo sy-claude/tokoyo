@@ -18,6 +18,12 @@ export const anim = {
   idleBreathDeg: { v: 1.5, min: 0, max: 10, step: 0.1, desc: '待機の呼吸：胸の前後の傾き（deg）' },
   idleBreathS: { v: 4, min: 0.5, max: 10, step: 0.1, desc: '待機の呼吸の1回の長さ（s）' },
   walkBlendFromMps: { v: 2.5, min: 0, max: 10, step: 0.1, desc: 'この速さ（歩き）から走りの速さまでで、歩き→走りの動きを混ぜる（m/s。00_core 6章の歩き 2.5）' },
+  // 武器を持つ手（07 §6.6 に無い。見た目で決めた値）
+  weaponArmSwingMul: { v: 0.35, min: 0, max: 1, step: 0.05, desc: '武器を持つ腕の振りの倍率（もう片方の腕に対して）' },
+  weaponHoldRatio: { v: 0.9, min: 0, max: 1, step: 0.05, desc: '武器が腕の振りを打ち消して向きを保つ割合（1＝体に対して向きが変わらない）' },
+  weaponTrailRunDeg: { v: 60, min: -90, max: 90, step: 1, desc: '走るとき刃先を後ろへ引く角度（deg）' },
+  weaponLiftRunDeg: { v: -25, min: -90, max: 90, step: 1, desc: '走るとき刃先を外へ持ち上げる角度（deg。負で上がる）' },
+  weaponTrailWalkDeg: { v: 10, min: -90, max: 90, step: 1, desc: '歩くとき刃先を後ろへ引く角度（deg）' },
   // 二次的な揺れ（07 §6.5）：θ'' = −k(θ−θ0) − c·θ' − a·gainMul·springInputMul。c＝2·減衰比·√k
   springKRatio: { v: 120, min: 10, max: 600, step: 5, desc: 'ばねの強さ k（1/s²）' },
   springDampingRatio: { v: 0.4, min: 0.05, max: 2, step: 0.05, desc: 'ばねの減衰比' },
