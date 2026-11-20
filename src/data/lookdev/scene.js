@@ -466,7 +466,7 @@ export const scene = {
       yumi: { all: [0.95, 1.05] },
       ganjo: { all: [1.08, 1.5], head: [1.8, 0.32] },
       tsuchi: { all: [0.6, 0.75] },
-      menki: { all: [1.48, 2.3], head: [2.42, 0.75] },
+      menki: { all: [1.31, 2.05], head: [2.14, 0.66] },
       iwakura: { all: [2.1, 3.6], rope: [2.5, 1.6] },
       rockA: { all: [0.35, 1.1] },
       rockB: { all: [0.35, 0.95] },
