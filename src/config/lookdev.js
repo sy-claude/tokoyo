@@ -99,6 +99,7 @@ export const lookdev = {
   // ---- 形の三角形の上限（docs/11_assets §5。単体テスト lookdevTriBudget で検査。影の図の分は含まない） ----
   budgetHeroTriCount: { v: 12000, min: 1000, max: 50000, step: 100, desc: '祓人1体（武器を除く）の三角形の上限' },
   budgetWeaponTriCount: { v: 2000, min: 100, max: 10000, step: 100, desc: '武器の三角形の上限' },
+  budgetPropTriCount: { v: 3000, min: 100, max: 20000, step: 100, desc: '小道具1種の三角形の上限（鳥居は依頼者の判断待ちのため対象外）' },
   budgetSmallEnemyTriCount: { v: 6000, min: 500, max: 30000, step: 100, desc: '小型の敵1体の三角形の上限' },
   bloomDivCount: { v: 4, min: 2, max: 8, step: 1, desc: '光のにじみの解像度（画面の何分の1か）' },
 };

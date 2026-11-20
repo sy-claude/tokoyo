@@ -74,7 +74,7 @@ test('lookdevYokaiMotion：妖怪の身じろぎは時刻だけで決まり、�
   for (let c = 0; c < 2; c += 0.01) assert.ok(hopRatio(c) >= 0 && hopRatio(c) <= 1);
 });
 
-test('lookdevTriBudget：主人公（本体・武器）と妖怪の三角形が上限以内（11_assets §5。品質「高」）', async () => {
+test('lookdevTriBudget：主人公（本体・武器）・妖怪・大灯籠の三角形が上限以内（11_assets §5。品質「高」）', async () => {
   const { Matrix4 } = await import('three');
   const { createBuilder } = await import('../../src/render/lookdev/build.js');
   const { lookdev: L } = await import('../../src/config/lookdev.js');
@@ -89,6 +89,7 @@ test('lookdevTriBudget：主人公（本体・武器）と妖怪の三角形が�
   assert.ok(weapon.parts.some((p) => p.col === 'steel'), '主人公の部品表の最後は武器');
   assert.ok(body <= L.budgetHeroTriCount.v, `主人公の本体 ${body}`);
   assert.ok(count([weapon]) <= L.budgetWeaponTriCount.v, '武器');
+  for (const name of ['lanternBig']) assert.ok(count(models[name].parts) <= L.budgetPropTriCount.v, name);
   for (const name of ['chochin', 'karakasa', 'yamainu']) {
     const n = count(models[name].parts);
     assert.ok(n <= L.budgetSmallEnemyTriCount.v, `${name} ${n}`);
