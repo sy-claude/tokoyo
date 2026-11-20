@@ -124,6 +124,8 @@ export const scene = {
     chochinSootHi: '#5a4b3f',
     chochinRib: '#9c8468',
     eyeAmber: '#d2a437',
+    eyeIris: '#a8642a',
+    eyeIrisLo: '#6a3a1c',
     mouth: '#5a2a30',
     tongue: '#cf7f88',
     tongueHi: '#e9a6a4',
@@ -459,7 +461,7 @@ export const scene = {
     focus: {
       hero: { all: [0.88, 1.28], head: [1.56, 0.26], body: [1.02, 0.72], legs: [0.35, 0.45] },
       lanternBig: { all: [1.5, 2.35], top: [2.45, 1.5] },
-      chochin: { all: [1.7, 2.2], face: [2.15, 0.6] },
+      chochin: { all: [1.7, 2.2], face: [2.2, 0.9] },
       karakasa: { all: [1.2, 1.8], face: [1.7, 0.45] },
       yamainu: { all: [0.55, 1.15], head: [0.9, 0.35] },
       shirayuki: { all: [0.82, 1.2], head: [1.5, 0.28] },
