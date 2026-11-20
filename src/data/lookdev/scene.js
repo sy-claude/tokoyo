@@ -81,8 +81,11 @@ export const scene = {
     steelHi: '#e4e8ec',
     tassel: '#c4372e',
     // 妖怪
-    chochin: '#e6d7b4',
-    chochinLo: '#c9b48c',
+    chochin: '#dcc9a0',
+    chochinLo: '#bba57c',
+    chochinSoot: '#1e1b1a',
+    chochinMid: '#9a8566',
+    chochinSootHi: '#5a4b3f',
     chochinRib: '#9c8468',
     eyeAmber: '#d2a437',
     mouth: '#5a2a30',
@@ -264,8 +267,8 @@ export const scene = {
 
   // 妖怪（1体＝1メッシュ）。motion＝身じろぎ：pivot＝支点（形の座標 m）、swayDeg＝[前後, 左右] の揺れ、bob＝呼吸の上下、hop＝小跳び、phase＝ずらし
   yokai: [
-    { model: 'chochin', at: [-1.45, 2.5, 7.0], rot: [4, 186, -3], scale: 1.0,
-      motion: { pivot: [0.3, 2.06, 0], swayDeg: [3.5, 5], swayHz: 0.31, bobM: 0, bobHz: 0, hopM: 0, hopHz: 0, phase: 0.4 } },
+    { model: 'chochin', at: [-1.45, 2.45, 7.0], rot: [4, 186, -3], scale: 1.0,
+      motion: { pivot: [0, 2.15, 0], swayDeg: [3.5, 5], swayHz: 0.31, bobM: 0, bobHz: 0, hopM: 0, hopHz: 0, phase: 0.4 } },
     { model: 'karakasa', at: [-6.5, 0.05, 10.4], rot: [5, 160, -9], scale: 1.2, ground: true,
       motion: { pivot: [0, 0, 0], swayDeg: [4, 5], swayHz: 0.42, bobM: 0, bobHz: 0, hopM: 0.2, hopHz: 0.42, phase: 1.1 } },
     { model: 'yamainu', at: [-9.2, 0.95, 14.6], rot: [6, 122, 0], scale: 1.6, ground: true,
@@ -410,10 +413,13 @@ export const scene = {
   atelier: {
     floorParts: [{ s: 'cyl', r: [9, 9], h: 0.2, seg: 32, at: [0, -0.2, 0], col: 'paveHi' }],
     distMul: 1.5,
+    // 形を床から持ち上げる高さ（m。吊り下がる妖怪の舌が床に埋もれないように）
+    liftM: { chochin: 1.3 },
     // 寄りの枠 [中心の高さ(m), 半径(m)]。all＝全身（長い武器や鉢巻の尾を枠の基準にしない）
     focus: {
       hero: { all: [0.88, 1.28], head: [1.56, 0.26], body: [1.02, 0.72], legs: [0.35, 0.45] },
       lanternBig: { all: [1.5, 2.35], top: [2.45, 1.5] },
+      chochin: { all: [1.7, 2.2], face: [2.15, 0.6] },
       iwakura: { all: [2.1, 3.6], rope: [2.5, 1.6] },
       rockA: { all: [0.35, 1.1] },
       rockB: { all: [0.35, 0.95] },
