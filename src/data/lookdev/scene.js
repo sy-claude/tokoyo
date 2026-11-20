@@ -414,6 +414,7 @@ export const scene = {
     focus: {
       hero: { all: [0.88, 1.28], head: [1.56, 0.26], body: [1.02, 0.72], legs: [0.35, 0.45] },
       lanternBig: { all: [1.5, 2.35], top: [2.3, 0.85] },
+      iwakura: { all: [2.1, 3.6], rope: [2.5, 1.6] },
     },
   },
 

@@ -1,5 +1,5 @@
 // 形の記述（src/data/lookdev/models.js の部品の表）→ 1つにまとめたジオメトリ。
-// 部品：box・cyl・sph・lathe・tube・loft・ribbon・fan・group・ref。色は THREE.Color を通す（不変条件10）。
+// 部品：box・cyl・sph・lathe・tube・loft・ribbon・fan・rope（撚った縄）・group・ref。色は THREE.Color を通す（不変条件10）。
 // 頂点の属性：position・normal・color・aFx（苔, 塗りのはげ, 石畳, 発光）・aAnim（動きの種類, 重み）。
 import {
   BoxGeometry, BufferAttribute, BufferGeometry, CatmullRomCurve3, Color, CylinderGeometry, Euler, LatheGeometry,
@@ -529,6 +529,29 @@ export function createBuilder(lib = {}) {
       if (!parts) throw new Error(`lookdev: 部品の表が無い ${p.model}`);
       const sub = p.s === 'ref' ? { fx: inh.fx, anim: inh.anim, bone: inh.bone } : inh;
       for (const q of parts) add(q, m, sub);
+      return;
+    }
+    if (p.s === 'rope') {
+      // 撚った縄（V5）：道のりに沿って、細い縄を strands 本、螺旋に巻いた管として作る。twist＝[本数, 1m あたりの巻き数, 中心からのずれ(半径比), 1本の太さ(半径比)]
+      const curve = new CatmullRomCurve3(p.path.map(v3), p.closed === true);
+      const n = Math.max(N4, Math.round((p.seg ?? SEG_DEFAULT * N4) * (lib.segMul ?? 1)));
+      const frames = curve.computeFrenetFrames(n, p.closed === true);
+      const len = curve.getLength();
+      const [strands, turnsPerM, offRatio, strandRatio] = p.twist;
+      const c = new Vector3();
+      for (let k = 0; k < strands; k++) {
+        const pts = [];
+        for (let i = 0; i <= n; i++) {
+          const t = i / n;
+          curve.getPointAt(t, c);
+          const a = TAU * (k / strands + t * len * turnsPerM);
+          const nn = frames.normals[i];
+          const bn = frames.binormals[i];
+          const off = p.r * offRatio;
+          pts.push([c.x + (nn.x * Math.cos(a) + bn.x * Math.sin(a)) * off, c.y + (nn.y * Math.cos(a) + bn.y * Math.sin(a)) * off, c.z + (nn.z * Math.cos(a) + bn.z * Math.sin(a)) * off]);
+        }
+        add({ s: 'tube', path: pts, r: p.r * strandRatio, seg: n, rseg: p.rseg ?? N4 + 2, col: p.col, col2: p.col2, fx: p.fx, anim: p.anim }, m, inh);
+      }
       return;
     }
     let g = shapeGeometry(p, lib.segMul ?? 1);
