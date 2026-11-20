@@ -18,6 +18,7 @@ export const anim = {
   idleBreathDeg: { v: 1.5, min: 0, max: 10, step: 0.1, desc: '待機の呼吸：胸の前後の傾き（deg）' },
   idleBreathS: { v: 4, min: 0.5, max: 10, step: 0.1, desc: '待機の呼吸の1回の長さ（s）' },
   walkBlendFromMps: { v: 2.5, min: 0, max: 10, step: 0.1, desc: 'この速さ（歩き）から走りの速さまでで、歩き→走りの動きを混ぜる（m/s。00_core 6章の歩き 2.5）' },
+  hakamaBackMul: { v: 0.3, min: 0, max: 1, step: 0.05, desc: '袴が後ろへ振れるときの倍率（羽織の背を突き抜けないように。07 §6.2 に無い。見た目で決めた値）' },
   // 武器を持つ手（07 §6.6 に無い。見た目で決めた値）
   weaponArmSwingMul: { v: 0.35, min: 0, max: 1, step: 0.05, desc: '武器を持つ腕の振りの倍率（もう片方の腕に対して）' },
   weaponHoldRatio: { v: 0.9, min: 0, max: 1, step: 0.05, desc: '武器が腕の振りを打ち消して向きを保つ割合（1＝体に対して向きが変わらない）' },
@@ -29,5 +30,8 @@ export const anim = {
   springDampingRatio: { v: 0.4, min: 0.05, max: 2, step: 0.05, desc: 'ばねの減衰比' },
   springInputMul: { v: 30, min: 0, max: 200, step: 1, desc: '揺れの入力（親の加速度）に掛ける倍率。07 §6.5 の式のままだと揺れが1〜3°で見えないため足した（見た目で決めた値）' },
   springCatchupMaxCount: { v: 120, min: 1, max: 600, step: 1, desc: '描画の間に進んだ tick がこれより多ければ、揺れは最後のこの数だけ計算する（テストで一気に進めたとき）' },
+  blinkMinS: { v: 3, min: 0.5, max: 20, step: 0.5, desc: 'まばたきの間隔の最短（s。07 §6.6）' },
+  blinkMaxS: { v: 5, min: 0.5, max: 20, step: 0.5, desc: 'まばたきの間隔の最長（s）' },
+  blinkF: { v: 6, min: 1, max: 30, step: 1, desc: 'まばたきで目を閉じている長さ（f）' },
   animTwosEnabled: { v: true, desc: '待機と歩きは2tickに1回だけ姿勢を更新する（手描き感）' },
 };

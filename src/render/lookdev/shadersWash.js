@@ -74,6 +74,7 @@ uniform sampler2D uTexB;
 uniform sampler2D uShadowMap;
 uniform vec4 uTexScale; // x=大きな柄(1/m) y=細かな柄(1/m) z=texB(1/m) w=粒の強さ
 uniform sampler2D uFaceTex; // 顔の絵（地は透明。線と塗りだけ）
+uniform vec2 uFaceShift;    // まばたき：閉じた目の絵の升へずらす量（uv）
 uniform vec4 uInk;      // x=石の割れ目の線 y=木目・しわの線 z=敷石の目地の太さ
 uniform vec4 uShadow;   // x=影の濃さ(0で無効) y=奥行きの余裕 z=ぼかし(uv) w=筆の筋の強さ
 uniform vec3 uLightCol;
@@ -250,7 +251,7 @@ void main() {
 
   // --- 顔の絵（目・眉・口）：色むらを掛けた後に重ねる。線はむらで薄れない ---
   if (vFace.z > 0.01) {
-    vec4 fc = texture2D(uFaceTex, vFace.xy);
+    vec4 fc = texture2D(uFaceTex, vFace.xy + uFaceShift);
     base = mix(base, fc.rgb, fc.a * min(vFace.z * 2.0, 1.0));
   }
 

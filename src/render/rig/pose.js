@@ -8,6 +8,9 @@ import { HALF, N3, N4, TAU } from '../lookdev/consts.js';
 
 const e = new Euler();
 const q = new Quaternion();
+// まばたきの区間ごとのずらしを作る数（よく使われる簡単な疑似乱数の定数。調整値ではない）
+const BLINK_HASH_A = 12.9898; // num-ok: 疑似乱数の定数
+const BLINK_HASH_B = 43758.5453; // num-ok: 疑似乱数の定数
 const clamp01 = (x) => Math.min(1, Math.max(0, x));
 const mix = (a, b, t) => a + (b - a) * t;
 
@@ -34,6 +37,8 @@ export function locomotion(loco) {
   const thighL = -s * thigh;
   const thighR = s * thigh;
   const thighAvg = (thighL + thighR) * HALF;
+  // 袴は後ろへの振り（X の正）だけ小さく：羽織の背の内に収める
+  const back = (/** @type {number} */ x) => (x > 0 ? x * A.hakamaBackMul : x);
   // 角度の向き：骨は −Y に伸びるので、X の負の回転で足先が前（+Z）へ出る。膝は正で後ろへ曲がる
   return {
     joints: {
@@ -46,8 +51,8 @@ export function locomotion(loco) {
       armR: [-s * arm * A.weaponArmSwingMul, 0, 0],
       weapon: [s * arm * A.weaponArmSwingMul * A.weaponHoldRatio + mix(A.weaponTrailWalkDeg, A.weaponTrailRunDeg, run) * moving, 0, A.weaponLiftRunDeg * run * moving],
       // 袴（ばね専用の骨。基準の向きは 07 §6.2：自分の太もも50%＋両脚の平均50%）
-      hakamaL: [thighL * HALF + thighAvg * HALF, 0, 0],
-      hakamaR: [thighR * HALF + thighAvg * HALF, 0, 0],
+      hakamaL: [back(thighL * HALF + thighAvg * HALF), 0, 0],
+      hakamaR: [back(thighR * HALF + thighAvg * HALF), 0, 0],
       spine: [lean, 0, 0],
       chest: [Math.sin((TAU * t) / A.idleBreathS) * A.idleBreathDeg * (1 - moving), 0, 0],
     },
@@ -84,4 +89,17 @@ export function poseAt(rig, move, localF, loco, out) {
   out[n * N4 + 1] = rootY;
   out[n * N4 + 2] = 0;
   return out;
+}
+
+/**
+ * まばたき（07 §6.6）：目を閉じているなら 1。時刻だけで決まる（同じ tick なら同じ。乱数の代わりに区間の番号から作った値を使う）。
+ * 区間の長さ＝(最短＋最長)/2、区間ごとに 0〜(最長−最短)/2 秒ずらして1回閉じる → 間隔は必ず 最短〜最長。
+ * @param {number} timeS @param {{blinkMinS:number, blinkMaxS:number, blinkF:number}} A @param {number} tickRateHz @param {number} [seed]
+ */
+export function blinkAt(timeS, A, tickRateHz, seed = 0) {
+  const len = (A.blinkMinS + A.blinkMaxS) * HALF;
+  const k = Math.floor(timeS / len);
+  const h = Math.sin((k + 1 + seed) * BLINK_HASH_A) * BLINK_HASH_B;
+  const start = k * len + (h - Math.floor(h)) * (A.blinkMaxS - A.blinkMinS) * HALF;
+  return timeS >= start && timeS < start + A.blinkF / tickRateHz ? 1 : 0;
 }

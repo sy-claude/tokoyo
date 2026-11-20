@@ -20,8 +20,14 @@ export function createFaceAtlas(palette) {
   const tmp = new Color();
   const style = (name) => tmp.set(typeof palette[name] === 'string' ? palette[name] : name).getStyle();
 
+  /** 描く絵の一覧：開いた顔と、まばたきの顔（開いた目の部品を除き、閉じた目を足す） */
+  const sheets = [];
   for (const face of Object.values(faces)) {
     if (typeof face !== 'object' || !face.ops) continue;
+    sheets.push({ cell: face.cell, ops: face.ops });
+    if (face.blinkCell !== undefined) sheets.push({ cell: face.blinkCell, ops: [...face.ops.filter((o) => !o.open), ...face.closedOps] });
+  }
+  for (const face of sheets) {
     const r = faceCellRect(face.cell);
     const ox = r.u0 * canvas.width;
     const oy = (1 - r.v0 - r.size) * canvas.height; // Canvas は上が0

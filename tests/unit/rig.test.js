@@ -94,3 +94,24 @@ test('rigSprings：親が前へ加速すると、ばねの骨は後ろへ遅れ�
   for (let i = 0; i < 240; i++) { parent.position.z += v * dt; parent.updateMatrixWorld(true); sp.step(dt, A); }
   assert.ok(Math.abs(angle()) < lag * 0.2, '等速では戻る');
 });
+
+test('rigBlink：まばたきの間隔は blinkMinS〜blinkMaxS、閉じる長さは blinkF tick、同じ時刻なら同じ（07 §6.6）', async () => {
+  const { blinkAt } = await import('../../src/render/rig/pose.js');
+  const hz = 60;
+  const starts = [];
+  let closed = 0;
+  let prev = 0;
+  for (let t = 0; t < hz * 120; t++) {
+    const b = blinkAt(t / hz, animCfg, hz);
+    assert.equal(b, blinkAt(t / hz, animCfg, hz));
+    if (b && !prev) starts.push(t);
+    closed += b;
+    prev = b;
+  }
+  assert.ok(starts.length > 10);
+  for (let i = 1; i < starts.length; i++) {
+    const gap = (starts[i] - starts[i - 1]) / hz;
+    assert.ok(gap >= animCfg.blinkMinS - 1 / hz && gap <= animCfg.blinkMaxS + 1 / hz, `間隔 ${gap}`);
+  }
+  assert.ok(Math.abs(closed / starts.length - animCfg.blinkF) <= 1, '閉じる長さ');
+});

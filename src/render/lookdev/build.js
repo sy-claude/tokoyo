@@ -548,7 +548,7 @@ export function createBuilder(lib = {}) {
     if (p.folds && p.foldInk) {
       const lg = foldInkGeometry(g, p.folds, p.foldInk);
       if (lg) {
-        add({ s: 'geom', geom: lg, col: p.foldInkCol ?? 'ink', anim: p.anim, animGrad: p.animGrad, gradUv: true, bone: inh.bone }, m, inherit);
+        add({ s: 'geom', geom: lg, col: p.foldInkCol ?? 'ink', anim: p.anim, animGrad: p.animGrad, gradUv: true, bone: inh.bone, boneBelow: p.boneBelow }, m, inherit);
         lg.dispose();
       }
     }
@@ -570,11 +570,14 @@ export function createBuilder(lib = {}) {
     const face = p.face ? lib.faceOf?.(p.face) ?? null : null;
     const boneId = lib.boneIndex ? lib.boneIndex(inh.bone ?? 'root') : 0;
     // 骨の鎖（鉢巻の尾など）：帯の道のり（uv の v）で等分して順に付ける
+    // 高さで骨を分ける（羽織の裾など）：部品の座標で y より下の頂点は別の骨
+    const below = lib.boneIndex && p.boneBelow ? { y: p.boneBelow[0], id: lib.boneIndex(p.boneBelow[1]) } : null;
     const chain = lib.boneIndex && p.boneChain ? p.boneChain.map((name) => /** @type {(n:string)=>number} */ (lib.boneIndex)(name)) : null;
     const normalM = m.clone().invert().transpose();
     for (let i = 0; i < pos.count; i++) {
       v.fromBufferAttribute(pos, i);
       const ty = (v.y - bb.min.y) / spanY;
+      const localY = v.y;
       if (face) {
         // 顔の絵：部品の座標で正面から平らに写す。前を向いた面だけ
         const fu = (v.x - face.rect.x[0]) / (face.rect.x[1] - face.rect.x[0]);
@@ -597,7 +600,8 @@ export function createBuilder(lib = {}) {
       else F.push(fx[0], fx[1], fx[2], fx[N3]);
       const w = animGrad && uv ? animGrad[0] + (animGrad[1] - animGrad[0]) * (p.s === 'tube' ? uv.getX(i) : uv.getY(i)) : anim[1];
       A.push(anim[0], w, anim[2] ?? 0, anim[N3] ?? 0);
-      B.push(chain && uv ? chain[Math.min(chain.length - 1, Math.floor(uv.getY(i) * chain.length))] : boneId);
+      if (below && localY < below.y) B.push(below.id);
+      else B.push(chain && uv ? chain[Math.min(chain.length - 1, Math.floor(uv.getY(i) * chain.length))] : boneId);
     }
     const idx = g.index;
     if (idx) for (let i = 0; i < idx.count; i++) I.push(base + idx.getX(i));

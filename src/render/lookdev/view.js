@@ -6,7 +6,7 @@
 import {
   BackSide, Color, DataTexture, DepthTexture, DoubleSide, Group, InstancedBufferAttribute, InstancedBufferGeometry, LinearFilter,
   Bone, Matrix4, Mesh, NearestFilter, Skeleton, SkinnedMesh, OrthographicCamera, PlaneGeometry, RedFormat, Scene, ShaderMaterial, SphereGeometry,
-  UnsignedByteType, UnsignedIntType, Vector3, Vector4, WebGLRenderTarget,
+  UnsignedByteType, UnsignedIntType, Vector2, Vector3, Vector4, WebGLRenderTarget,
 } from 'three';
 import { DEG2RAD, forwardYawPitch, lerp, lerpDeg } from '../../core/math.js';
 import { createRng, presentationSeed } from '../../core/rng.js';
@@ -18,7 +18,7 @@ import { createFaceAtlas, faceCellRect } from './faceAtlas.js';
 import { faces } from '../../data/lookdev/faces.js';
 import { yokaiMatrix } from './yokaiMotion.js';
 import { heroSpringBones, heroSprings, humanBones } from '../../data/lookdev/rigs.js';
-import { poseAt } from '../rig/pose.js';
+import { blinkAt, poseAt } from '../rig/pose.js';
 import { createSprings } from '../rig/springs.js';
 import { HALF, N3, N4, TAU } from './consts.js';
 import { addBareTrees, addDaisies, addGrass, addFallenLeaves, addIslands, addMaple, addMapleBranches, addScatter, addSenbon, addWires, placeAll } from './flora.js';
@@ -100,6 +100,7 @@ export function createLookdevView(renderer, cfg, opts = {}) {
     uShadow: { value: new Vector4() },
     uInk: { value: new Vector4() },
     uFaceTex: { value: /** @type {any} */ (null) },
+    uFaceShift: { value: new Vector2() },
   };
   // 主人公の骨組み（剛体スキン。07 §6.1・09 §8.2）。骨は humanBones の順
   const heroBoneDefs = [...humanBones, ...heroSpringBones];
@@ -591,6 +592,10 @@ export function createLookdevView(renderer, cfg, opts = {}) {
       hero.rotation.y = lerpDeg(p.prevYawDeg, p.yawDeg, alpha) * DEG2RAD;
       setPose(time);
       springs?.apply();
+      // まばたき：閉じた目の絵の升へずらす（主人公の顔だけが絵を持つ）
+      const fh = faces.hero;
+      const shut = blinkAt(time, A, hz);
+      U.uFaceShift.value.set(shut * (faceCellRect(fh.blinkCell).u0 - faceCellRect(fh.cell).u0), shut * (faceCellRect(fh.blinkCell).v0 - faceCellRect(fh.cell).v0));
       U.uPlayer.value.set(x, y, z, L.shadowRatio);
       for (const k of yokai) yokaiMatrix(k.place, k.motion, time, k.mesh.matrix);
 

@@ -32,7 +32,7 @@ export const humanBones = [
 /**
  * 主人公（楓真）のばね専用の骨（07 §6.3「二次」）。ポーズでは指定しない（袴だけは 07 §6.2 の「自分の太もも50%＋両脚平均50%」を基準の向きにする）。
  * 鉢巻の尾は、この模型では風で横へ流れる形なので、骨の位置は尾の道のり（models.js の鉢巻の尾）の 0・1/3・2/3 の点に合わせた（設計書の posM は真下へ垂れる尾の値）。
- * 羽織の裾（hemB）と後ろ髪の2〜4節は、付ける部品がまだ無いので作らない。
+ * 後ろ髪の2〜4節は、付ける部品がまだ無いので作らない。羽織は裾（腰より下）だけを hemB に付ける（部品の boneBelow）。
  * @type {BoneDef[]}
  */
 export const heroSpringBones = [
@@ -40,6 +40,8 @@ export const heroSpringBones = [
   { name: 'sleeveR', parent: 'armR', posM: [-0.02, -0.02, 0] },
   { name: 'hakamaL', parent: 'hips', posM: [0.1, -0.04, 0] },
   { name: 'hakamaR', parent: 'hips', posM: [-0.1, -0.04, 0] },
+  // 羽織の裾：07 §6.3 は (hips, 0,−0.02,−0.10)。この羽織は前が開いて全周を覆うので、支点は胴の中心（後ろへずらさない）
+  { name: 'hemB', parent: 'hips', posM: [0, -0.06, 0] },
   { name: 'hair1', parent: 'head', posM: [0, -0.02, -0.11] },
   { name: 'hachiA1', parent: 'head', posM: [0.012, 0.118, -0.135] },
   { name: 'hachiA2', parent: 'hachiA1', posM: [0.408, -0.098, -0.115] },
@@ -49,12 +51,13 @@ export const heroSpringBones = [
   { name: 'hachiB3', parent: 'hachiB2', posM: [0.32, -0.07, 0.007] },
 ];
 
-/** 揺れの対象と強さ（07 §6.5：大袖0.06、袴0.03、後ろ髪0.08、鉢巻の尾0.10。limitDeg は袴25・他70） @type {SpringDef[]} */
+/** 揺れの対象と強さ（07 §6.5：大袖0.06、袴0.03、羽織の裾0.04、後ろ髪0.08、鉢巻の尾0.10。limitDeg は袴25・他70（羽織の裾は、縫い目が開かないよう25にした）） @type {SpringDef[]} */
 export const heroSprings = [
   { bone: 'sleeveL', axes: 'xz', gainMul: 0.06, limitDeg: 70 },
   { bone: 'sleeveR', axes: 'xz', gainMul: 0.06, limitDeg: 70 },
   { bone: 'hakamaL', axes: 'xz', gainMul: 0.03, limitDeg: 25 },
   { bone: 'hakamaR', axes: 'xz', gainMul: 0.03, limitDeg: 25 },
+  { bone: 'hemB', axes: 'xz', gainMul: 0.04, limitDeg: 25 },
   { bone: 'hair1', axes: 'xz', gainMul: 0.08, limitDeg: 70 },
   { bone: 'hachiA1', axes: 'xz', gainMul: 0.1, limitDeg: 70 },
   { bone: 'hachiA2', axes: 'xz', gainMul: 0.1, limitDeg: 70 },
