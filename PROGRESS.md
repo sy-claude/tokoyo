@@ -186,6 +186,7 @@ docs/12 7章の手順1「特徴10個」を先に書いておく（作るとき�
 - `npm run verify` 成功（単体144件・e2e 46件）。比較 `design-notes/lookdev/atelier/lanternBig_v2.png`・`lanternBig_v2_scene.png`
 - 自己採点：笠 7割→8割（四角い笠と反った四隅）
 - 次：①場面の構図（巨岩の大きさ・手前の高まり）②光の縁を線で描く（後処理）③奥の小さな灯籠を大灯籠と同じ形に
+- [x] 奥の小さな灯籠（6基）を大灯籠の縮小（0.85倍）に置き換えた（旧来の六角灯籠をやめた）。場面の三角形は影の分を含む表示で約44.6万→約46.0万。比較 `design-notes/lookdev/atelier/lantern_small_v2_scene.png`
 
 ## 見た目の試作 V4（途中）— 墨線・空・妖怪の動き（ブランチ claude/ecstatic-cannon-86xafc）
 - [x] **面の内側の墨線**：石・岩の細かな割れ目の芯だけを細く濃く引く（`inkCrackRatio`）。木目・布のしわも細い線にする（`inkGrainRatio`）。敷石の目地を太い溝から細い線へ（`paveJointM`）

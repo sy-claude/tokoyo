@@ -137,21 +137,8 @@ export const models = {
       { s: 'box', size: [3.0, 0.24, 0.3], at: [0, 2.42, 0], col: 'toriiFar', col2: 'toriiRoof', fx: [0.3, 0.35, 0, 0] },
     ],
   },
-  // ---- 石灯籠（大。小は scale で縮める） ----
-  lantern: {
-    parts: [
-      { s: 'cyl', r: [0.62, 0.55], h: 0.22, seg: 6, at: [0, 0, 0], col: 'stone', fx: STONE_FX, jitter: 0.04, jfreq: 2 },
-      { s: 'cyl', r: [0.45, 0.3], h: 0.24, seg: 6, at: [0, 0.22, 0], col: 'stone', fx: STONE_FX },
-      { s: 'cyl', r: [0.21, 0.19], h: 0.95, seg: 8, hseg: 3, at: [0, 0.46, 0], col: 'stone', col2: 'stoneHi', fx: STONE_FX, jitter: 0.02, jfreq: 3 },
-      { s: 'cyl', r: [0.3, 0.52], h: 0.2, seg: 6, at: [0, 1.41, 0], col: 'stone', fx: STONE_FX },
-      { s: 'box', size: [0.56, 0.5, 0.56], at: [0, 1.61, 0], col: 'stoneHi', fx: [0.4, 0, 0, 0] },
-      { s: 'box', size: [0.3, 0.32, 0.6], at: [0, 1.7, 0], col: 'lampGlow', fx: [0, 0, 0, 0.75] },
-      { s: 'box', size: [0.6, 0.32, 0.3], at: [0, 1.7, 0], col: 'lampGlow', fx: [0, 0, 0, 0.75] },
-      { s: 'cyl', r: [0.86, 0.2], h: 0.42, seg: 6, at: [0, 2.11, 0], col: 'stoneDark', col2: 'stone', fx: [0.6, 0, 0, 0], jitter: 0.04, jfreq: 2 },
-      { s: 'cyl', r: [0.9, 0.86], h: 0.07, seg: 6, at: [0, 2.06, 0], col: 'stoneDark', fx: [0.6, 0, 0, 0] },
-      { s: 'sph', r: [0.16, 0.2, 0.16], seg: 8, at: [0, 2.66, 0], col: 'stone', fx: STONE_FX },
-    ],
-  },
+  // ---- 石灯籠（小。参道の奥。V5：大灯籠と同じ形を縮めて使う。高さは旧来の六角灯籠に合わせて 0.85 倍） ----
+  lantern: { parts: [{ s: 'ref', model: 'lanternBig', scale: 0.85, at: [0, 0.1, 0] }] },
   // ---- 大きな石灯籠（V5 作り直し。参考：reference.png の鳥居の左手前）。四角い台2段・下ぶくれの竿・中台・格子窓の火袋・反りのある笠・宝珠 ----
   // 寸法は参考の絵から読んだ比（全高 約3.3m）。上を向いた面ほど苔が厚い
   lanternBig: {
