@@ -71,7 +71,8 @@ export const scene = {
     kyahan: '#d8d0c2',
     // 白雪
     skinPale: '#efe2d6',
-    skinTan: '#d9ad8c',
+    skinTan: '#c08b66',
+    skinTanLo: '#8e6046',
     ganjoVest: '#c49a48',
     ganjoVestLo: '#9a7232',
     ganjoArmor: '#3c3a3a',
