@@ -430,6 +430,30 @@ function foldGeometry(g, folds, lineRatio = 0) {
   g.computeVertexNormals();
 }
 
+/**
+ * 四隅の反り（V5。石灯籠の笠など）：回転体を上から見て四角に広げ、四隅（斜め 45°）ほど持ち上げる。
+ * cornerLift＝[持ち上げる量(m), 四角へ寄せる割合(0〜1)]。持ち上げは外側ほど大きい（半径の2乗）
+ */
+function cornerLiftGeometry(g, cornerLift) {
+  const [lift, square] = cornerLift;
+  const pos = g.attributes.position;
+  let rMax = Number.EPSILON;
+  for (let i = 0; i < pos.count; i++) rMax = Math.max(rMax, Math.hypot(pos.getX(i), pos.getZ(i)));
+  const corner = Math.SQRT2 - 1;
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i);
+    const z = pos.getZ(i);
+    const r = Math.hypot(x, z);
+    if (r < Number.EPSILON) continue;
+    const c = Math.abs(x) / r;
+    const s = Math.abs(z) / r;
+    const k = 1 + (1 / Math.max(c, s) - 1) * square; // 四角へ広げる
+    const cornerness = (c + s - 1) / corner; // 辺の中ほど 0 → 四隅 1
+    pos.setXYZ(i, x * k, pos.getY(i) + lift * cornerness * (r / rMax) * (r / rMax), z * k);
+  }
+  g.computeVertexNormals();
+}
+
 /** 反り（鳥居の笠木）：両端ほど上へ持ち上げる。 */
 function bendGeometry(g, bendY, halfLen) {
   const pos = g.attributes.position;
@@ -593,6 +617,7 @@ export function createBuilder(lib = {}) {
     if (p.chisel) chiselGeometry(g, p.chisel);
     if (p.flute) fluteGeometry(g, p.flute);
     if (p.grooves) grooveGeometry(g, p.grooves);
+    if (p.cornerLift) cornerLiftGeometry(g, p.cornerLift);
     if (p.folds) foldGeometry(g, p.folds, p.foldLine ?? 0);
     if (p.bendY) bendGeometry(g, p.bendY, p.size[0] * HALF);
     if (p.jitter) {
