@@ -157,6 +157,13 @@ export const faces = {
       { t: 'disc', mirror: true, col: 'paperWhite', a: 0.8, c: [0.305, 0.575], r: [0.007, 0.007] },
       { t: 'stroke', mirror: true, col: 'ink', a: 1, w: 0.018, pts: [[0.2, 0.58], [0.27, 0.605], [0.35, 0.6], [0.41, 0.55]] },
       { t: 'stroke', mirror: true, col: 'ink', a: 0.7, w: 0.008, pts: [[0.23, 0.54], [0.3, 0.522], [0.37, 0.53]] },
+      // 白い眉の渦（眉の形の内側の端から巻き込む）と、眉の毛の筋
+      { t: 'stroke', mirror: true, col: 'menkiBrow', a: 1, w: 0.03, pts: [[0.33, 0.69], [0.4, 0.685], [0.44, 0.66], [0.42, 0.625], [0.385, 0.635], [0.39, 0.66]] },
+      { t: 'stroke', mirror: true, col: 'menkiMaskLo', a: 0.7, w: 0.006, pts: [[0.415, 0.66], [0.41, 0.645], [0.398, 0.65]] },
+      { t: 'stroke', mirror: true, col: 'menkiBrow', a: 0.9, w: 0.012, pts: [[0.12, 0.7], [0.08, 0.735], [0.05, 0.76]] },
+      // 頬骨の光と、その下のくぼみ
+      { t: 'soft', mirror: true, col: 'menkiEye', a: 0.35, c: [0.25, 0.42], r: [0.08, 0.05] },
+      { t: 'soft', mirror: true, col: 'menkiMaskLo', a: 0.45, c: [0.24, 0.32], r: [0.08, 0.06] },
       // 眉間のしわ・小鼻から口の端へのしわ・あごのしわ
       { t: 'stroke', mirror: true, col: 'ink', a: 0.7, w: 0.008, pts: [[0.47, 0.62], [0.465, 0.68], [0.475, 0.73]] },
       { t: 'stroke', mirror: true, col: 'ink', a: 0.65, w: 0.009, pts: [[0.39, 0.4], [0.33, 0.32], [0.28, 0.25]] },
