@@ -14,6 +14,8 @@ const H = Number(opt('h', 941));
 const cam = opt('cam', '');
 const walk = Number(opt('walk', 0));
 const OUT = opt('out', 'tests/artifacts/lookdev');
+// --lineup：作り込んだ人物と妖怪も場面に並べる（&lineup=1。遠目の確認用）
+const lineup = args.includes('--lineup');
 const REF = 'design-notes/lookdev/reference.png';
 mkdirSync(OUT, { recursive: true });
 
@@ -23,7 +25,7 @@ try {
   const errors = [];
   page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') errors.push(m.text()); });
   page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
-  await page.goto(`${url}?test=1&scene=lookdev&q=${q}`);
+  await page.goto(`${url}?test=1&scene=lookdev&q=${q}${lineup ? '&lineup=1' : ''}`);
   await page.waitForFunction(() => Boolean(window.__game));
   await page.evaluate(() => window.__game.ready);
   await page.addStyleTag({ content: '#hud,#input,#menus{display:none !important}' });

@@ -34,7 +34,7 @@ const col = (hex, gain = 1) => new Color(hex).multiplyScalar(gain);
 /**
  * @param {ReturnType<typeof import('../renderer.js').createRenderer>} renderer
  * @param {Cfg} cfg
- * @param {{atelierModel?:string|null, atelierFocus?:string|null, atelierAnim?:string|null, atelierView?:number[]|null}} [opts] 工房：形の名前を渡すと、その形だけを台の上に大きく映す（docs/12 4章）
+ * @param {{atelierModel?:string|null, atelierFocus?:string|null, atelierAnim?:string|null, atelierView?:number[]|null, lineup?:boolean}} [opts] 工房：形の名前を渡すと、その形だけを台の上に大きく映す（docs/12 4章）
  */
 export function createLookdevView(renderer, cfg, opts = {}) {
   const atelier = opts.atelierModel && models[opts.atelierModel] ? opts.atelierModel : null;
@@ -291,7 +291,8 @@ export function createLookdevView(renderer, cfg, opts = {}) {
     addCaster(flora);
 
     // 妖怪（1体＝1メッシュ。形は自分の座標で作り、配置と身じろぎはメッシュの行列で掛ける）
-    for (const y of atelier ? [] : S.yokai) {
+    // &lineup=1 のときだけ、作り込んだ人物と妖怪（S.lineup）も並べる（遠目の確認用。構図の比較には使わない）
+    for (const y of atelier ? [] : opts.lineup ? [...S.yokai, ...S.lineup] : S.yokai) {
       const yb = createBuilder(lib);
       yb.addAll(models[y.model].parts, new Matrix4(), {});
       const ym = meshOf(yb, washMat);

@@ -325,6 +325,14 @@ export const scene = {
       motion: { pivot: [0, 0.4, -0.5], swayDeg: [2.2, 1.2], swayHz: 0.5, bobM: 0.012, bobHz: 0.5, hopM: 0, hopHz: 0, phase: 2.3 } },
   ],
 
+  // &lineup=1 のときだけ置く（遠目の確認用。docs/12 7章の8）：参道の手前に白雪・岩丈、鳥居の下に面鬼、鳥居の奥にボス
+  lineup: [
+    { model: 'shirayuki', at: [0.9, 0.0, 3.0], rot: [0, 200, 0], scale: 1.0, ground: true, motion: { pivot: [0, 0, 0], swayDeg: [0, 0], swayHz: 0, bobM: 0, bobHz: 0, hopM: 0, hopHz: 0, phase: 0 } },
+    { model: 'ganjo', at: [-1.9, 0.0, 4.6], rot: [0, 160, 0], scale: 1.0, ground: true, motion: { pivot: [0, 0, 0], swayDeg: [0, 0], swayHz: 0, bobM: 0, bobHz: 0, hopM: 0, hopHz: 0, phase: 0 } },
+    { model: 'menki', at: [-0.3, 0.0, 8.8], rot: [0, 190, 0], scale: 1.0, ground: true, motion: { pivot: [0, 0, 0], swayDeg: [0, 0], swayHz: 0, bobM: 0, bobHz: 0, hopM: 0, hopHz: 0, phase: 0 } },
+    { model: 'boss', at: [-2.5, 0.0, 15.5], rot: [0, 200, 0], scale: 1.0, ground: true, motion: { pivot: [0, 0, 0], swayDeg: [0, 0], swayHz: 0, bobM: 0, bobHz: 0, hopM: 0, hopHz: 0, phase: 0 } },
+  ],
+
   // 電線 [始点, 終点, たるみ(m)]
   wires: [
     [[4.95, 6.3, 16.6], [6.2, 5.1, 11.7], 0.5], [[5.3, 6.9, 16.6], [5.9, 5.6, 11.7], 0.45], [[4.95, 6.3, 16.6], [9.6, 5.8, 22], 0.6],
