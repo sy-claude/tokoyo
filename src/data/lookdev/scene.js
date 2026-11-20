@@ -199,7 +199,7 @@ export const scene = {
     { model: 'lantern', at: [-2.4, 0, 14.2], rot: [0, 50, -3], scale: 0.5, ground: true },
     { model: 'lantern', at: [2.6, -0.1, -9.5], rot: [0, 50, -3], scale: 0.9 },
     // 注連縄の巨岩（右手前）
-    { model: 'iwakura', at: [-7.0, -0.2, 2.9], rot: [0, -12, 0], scale: 1.0 },
+    { model: 'iwakura', at: [-7.6, -0.2, 3.6], rot: [0, -12, 0], scale: 0.82 },
     // 岩（参道の縁・手前・岸）
     { model: 'rockC', at: [3.0, -0.1, 5.3], rot: [0, 30, 0], scale: 0.8 },
     { model: 'rockA', at: [3.2, -0.05, 0.7], rot: [0, 80, 0], scale: 0.85 },
