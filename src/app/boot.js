@@ -58,7 +58,7 @@ export async function boot() {
   const rootEl = $('root');
   const canvas = /** @type {HTMLCanvasElement} */ ($('game'));
   const renderer = createRenderer(canvas, cfg, params.q ?? 'high');
-  const frame = createFrame(renderer, cfg, { atelierModel: params.model, atelierFocus: params.focus, atelierAnim: params.anim, atelierView: params.view, lineup: params.lineup });
+  const frame = createFrame(renderer, cfg, { atelierModel: params.model, atelierFocus: params.focus, atelierAnim: params.anim, atelierView: params.view, lineup: params.lineup, char: params.char });
   const bus = createBus(cfg.debug.eventRingCount);
 
   /** ゲーム全体の入れ物。app と debug だけが持つ */

@@ -17,7 +17,7 @@ import { createBuilder, partMatrix } from './build.js';
 import { createFaceAtlas, faceCellRect } from './faceAtlas.js';
 import { faces } from '../../data/lookdev/faces.js';
 import { yokaiMatrix } from './yokaiMotion.js';
-import { heroSpringBones, heroSprings, humanBones } from '../../data/lookdev/rigs.js';
+import { charRigs, heroSpringBones, heroSprings, humanBones } from '../../data/lookdev/rigs.js';
 import { blinkAt, poseAt } from '../rig/pose.js';
 import { createSprings } from '../rig/springs.js';
 import { HALF, N3, N4, TAU } from './consts.js';
@@ -34,7 +34,7 @@ const col = (hex, gain = 1) => new Color(hex).multiplyScalar(gain);
 /**
  * @param {ReturnType<typeof import('../renderer.js').createRenderer>} renderer
  * @param {Cfg} cfg
- * @param {{atelierModel?:string|null, atelierFocus?:string|null, atelierAnim?:string|null, atelierView?:number[]|null, lineup?:boolean}} [opts] 工房：形の名前を渡すと、その形だけを台の上に大きく映す（docs/12 4章）
+ * @param {{atelierModel?:string|null, atelierFocus?:string|null, atelierAnim?:string|null, atelierView?:number[]|null, lineup?:boolean, char?:string}} [opts] 工房：形の名前を渡すと、その形だけを台の上に大きく映す（docs/12 4章）
  */
 export function createLookdevView(renderer, cfg, opts = {}) {
   const atelier = opts.atelierModel && models[opts.atelierModel] ? opts.atelierModel : null;
@@ -109,7 +109,15 @@ export function createLookdevView(renderer, cfg, opts = {}) {
     uKnee: { value: 1 },
   };
   // 主人公の骨組み（剛体スキン。07 §6.1・09 §8.2）。骨は humanBones の順
-  const heroBoneDefs = [...humanBones, ...heroSpringBones];
+  // 操作する祓人（&char=。工房で骨を入れた祓人の形を映すときはその祓人）。骨の位置は体格（scaleMul、肩の x は shoulderXMul）に合わせる
+  const charName = Object.keys(charRigs).find((k) => charRigs[k].model === opts.atelierModel) ?? (opts.char && charRigs[opts.char] ? opts.char : 'fuma');
+  const charRig = charRigs[charName];
+  /** @param {import('../../data/lookdev/rigs.js').BoneDef} b */
+  const scaleBone = (b) => {
+    const sx = b.name === 'armL' || b.name === 'armR' ? charRig.shoulderXMul : 1;
+    return { ...b, posM: /** @type {[number, number, number]} */ ([b.posM[0] * charRig.scaleMul * sx, b.posM[1] * charRig.scaleMul, b.posM[2] * charRig.scaleMul]) };
+  };
+  const heroBoneDefs = [...humanBones.map(scaleBone), ...(charRig.springs ? heroSpringBones : [])];
   const heroRig = { bones: heroBoneDefs };
   const boneIndex = new Map(heroBoneDefs.map((b, i) => [b.name, i]));
   const heroPose = new Float32Array(heroBoneDefs.length * N4 + N3);
@@ -249,7 +257,7 @@ export function createLookdevView(renderer, cfg, opts = {}) {
     const washMat = washMaterial(baseDefines, {});
     const sb = createBuilder(lib);
     if (atelier) {
-      if (atelier !== 'hero') sb.addAll(models[atelier].parts, new Matrix4().makeTranslation(0, S.atelier.liftM[atelier] ?? 0, 0), {});
+      if (atelier !== charRig.model) sb.addAll(models[atelier].parts, new Matrix4().makeTranslation(0, S.atelier.liftM[atelier] ?? 0, 0), {});
     } else {
       placeAll(sb, S.placements, terrain);
       addScatter(sb, S, terrain, rng.fork('scatter'), L.scatterMul[q]);
@@ -314,7 +322,7 @@ export function createLookdevView(renderer, cfg, opts = {}) {
         return i;
       },
     });
-    hb.addAll(models.hero.parts, new Matrix4(), {});
+    hb.addAll(models[charRig.model].parts, new Matrix4(), {});
     const heroGeo = hb.toGeometry();
     disposables.push(heroGeo);
     heroBones = heroBoneDefs.map((d) => {
@@ -332,10 +340,10 @@ export function createLookdevView(renderer, cfg, opts = {}) {
     hero.add(heroBones[0]);
     hero.updateMatrixWorld(true);
     hero.bind(new Skeleton(heroBones));
-    springs = createSprings(heroSprings, new Map(heroBones.map((b) => [b.name, b])));
+    springs = createSprings(charRig.springs ? heroSprings : [], new Map(heroBones.map((b) => [b.name, b])));
     springTick = -1;
     scene.add(hero);
-    hero.visible = !atelier || atelier === 'hero';
+    hero.visible = !atelier || atelier === charRig.model;
     addCaster(hero, shadowMaterial());
 
     // 空（焼いた絵を、カメラを中心にした球の内側に貼る）
@@ -605,7 +613,7 @@ export function createLookdevView(renderer, cfg, opts = {}) {
       setPose(time);
       springs?.apply();
       // まばたき：閉じた目の絵の升へずらす（主人公の顔だけが絵を持つ）
-      const fh = faces.hero;
+      const fh = faces[charRig.face];
       const shut = blinkAt(time, A, hz);
       heroFaceShift.value.set(shut * (faceCellRect(fh.blinkCell).u0 - faceCellRect(fh.cell).u0), shut * (faceCellRect(fh.blinkCell).v0 - faceCellRect(fh.cell).v0));
       U.uPlayer.value.set(x, y, z, L.shadowRatio);

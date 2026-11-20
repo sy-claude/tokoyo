@@ -27,6 +27,16 @@ export const humanBones = [
 ];
 
 
+/**
+ * 祓人ごとの骨組み（07 §6.3：白雪は scaleMul 0.92、岩丈は 1.13（肩の x のみ ×1.35））。model＝形の名前（models.js）、face＝顔の絵（まばたき）、
+ * springs＝ばね専用の骨（heroSpringBones）を使うか。部品に骨を書いた形だけを載せる（白雪はまだ。無ければ楓真）。
+ * @type {Record<string, {model:string, scaleMul:number, shoulderXMul:number, face:string, springs:boolean}>}
+ */
+export const charRigs = {
+  fuma: { model: 'hero', scaleMul: 1, shoulderXMul: 1, face: 'hero', springs: true },
+  ganjo: { model: 'ganjo', scaleMul: 1.13, shoulderXMul: 1.35, face: 'ganjo', springs: false },
+};
+
 /** @typedef {{bone:string, axes:'xz'|'x', gainMul:number, limitDeg:number}} SpringDef */
 
 /**

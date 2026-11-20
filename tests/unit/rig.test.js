@@ -5,7 +5,7 @@ import { Matrix4 } from 'three';
 import { createBuilder } from '../../src/render/lookdev/build.js';
 import { models } from '../../src/data/lookdev/models.js';
 import { scene } from '../../src/data/lookdev/scene.js';
-import { heroSpringBones, heroSprings, humanBones } from '../../src/data/lookdev/rigs.js';
+import { charRigs, heroSpringBones, heroSprings, humanBones } from '../../src/data/lookdev/rigs.js';
 import { poseAt } from '../../src/render/rig/pose.js';
 import { anim } from '../../src/config/anim.js';
 
@@ -45,6 +45,28 @@ test('rigRigidSkin：主人公の全頂点が骨を1本だけ持ち、重みは 
   for (const name of ['shinR', 'footL', 'handL', 'head', 'hips', 'weapon', 'sleeveL', 'hakamaR', 'hair1', 'hachiA3', 'hachiB2']) assert.ok(used.has(boneIndex.get(name)), name);
   // 揺れの表の骨はすべて骨の表にある
   for (const sp of heroSprings) assert.ok(boneIndex.has(sp.bone), sp.bone);
+});
+
+test('rigCharRigs：骨を入れた祓人（charRigs）の形は、人型の骨だけで全頂点に骨が付き、脚・腕・頭が各骨に付く（岩丈。11/20）', () => {
+  const human = new Map(humanBones.map((b, i) => [b.name, i]));
+  for (const [name, r] of Object.entries(charRigs)) {
+    assert.ok(models[r.model], `${name} の形 ${r.model}`);
+    if (r.springs) continue; // ばねを使う祓人（楓真）は上の rigRigidSkin で確かめる
+    const b = createBuilder({
+      models, palette: scene.palette, segMul: 1, faceOf: () => null,
+      boneIndex: (bone) => {
+        const i = human.get(bone);
+        assert.ok(i !== undefined, `${name}：骨が無い ${bone}`);
+        return /** @type {number} */ (i);
+      },
+    });
+    b.addAll(models[r.model].parts, new Matrix4(), {});
+    const g = b.toGeometry();
+    const used = new Set();
+    const si = g.getAttribute('skinIndex');
+    for (let i = 0; i < si.count; i++) used.add(si.getX(i));
+    for (const bone of ['thighL', 'shinR', 'footL', 'armL', 'armR', 'head', 'spine', 'hips']) assert.ok(used.has(human.get(bone)), `${name} ${bone}`);
+  }
 });
 
 test('rigPosePure：poseAt は同じ入力で同じ結果、入力を書き換えない。止まっていれば脚は振らない', () => {

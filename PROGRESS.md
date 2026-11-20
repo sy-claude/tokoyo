@@ -198,6 +198,14 @@ docs/12 7章の手順1「特徴10個」を先に書いておく（作るとき�
 - `npm run verify` 成功（単体144件・e2e 46件）。比較 `design-notes/lookdev/atelier/shirayuki_v1.png`・`shirayuki_v1_head.png`・`yumi_v1.png`
 - 次（2巡目）：骨組み（主人公の骨を共有）、袖の袂、被衣の薄さとふちの縫い目、前髪を毛束に、地紋
 
+### 岩丈の骨組み（V5-6 を岩丈へ。11/20。相談役の推奨 (b)：岩丈1体から、面鬼は面の骨の設計が要るので手を付けない）
+- [x] 岩丈の部品すべてに骨を付けた（袴＝太もも・すね、足・草鞋＝足、腹当て・肩衣＝spine、縄の帯＝hips、腕と手＝armL/armR、首、頭と髪と髭＝head、大槌＝armR）
+- [x] **祓人ごとの骨組み**（`data/lookdev/rigs.js` の `charRigs`）：形の名前・体格（07 §6.3：岩丈は scaleMul 1.13、肩の x は ×1.35）・顔の絵・ばね専用の骨を使うか。骨の位置は体格に合わせて作る。描画側（view.js）の主人公への決め打ちを `charRig` に置き換えた。`?scene=lookdev&char=ganjo` で岩丈を操作できる。工房 `&model=ganjo&anim=walk` で岩丈が歩く
+- [x] 単体テスト `rig.test › rigCharRigs`（ばねを使わない祓人は人型の骨だけで全頂点に骨が付き、脚・腕・頭・胴の骨に付く）。主人公の歩きは前と同じ（撮って確認）。`npm run verify` 成功
+- 比較 `design-notes/lookdev/atelier/ganjo_v2_walk.png`（横から歩きの8コマ）
+- 決めたこと：岩丈は今はばね（揺れもの）無し。大槌は右腕の骨に付けた（歩くと腕と一緒に振れる。持ち方のポーズは戦闘の M で）
+- まだ：白雪の骨組み（被衣・長い髪・袂はばねが要る）、面鬼（面の骨 mask と、裾の hemF/hemB）
+
 ### 場面の中での確認（docs/12 7章の8。11/20。相談役の推奨 (c)）
 - [x] `?scene=lookdev&lineup=1` で、作り込んだ白雪・岩丈・面鬼・ボスを場面に並べる（`scene.lineup`。ふだんの場面＝参考との比較の構図は変えない）。撮影は `node scripts/lookdev-shot.mjs 名前 --lineup`
 - 比較 `design-notes/lookdev/lineup_v1.png`（大きい画面）・`lineup_v1_phone.png`（スマホ相当 1000×330・DPR3）
