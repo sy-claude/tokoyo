@@ -6,9 +6,10 @@ import { FOG_GLSL, NOISE_GLSL, OUT_GLSL } from './shaders.js';
 export const WASH_VERT = /* glsl */ `
 attribute vec4 aFx;
 attribute vec4 aAnim;
+attribute vec3 aFace;
+varying vec3 vFace;
 uniform float uTime;
 uniform vec3 uWind;   // xz=向き×強さ(m) y=速さ
-uniform vec4 uWalk;   // x=歩きの位相 y=歩きの量(0..1) z=腰の高さ(m) w=脚の振り(rad)
 uniform mat4 uShadowMat;
 uniform float uShadowOffset;
 varying vec3 vWorld;
@@ -16,19 +17,15 @@ varying vec3 vNormal;
 varying vec3 vColor;
 varying vec4 vFx;
 varying vec3 vShadow;
-vec3 rotX(vec3 p, float a) { float c = cos(a), s = sin(a); return vec3(p.x, c * p.y - s * p.z, s * p.y + c * p.z); }
+// 質感の模様を貼る座標と面の向き：ふつうは世界の座標。動くキャラ（LOCAL_TEX）は形の座標（骨で動かす前）で、模様が服に付いて動く
+varying vec3 vTexPos;
+varying vec3 vTexNormal;
+uniform float uTexMottleMul; // 色むらの強さに掛ける倍率（キャラの服は場面より控えめに）
+#include <skinning_pars_vertex>
 void main() {
   vec3 p = position;
   vec3 n = normal;
   float kind = aAnim.x;
-  // 2・3：脚（腰を軸に前後へ振る）。4：腕（肩を軸に少し振る。aAnim.z＝軸の高さ）
-  if (kind > 1.5 && kind < 4.5) {
-    float sgn = kind < 2.5 ? 1.0 : (kind < 3.5 ? -1.0 : 0.35);
-    float pivot = kind < 3.5 ? uWalk.z : aAnim.z;
-    float a = sin(uWalk.x) * uWalk.w * uWalk.y * sgn;
-    p = rotX(p - vec3(0.0, pivot, 0.0), a) + vec3(0.0, pivot, 0.0);
-    n = rotX(n, a);
-  }
   // 7：まぶた（まばたき）。上端（aAnim.z＝形の座標の高さ）を止めたまま下へ伸び、目の前へ出る（aAnim.y＝伸びる倍率、aAnim.w＝面の傾き）
   if (kind > 6.5 && kind < 7.5) {
     float bl = pow(max(sin(uTime * 0.9 + modelMatrix[3].x * 1.7), 0.0), 26.0);
@@ -36,10 +33,12 @@ void main() {
     p.y -= drop;
     p.z += drop * aAnim.w + 0.1 * bl;
   }
-  // 体の上下（歩き）
-  if (kind > 1.5) p.y += abs(sin(uWalk.x)) * uWalk.y * 0.035;
-  // 待機の呼吸：胴から上がわずかに上下する（脚は動かさない）
-  if (kind > 3.5 && kind < 6.5) p.y += sin(uTime * 1.7) * 0.005 * smoothstep(0.7, 1.4, p.y) * (1.0 - uWalk.y);
+  // 骨組み（剛体スキン。07 §6.1）：骨は1頂点に1本なので、その骨の行列を掛けるだけ
+#ifdef USE_SKINNING
+  mat4 skinM = bindMatrixInverse * getBoneMatrix(skinIndex.x) * bindMatrix;
+  p = (skinM * vec4(p, 1.0)).xyz;
+  n = normalize(mat3(skinM) * n);
+#endif
   vec4 w = modelMatrix * vec4(p, 1.0);
   float ph = dot(w.xz, vec2(0.37, 0.29)) + aAnim.z;
   // 1：風にしなる（草・枝先の葉）
@@ -55,9 +54,17 @@ void main() {
     w.xz += normalize(uWind.xz + 1e-5) * (sin(t * 0.7 + 1.3) * 0.08 + 0.05) * aAnim.y;
   }
   vWorld = w.xyz;
+#ifdef LOCAL_TEX
+  vTexPos = position;
+  vTexNormal = normal;
+#else
+  vTexPos = w.xyz;
+  vTexNormal = mat3(modelMatrix) * n;
+#endif
   vNormal = normalize(mat3(modelMatrix) * n);
   vColor = color;
   vFx = aFx;
+  vFace = aFace;
   vShadow = (uShadowMat * vec4(w.xyz + vNormal * uShadowOffset, 1.0)).xyz;
   gl_Position = projectionMatrix * viewMatrix * w;
 }`;
@@ -77,6 +84,8 @@ uniform sampler2D uTexA;
 uniform sampler2D uTexB;
 uniform sampler2D uShadowMap;
 uniform vec4 uTexScale; // x=大きな柄(1/m) y=細かな柄(1/m) z=texB(1/m) w=粒の強さ
+uniform sampler2D uFaceTex; // 顔の絵（地は透明。線と塗りだけ）
+uniform vec2 uFaceShift;    // まばたき：閉じた目の絵の升へずらす量（uv）
 uniform vec4 uInk;      // x=石の割れ目の線 y=木目・しわの線 z=敷石の目地の太さ
 uniform vec4 uShadow;   // x=影の濃さ(0で無効) y=奥行きの余裕 z=ぼかし(uv) w=筆の筋の強さ
 uniform vec3 uLightCol;
@@ -100,7 +109,11 @@ varying vec3 vWorld;
 varying vec3 vNormal;
 varying vec3 vColor;
 varying vec4 vFx;
+varying vec3 vFace;
 varying vec3 vShadow;
+varying vec3 vTexPos;
+varying vec3 vTexNormal;
+uniform float uTexMottleMul;
 
 // 質感テクスチャを三方向から貼る。A は側面で「u=高さ」（筋が縦に走る）、B は「v=高さ」（垂れが縦に走る）
 vec4 triA(vec3 p, vec3 w) {
@@ -139,11 +152,11 @@ void main() {
   if (!gl_FrontFacing) N = -N;
   float flatTop = smoothstep(0.4, 0.8, N.y); // 上を向いた面（地面）
   vec3 V = normalize(cameraPosition - vWorld);
-  vec3 tw = pow(abs(N), vec3(4.0));
+  vec3 tw = pow(abs(normalize(vTexNormal)), vec3(4.0));
   tw /= tw.x + tw.y + tw.z;
-  vec4 dA = triA(vWorld * uTexScale.x, tw);
-  vec4 dF = triA(vWorld * uTexScale.y + 0.37, tw);
-  vec4 dB = triB(vWorld * uTexScale.z, tw);
+  vec4 dA = triA(vTexPos * uTexScale.x, tw);
+  vec4 dF = triA(vTexPos * uTexScale.y + 0.37, tw);
+  vec4 dB = triB(vTexPos * uTexScale.z, tw);
   vec3 base = vColor;
   float stone = vFx.z;
   float glow = vFx.w;
@@ -239,16 +252,23 @@ void main() {
   base *= 1.0 + (dF.a - 0.5) * uShadow.w;
   // 墨線：木目・布のしわ。筋の暗い谷だけを細い線にする（石と発光する所には引かない）
   float gl = smoothstep(0.2, 0.08, dF.a) * (0.55 + 0.45 * smoothstep(0.35, 0.65, dA.r));
-  base = mix(base, base * uCrackCol * 1.6, gl * uInk.y * (1.0 - stone) * (1.0 - glow));
+  base = mix(base, base * uCrackCol * 1.6, gl * uInk.y * uTexMottleMul * (1.0 - stone) * (1.0 - glow));
 
   // --- 水彩の色むら：大きなにじみ。暗い所は紫へ、明るい所は暖色へ寄る ---
+  float mottK = uLook.x * uTexMottleMul;
   float mott = (dA.r - 0.5) * 1.1 + (dF.r - 0.5) * 0.6;
-  base *= 1.0 + mott * uLook.x;
-  base = mix(base, base * vec3(0.90, 0.86, 1.10), smoothstep(0.55, 0.85, dA.r) * uLook.x);
-  base = mix(base, base * vec3(1.10, 1.02, 0.86), smoothstep(0.45, 0.15, dA.r) * uLook.x);
+  base *= 1.0 + mott * mottK;
+  base = mix(base, base * vec3(0.90, 0.86, 1.10), smoothstep(0.55, 0.85, dA.r) * mottK);
+  base = mix(base, base * vec3(1.10, 1.02, 0.86), smoothstep(0.45, 0.15, dA.r) * mottK);
 
   // 筆のむら：面の向きを少し乱して、陰影が筆触のように割れる
-  N = normalize(N + (vec3(dF.r, dF.g, dA.r) - 0.5) * 0.6);
+  N = normalize(N + (vec3(dF.r, dF.g, dA.r) - 0.5) * 0.6 * uTexMottleMul);
+
+  // --- 顔の絵（目・眉・口）：色むらを掛けた後に重ねる。線はむらで薄れない ---
+  if (vFace.z > 0.01) {
+    vec4 fc = texture2D(uFaceTex, vFace.xy + uFaceShift);
+    base = mix(base, fc.rgb, fc.a * min(vFace.z * 2.0, 1.0));
+  }
 
   // --- 落ち影（影の図を5点で引いて縁をぼかす。縁は粒でゆらぐ） ---
   float lit = 1.0;

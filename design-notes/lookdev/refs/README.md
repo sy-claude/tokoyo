@@ -6,3 +6,5 @@
 - 名前：`hero`（楓真）・`chochin`（提灯お化け）・`karakasa`（唐傘お化け）・`yamainu`（山犬）・`shirayuki`・`ganjo`・`menki`・`boss`
 - 画風は `../reference.png` と同じ水彩。無地の明るい背景・全身・立ち姿。長辺 1500px 以上
 - 正面・真横・背面の3枚が理想（最低でも正面と背面）。顔や武器の寄りがあればなお良い
+
+ChatGPT / Gemini に頼むときの文は `参考画像の指示書.md` にあります。

@@ -5,16 +5,21 @@
 /** @import {Cfg} from '../../config/index.js' */
 import {
   BackSide, Color, DataTexture, DepthTexture, DoubleSide, Group, InstancedBufferAttribute, InstancedBufferGeometry, LinearFilter,
-  Matrix4, Mesh, NearestFilter, OrthographicCamera, PlaneGeometry, RedFormat, Scene, ShaderMaterial, SphereGeometry,
-  UnsignedByteType, UnsignedIntType, Vector3, Vector4, WebGLRenderTarget,
+  Bone, Matrix4, Mesh, NearestFilter, Skeleton, SkinnedMesh, OrthographicCamera, PlaneGeometry, RedFormat, Scene, ShaderMaterial, SphereGeometry,
+  UnsignedByteType, UnsignedIntType, Vector2, Vector3, Vector4, WebGLRenderTarget,
 } from 'three';
-import { DEG2RAD, lerp, lerpDeg } from '../../core/math.js';
+import { DEG2RAD, forwardYawPitch, lerp, lerpDeg } from '../../core/math.js';
 import { createRng, presentationSeed } from '../../core/rng.js';
 import { scene as S } from '../../data/lookdev/scene.js';
 import { models } from '../../data/lookdev/models.js';
 import { createCameraView } from '../cameraView.js';
 import { createBuilder, partMatrix } from './build.js';
+import { createFaceAtlas, faceCellRect } from './faceAtlas.js';
+import { faces } from '../../data/lookdev/faces.js';
 import { yokaiMatrix } from './yokaiMotion.js';
+import { heroSpringBones, heroSprings, humanBones } from '../../data/lookdev/rigs.js';
+import { blinkAt, poseAt } from '../rig/pose.js';
+import { createSprings } from '../rig/springs.js';
 import { HALF, N3, N4, TAU } from './consts.js';
 import { addBareTrees, addDaisies, addGrass, addFallenLeaves, addIslands, addMaple, addMapleBranches, addScatter, addSenbon, addWires, placeAll } from './flora.js';
 import { createPost } from './post.js';
@@ -29,7 +34,7 @@ const col = (hex, gain = 1) => new Color(hex).multiplyScalar(gain);
 /**
  * @param {ReturnType<typeof import('../renderer.js').createRenderer>} renderer
  * @param {Cfg} cfg
- * @param {{atelierModel?:string|null}} [opts] 工房：形の名前を渡すと、その形だけを台の上に大きく映す（docs/12 4章）
+ * @param {{atelierModel?:string|null, atelierFocus?:string|null, atelierAnim?:string|null, atelierView?:number[]|null}} [opts] 工房：形の名前を渡すと、その形だけを台の上に大きく映す（docs/12 4章）
  */
 export function createLookdevView(renderer, cfg, opts = {}) {
   const atelier = opts.atelierModel && models[opts.atelierModel] ? opts.atelierModel : null;
@@ -40,6 +45,8 @@ export function createLookdevView(renderer, cfg, opts = {}) {
   const terrain = createTerrain(S.terrain, S.path);
   const post = createPost(cfg, S);
   const camDir = new Vector3();
+  const heroMottle = { value: 1 };
+  const heroTexScale = { value: new Vector4() };
   const sun = new Vector3(S.sunDir[0], S.sunDir[1], S.sunDir[2]).normalize();
   /** @type {{dispose:()=>void}[]} */
   let disposables = [];
@@ -49,6 +56,8 @@ export function createLookdevView(renderer, cfg, opts = {}) {
   let root = null;
   /** @type {any} */
   let sky = null;
+  /** 顔の絵（起動時に1度だけ描く） @type {any} */
+  let faceTex = null;
   let builtQuality = '';
   /** @type {any} */
   let builtWorld = null;
@@ -92,16 +101,28 @@ export function createLookdevView(renderer, cfg, opts = {}) {
     uShadowOffset: { value: 0 },
     uShadow: { value: new Vector4() },
     uInk: { value: new Vector4() },
+    uFaceTex: { value: /** @type {any} */ (null) },
+    uFaceShift: { value: new Vector2() },
+    uTexMottleMul: { value: 1 },
   };
-  const still = { value: new Vector4() }; // 動かない物の uWalk
-  const heroWalk = { value: new Vector4() };
+  // 主人公の骨組み（剛体スキン。07 §6.1・09 §8.2）。骨は humanBones の順
+  const heroBoneDefs = [...humanBones, ...heroSpringBones];
+  const heroRig = { bones: heroBoneDefs };
+  const boneIndex = new Map(heroBoneDefs.map((b, i) => [b.name, i]));
+  const heroPose = new Float32Array(heroBoneDefs.length * N4 + N3);
+  /** @type {any[]} */
+  let heroBones = [];
+  /** 揺れ（ばね）の状態と、最後に積分した tick・その時の主人公の位置と向き @type {ReturnType<typeof createSprings>|null} */
+  let springs = null;
+  let springTick = -1;
+  const springPos = new Vector3();
 
-  function washMaterial(defines, extraUniforms, walk) {
+  function washMaterial(defines, extraUniforms) {
     const m = new ShaderMaterial({
       vertexShader: WASH_VERT,
       fragmentShader: WASH_FRAG,
       defines,
-      uniforms: { ...U, uWalk: walk, ...extraUniforms },
+      uniforms: { ...U, ...extraUniforms },
       vertexColors: true,
       side: DoubleSide,
     });
@@ -109,11 +130,11 @@ export function createLookdevView(renderer, cfg, opts = {}) {
     return m;
   }
   /** 影の図を描くときの材質（頂点の動きは同じ、色は書かない）。 */
-  function shadowMaterial(walk) {
+  function shadowMaterial() {
     const m = new ShaderMaterial({
       vertexShader: WASH_VERT,
       fragmentShader: SHADOW_FRAG,
-      uniforms: { uTime: U.uTime, uWind: U.uWind, uWalk: walk, uShadowMat: U.uShadowMat, uShadowOffset: U.uShadowOffset },
+      uniforms: { uTime: U.uTime, uWind: U.uWind, uShadowMat: U.uShadowMat, uShadowOffset: U.uShadowOffset },
       vertexColors: true,
       side: DoubleSide,
     });
@@ -168,7 +189,11 @@ export function createLookdevView(renderer, cfg, opts = {}) {
     const oct = L.octaveCount[q];
     const mul = L.floraMul[q];
     const o = world.stage.playerStart.pos;
-    const lib = { models, palette: S.palette, aoGain: S.aoGain, segMul: L.meshDetailMul[q] };
+    /** 顔の絵の升と貼る範囲（部品の face: '名前' から引く） */
+    const faceOf = (name) => (faces[name] ? { ...faceCellRect(faces[name].cell), rect: faces[name].rect } : null);
+    const lib = { models, palette: S.palette, aoGain: S.aoGain, segMul: L.meshDetailMul[q], faceOf };
+    if (!faceTex) faceTex = createFaceAtlas(S.palette);
+    U.uFaceTex.value = faceTex;
     const rng = createRng(presentationSeed(world.stage.seed));
     root = new Group();
     root.position.set(o[0], o[1], o[2]);
@@ -199,7 +224,7 @@ export function createLookdevView(renderer, cfg, opts = {}) {
       U.uShadowMap.value = depth;
       disposables.push(shadowRT, depth);
     }
-    const stillShadow = shadowMaterial(still);
+    const stillShadow = shadowMaterial();
     const addCaster = (mesh, shadowMat = stillShadow) => casters.push({ mesh, mat: mesh.material, shadowMat });
 
     // 地形（石畳・裂け目はシェーダが描く。座標はワールドへ直して渡す）
@@ -212,16 +237,16 @@ export function createLookdevView(renderer, cfg, opts = {}) {
       uFis: { value: S.fissure.map(toWorld3) },
       uCaster: { value: S.casters.map((c) => new Vector4(c[0] + o[0], c[1] + o[2], c[2], c[N3])) },
       uPaveCol: { value: col(S.palette.pave) },
-    }, still);
+    });
     const terrainMesh = meshOf(tb, terrainMat);
     root.add(terrainMesh);
     nonCasters.push(terrainMesh);
 
     // 小道具・木の枝・千本鳥居・島（動かない物を1つにまとめる）
-    const washMat = washMaterial(baseDefines, {}, still);
+    const washMat = washMaterial(baseDefines, {});
     const sb = createBuilder(lib);
     if (atelier) {
-      sb.addAll(models[atelier].parts, new Matrix4(), {});
+      if (atelier !== 'hero') sb.addAll(models[atelier].parts, new Matrix4(), {});
     } else {
       placeAll(sb, S.placements, terrain);
       addScatter(sb, S, terrain, rng.fork('scatter'), L.scatterMul[q]);
@@ -236,6 +261,12 @@ export function createLookdevView(renderer, cfg, opts = {}) {
       staticMesh.geometry.computeBoundingSphere();
       atelierFrame.y = staticMesh.geometry.boundingSphere.center.y;
       atelierFrame.r = staticMesh.geometry.boundingSphere.radius;
+      // 寄り：形ごとに登録した [中心の高さ, 半径]（全身・顔など）。無ければ形全体
+      const f = S.atelier.focus[atelier]?.[opts.atelierFocus ?? 'all'];
+      if (f) {
+        atelierFrame.y = f[0];
+        atelierFrame.r = f[1];
+      }
     }
     root.add(staticMesh);
     addCaster(staticMesh);
@@ -249,7 +280,7 @@ export function createLookdevView(renderer, cfg, opts = {}) {
       addMaple(fb, S, rng.fork('maple'), mul);
     }
     // 草や葉は奥行きを書かない：後処理の輪郭線が細い葉の1枚ずつに付いて黒ずむのを防ぐ（ほかの不透明な物の後に描く）
-    const floraMat = washMaterial(baseDefines, {}, still);
+    const floraMat = washMaterial(baseDefines, {});
     floraMat.depthWrite = false;
     const flora = meshOf(fb, floraMat);
     flora.renderOrder = 1;
@@ -270,13 +301,38 @@ export function createLookdevView(renderer, cfg, opts = {}) {
       yokai.push({ mesh: ym, place, motion: y.motion });
     }
 
-    // 主人公（1メッシュ＋1素材。歩きと布の動きは頂点シェーダ）
-    const hb = createBuilder(lib);
+    // 主人公（1メッシュ＋1素材。骨組みは剛体スキン：部品ごとに骨を1本。布の揺れは頂点シェーダ）
+    const hb = createBuilder({
+      ...lib,
+      boneIndex: (name) => {
+        const i = boneIndex.get(name);
+        if (i === undefined) throw new Error(`lookdev: 骨が無い ${name}`);
+        return i;
+      },
+    });
     hb.addAll(models.hero.parts, new Matrix4(), {});
-    hero = meshOf(hb, washMaterial(baseDefines, {}, heroWalk));
+    const heroGeo = hb.toGeometry();
+    disposables.push(heroGeo);
+    heroBones = heroBoneDefs.map((d) => {
+      const b = new Bone();
+      b.name = d.name;
+      b.position.set(d.posM[0], d.posM[1], d.posM[2]);
+      return b;
+    });
+    heroBoneDefs.forEach((d, i) => {
+      if (d.parent) heroBones[boneIndex.get(d.parent) ?? 0].add(heroBones[i]);
+    });
+    // 主人公：模様は形の座標で貼る（歩いても服の上を滑らない）。色むらは控えめ、模様は細かく
+    hero = new SkinnedMesh(heroGeo, washMaterial({ ...baseDefines, LOCAL_TEX: 1 }, { uTexMottleMul: heroMottle, uTexScale: heroTexScale }));
+    hero.frustumCulled = false;
+    hero.add(heroBones[0]);
+    hero.updateMatrixWorld(true);
+    hero.bind(new Skeleton(heroBones));
+    springs = createSprings(heroSprings, new Map(heroBones.map((b) => [b.name, b])));
+    springTick = -1;
     scene.add(hero);
-    hero.visible = !atelier;
-    addCaster(hero, shadowMaterial(heroWalk));
+    hero.visible = !atelier || atelier === 'hero';
+    addCaster(hero, shadowMaterial());
 
     // 空（焼いた絵を、カメラを中心にした球の内側に貼る）
     const skyBake = bakeSky(renderer.three, {
@@ -442,6 +498,8 @@ export function createLookdevView(renderer, cfg, opts = {}) {
     U.uWind.value.set(L.windM, L.windHz, L.windM * HALF * HALF);
     U.uLook.value.set(L.mottleRatio, L.rimRatio, L.wetRatio, 1 / L.paveCellM);
     U.uTexScale.value.set(1 / L.texLargeTileM, 1 / L.texFineTileM, 1 / L.texBTileM, L.grainRatio);
+    heroTexScale.value.copy(U.uTexScale.value).multiplyScalar(L.heroTexScaleMul).setW(L.grainRatio);
+    heroMottle.value = L.heroMottleRatio;
     U.uInk.value.set(L.inkCrackRatio, L.inkGrainRatio, L.paveJointM, 0);
     m.skyMat.uniforms.uSky.value.set(L.sunRadiusDeg * DEG2RAD, 0, 0, 0);
     m.seaMat.uniforms.uSea.value.set(L.seaSpeedRatio, L.seaGlitterRatio, L.seaFoamRatio, L.seaLaneRatio);
@@ -504,11 +562,46 @@ export function createLookdevView(renderer, cfg, opts = {}) {
       const x = lerp(p.prevPos[0], p.pos[0], alpha);
       const y = lerp(p.prevPos[1], p.pos[1], alpha);
       const z = lerp(p.prevPos[2], p.pos[2], alpha);
+      // 姿勢：速さから歩き・走りを混ぜる（07 §6.6）。工房では &anim=walk|run で速さを決めて見る
+      const simSpeed = Math.hypot(p.pos[0] - p.prevPos[0], p.pos[2] - p.prevPos[2]) * hz;
+      const A = cfg.anim;
+      const speed = opts.atelierAnim === 'walk' ? A.walkBlendFromMps : opts.atelierAnim === 'run' ? cfg.movement.runSpeedMps : simSpeed;
+      const setPose = (/** @type {number} */ t) => {
+        poseAt(heroRig, null, 0, { timeS: t, speedMps: speed, runSpeedMps: cfg.movement.runSpeedMps, tickRateHz: hz, anim: A }, heroPose);
+        for (let i = 0; i < heroBones.length; i++) {
+          heroBones[i].quaternion.set(heroPose[i * N4], heroPose[i * N4 + 1], heroPose[i * N4 + 2], heroPose[i * N4 + N3]);
+        }
+        const n4 = heroBones.length * N4;
+        heroBones[0].position.set(heroPose[n4], heroPose[n4 + 1], heroPose[n4 + 2]);
+      };
+      // 揺れ：前に積分した tick から今の tick まで、1tick ずつ姿勢と位置を当てて積分する（描画の頻度によらず同じ結果）
+      if (springs) {
+        const now = world.tick;
+        if (springTick < 0 || now < springTick || now - springTick > A.springCatchupMaxCount) {
+          springs.reset();
+          springTick = Math.max(0, now - A.springCatchupMaxCount);
+          springPos.set(p.pos[0], p.pos[1], p.pos[2]);
+        }
+        const from = springTick;
+        for (let k = from + 1; k <= now; k++) {
+          const f = (k - from) / (now - from);
+          hero.position.set(lerp(springPos.x, p.pos[0], f), lerp(springPos.y, p.pos[1], f), lerp(springPos.z, p.pos[2], f));
+          hero.rotation.y = p.yawDeg * DEG2RAD;
+          setPose(k / hz);
+          hero.updateMatrixWorld(true);
+          springs.step(1 / hz, A);
+        }
+        springTick = now;
+        springPos.set(p.pos[0], p.pos[1], p.pos[2]);
+      }
       hero.position.set(x, y, z);
       hero.rotation.y = lerpDeg(p.prevYawDeg, p.yawDeg, alpha) * DEG2RAD;
-      const speed = Math.hypot(p.pos[0] - p.prevPos[0], p.pos[2] - p.prevPos[2]) * hz;
-      const amount = Math.min(1, speed / cfg.movement.runSpeedMps);
-      heroWalk.value.set(time * L.walkStepHz * TAU, amount, S.heroHipM, L.walkSwingDeg * DEG2RAD);
+      setPose(time);
+      springs?.apply();
+      // まばたき：閉じた目の絵の升へずらす（主人公の顔だけが絵を持つ）
+      const fh = faces.hero;
+      const shut = blinkAt(time, A, hz);
+      U.uFaceShift.value.set(shut * (faceCellRect(fh.blinkCell).u0 - faceCellRect(fh.cell).u0), shut * (faceCellRect(fh.blinkCell).v0 - faceCellRect(fh.cell).v0));
       U.uPlayer.value.set(x, y, z, L.shadowRatio);
       for (const k of yokai) yokaiMatrix(k.place, k.motion, time, k.mesh.matrix);
 
@@ -517,9 +610,14 @@ export function createLookdevView(renderer, cfg, opts = {}) {
       if (atelier) {
         // 工房：向きはシムのカメラのまま、距離だけ形の大きさに合わせる（開発用の見本。遊びの場面では使わない）
         const c = cameraView.three;
-        c.getWorldDirection(camDir);
+        if (opts.atelierView) {
+          // 視点を固定（&view=横の向き,縦の向き。度）：撮影で毎コマ同じ角度から見るため
+          const f = forwardYawPitch(opts.atelierView[0], opts.atelierView[1]);
+          camDir.set(f[0], f[1], f[2]);
+        } else c.getWorldDirection(camDir);
         const d = atelierFrame.r * S.atelier.distMul;
         c.position.set(x - camDir.x * d, y + atelierFrame.y - camDir.y * d, z - camDir.z * d);
+        c.lookAt(x, y + atelierFrame.y, z);
         c.updateMatrixWorld();
       }
       const q = renderer.quality;
@@ -538,6 +636,7 @@ export function createLookdevView(renderer, cfg, opts = {}) {
       for (const d of detailCache.values()) d.dispose();
       detailCache.clear();
       post.dispose();
+      faceTex?.dispose();
     },
   };
 }

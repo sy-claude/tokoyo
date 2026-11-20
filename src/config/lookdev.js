@@ -7,6 +7,8 @@ export const lookdev = {
   // ---- 塗り（材質） ----
   mottleRatio: { v: 0.62, min: 0, max: 1, step: 0.01, desc: '水彩の色むらの強さ' },
   rimRatio: { v: 0.55, min: 0, max: 2, step: 0.05, desc: '逆光の縁の光の強さ' },
+  heroMottleRatio: { v: 0.5, min: 0, max: 1, step: 0.05, desc: '主人公の服の色むらの強さ（場面の色むらに対する比）' },
+  heroTexScaleMul: { v: 2.5, min: 0.5, max: 8, step: 0.1, desc: '主人公の服の質感の模様の細かさ（場面に対する倍率。大きいほど細かい）' },
   wetRatio: { v: 0.5, min: 0, max: 1, step: 0.05, desc: '濡れた石の映り込みの強さ' },
   paveCellM: { v: 1.05, min: 0.4, max: 3, step: 0.05, desc: '敷石1枚の大きさ（m）' },
   shadowRatio: { v: 0.85, min: 0, max: 1, step: 0.05, desc: '置き影の濃さ' },
@@ -34,8 +36,6 @@ export const lookdev = {
   // ---- 風・動き ----
   windM: { v: 0.2, min: 0, max: 1, step: 0.01, desc: '風で草の先が動く幅（m）' },
   windHz: { v: 1.5, min: 0, max: 6, step: 0.1, desc: '風の揺れの速さ' },
-  walkSwingDeg: { v: 26, min: 0, max: 60, step: 1, desc: '歩きの脚の振り（deg）' },
-  walkStepHz: { v: 2.3, min: 0.5, max: 5, step: 0.1, desc: '歩きの歩調（1秒あたりの往復）' },
   // ---- 空・海 ----
   sunRadiusDeg: { v: 3.2, min: 0.5, max: 10, step: 0.1, desc: '夕日の見かけの半径（deg）' },
   cloudRatio: { v: 0.85, min: 0, max: 1, step: 0.01, desc: '雲の量' },
@@ -96,5 +96,10 @@ export const lookdev = {
   leafCount: { v: { high: 70, mid: 40, low: 16 }, desc: '舞う葉の数' },
   meshDetailMul: { v: { high: 1, mid: 0.8, low: 0.6 }, desc: '形の細かさ（円や球の分割数に掛ける。スマホ向けに三角形を減らす）' },
   scatterMul: { v: { high: 1, mid: 0.8, low: 0.5 }, desc: '散らす岩・茂みの数（倍）' },
+  // ---- 形の三角形の上限（docs/11_assets §5。単体テスト lookdevTriBudget で検査。影の図の分は含まない） ----
+  budgetHeroTriCount: { v: 12000, min: 1000, max: 50000, step: 100, desc: '祓人1体（武器を除く）の三角形の上限' },
+  budgetWeaponTriCount: { v: 2000, min: 100, max: 10000, step: 100, desc: '武器の三角形の上限' },
+  budgetPropTriCount: { v: 3000, min: 100, max: 20000, step: 100, desc: '小道具1種の三角形の上限（鳥居は依頼者の判断待ちのため対象外）' },
+  budgetSmallEnemyTriCount: { v: 6000, min: 500, max: 30000, step: 100, desc: '小型の敵1体の三角形の上限' },
   bloomDivCount: { v: 4, min: 2, max: 8, step: 1, desc: '光のにじみの解像度（画面の何分の1か）' },
 };

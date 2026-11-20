@@ -1,5 +1,5 @@
 // 形の記述（src/data/lookdev/models.js の部品の表）→ 1つにまとめたジオメトリ。
-// 部品：box・cyl・sph・lathe・tube・loft・ribbon・fan・group・ref。色は THREE.Color を通す（不変条件10）。
+// 部品：box・cyl・sph・lathe・tube・loft・ribbon・fan・rope（撚った縄）・group・ref。色は THREE.Color を通す（不変条件10）。
 // 頂点の属性：position・normal・color・aFx（苔, 塗りのはげ, 石畳, 発光）・aAnim（動きの種類, 重み）。
 import {
   BoxGeometry, BufferAttribute, BufferGeometry, CatmullRomCurve3, Color, CylinderGeometry, Euler, LatheGeometry,
@@ -11,6 +11,8 @@ import { createRng } from '../../core/rng.js';
 import { BYTE_MAX, HALF, N3, N4, SEG_DEFAULT, TAU } from './consts.js';
 
 const ZERO4 = [0, 0, 0, 0];
+/** しわの谷で、筋を引き始める所（谷の中心からの近さ 0〜1）。形の作り方の定数 */
+const FOLD_LINE_FROM = 0.6; // num-ok: 谷の芯の範囲（形の作り方の定数）
 const ONE3 = [1, 1, 1];
 const ZERO3 = [0, 0, 0];
 
@@ -89,6 +91,7 @@ function loftGeometry(p) {
   const rings = p.n ?? st.length * N3;
   const seg = p.seg ?? SEG_DEFAULT;
   const side = v3(p.side ?? [1, 0, 0]);
+  const arc = p.arc ?? null; // 開いた筒（V5）：[始まり, 終わり]（度）。前の開いた羽織など。ふたは付けない
   const pos = [];
   const uv = [];
   const idx = [];
@@ -105,7 +108,7 @@ function loftGeometry(p) {
     A.copy(side).addScaledVector(tan, -side.dot(tan)).normalize();
     B.crossVectors(tan, A);
     for (let j = 0; j <= seg; j++) {
-      const a = (j / seg) * TAU;
+      const a = arc ? (arc[0] + ((arc[1] - arc[0]) * j) / seg) * DEG2RAD : (j / seg) * TAU;
       const ca = Math.cos(a) * Math.max(r.x, 0);
       const sa = Math.sin(a) * Math.max(r.y, 0);
       pos.push(c.x + A.x * ca + B.x * sa, c.y + A.y * ca + B.y * sa, c.z + A.z * ca + B.z * sa);
@@ -117,7 +120,7 @@ function loftGeometry(p) {
     }
   }
   // 両端のふた
-  for (const end of [0, rings - 1]) {
+  for (const end of arc ? [] : [0, rings - 1]) {
     centers.getPoint(end === 0 ? 0 : 1, c);
     const center = pos.length / N3;
     pos.push(c.x, c.y, c.z);
@@ -133,13 +136,23 @@ function loftGeometry(p) {
   g.setAttribute('uv', new BufferAttribute(new Float32Array(uv), 2));
   g.setIndex(idx);
   g.computeVertexNormals();
+  g.userData.seg = seg;
+  g.userData.rings = rings;
   return g;
 }
 
 /** 部品1つ → three のジオメトリ（局所座標）。segMul＝円周の分割数に掛ける倍率（品質ごと）。ひだのある形は山の数を保つ。 */
 function shapeGeometry(p0, segMul) {
-  const p = segMul === 1 || p0.seg === undefined || p0.flute ? p0 : { ...p0, seg: Math.max(N4, Math.round(p0.seg * segMul)) };
+  // 品質ごとの細かさ：円周の分割（ひだのある形は山の数を保つため変えない）と、管（loft）の道のりの輪の数を減らす
+  let p = p0;
+  if (segMul !== 1) {
+    p = { ...p0 };
+    if (p0.seg !== undefined && !p0.flute) p.seg = Math.max(N4, Math.round(p0.seg * segMul));
+    if (p0.s === 'loft' && p0.n !== undefined) p.n = Math.max(p0.st.length, Math.round(p0.n * segMul));
+  }
   switch (p.s) {
+    case 'geom':
+      return p.geom.clone(); // 描画側で作った形（しわの墨線など）
     case 'box': {
       const extra = p.bevel ? 2 : 0; // 面取りは各辺の両端に1区画ずつ足して作る
       const g = new BoxGeometry(p.size[0], p.size[1], p.size[2], (p.segs?.[0] ?? 1) + extra, (p.segs?.[1] ?? 1) + extra, (p.segs?.[2] ?? 1) + extra);
@@ -295,6 +308,127 @@ function grooveGeometry(g, grooves) {
   g.computeVertexNormals();
 }
 
+/** 面の向きは作り方で内向きにも外向きにもなる（管 loft は内向き）。形の中心から見て外向きなら 1、内向きなら -1。 */
+function outwardSign(g) {
+  const pos = g.attributes.position;
+  const nor = g.attributes.normal;
+  g.computeBoundingBox();
+  const mid = g.boundingBox.getCenter(new Vector3());
+  let facing = 0;
+  for (let i = 0; i < pos.count; i++) {
+    facing += (pos.getX(i) - mid.x) * nor.getX(i) + (pos.getY(i) - mid.y) * nor.getY(i) + (pos.getZ(i) - mid.z) * nor.getZ(i);
+  }
+  return facing < 0 ? -1 : 1;
+}
+
+/**
+ * しわの墨線（V5）：谷（深さが正）の芯に沿って、布の表面に貼りつく細い帯を作る。管（loft）の頂点の並び（輪×(seg+1)）を使う。
+ * 帯は谷の両端へ向けて細くなる。ink＝[幅(m), 浮かせる量(m), 引く谷の最短の長さ(道のりの比。省くと全部)]
+ */
+function foldInkGeometry(g, folds, ink) {
+  const pos = g.attributes.position;
+  const nor = g.attributes.normal;
+  const uv = g.attributes.uv;
+  const seg = g.userData.seg;
+  const rings = g.userData.rings;
+  if (!seg || !rings) return null;
+  const out = outwardSign(g);
+  const [width, lift, minLen = 0] = ink;
+  const P2 = [];
+  const N2 = [];
+  const UV2 = [];
+  const I2 = [];
+  const a = new Vector3();
+  const b = new Vector3();
+  const na = new Vector3();
+  const nb = new Vector3();
+  const side = new Vector3();
+  const at = (r, j, target, ntarget) => {
+    const k = r * (seg + 1) + j;
+    target.fromBufferAttribute(pos, k);
+    ntarget.fromBufferAttribute(nor, k);
+  };
+  for (const [u0, , depth, v0, v1, peak = HALF] of folds) {
+    if (depth <= 0 || v1 - v0 < minLen) continue;
+    const start = P2.length / N3;
+    let count = 0;
+    for (let r = 0; r < rings; r++) {
+      const t = uv.getY(r * (seg + 1));
+      if (t < v0 || t > v1) continue;
+      if (r % 2 === 1 && r < rings - 1) continue; // 筋は輪を1つおきに拾う（ほぼまっすぐなので形は変わらず、三角形が半分）
+      const s = (t - v0) / Math.max(v1 - v0, Number.EPSILON);
+      const along = s < peak ? s / Math.max(peak, Number.EPSILON) : (1 - s) / Math.max(1 - peak, Number.EPSILON);
+      const f = u0 * seg;
+      const j0 = Math.min(seg - 1, Math.max(0, Math.floor(f)));
+      const w = f - j0;
+      at(r, j0, a, na);
+      at(r, j0 + 1, b, nb);
+      side.copy(b).sub(a).normalize();
+      const c = a.clone().lerp(b, w);
+      const n = na.lerp(nb, w).normalize().multiplyScalar(out);
+      c.addScaledVector(n, lift);
+      const half = width * HALF * Math.sin(Math.min(1, along) * HALF * Math.PI);
+      P2.push(c.x - side.x * half, c.y - side.y * half, c.z - side.z * half, c.x + side.x * half, c.y + side.y * half, c.z + side.z * half);
+      N2.push(n.x, n.y, n.z, n.x, n.y, n.z);
+      UV2.push(0, t, 1, t);
+      if (count > 0) {
+        const q = start + (count - 1) * 2;
+        I2.push(q, q + 2, q + 1, q + 1, q + 2, q + N3);
+      }
+      count++;
+    }
+  }
+  if (I2.length === 0) return null;
+  const lg = new BufferGeometry();
+  lg.setAttribute('position', new BufferAttribute(new Float32Array(P2), N3));
+  lg.setAttribute('normal', new BufferAttribute(new Float32Array(N2), N3));
+  lg.setAttribute('uv', new BufferAttribute(new Float32Array(UV2), 2));
+  lg.setIndex(I2);
+  return lg;
+}
+
+/**
+ * 布のしわ（V5）：管（loft）の面の上で、場所を uv（u＝周り 0〜1、v＝道のり 0〜1）で指定して、面を法線の向きへ押し込む（谷）／盛り上げる（山）。
+ * folds＝[[u, 幅(u), 深さ(m。正＝谷、負＝山), v0, v1, 一番深い所(0〜1。省くと真ん中)], …]。部品の foldLine＝谷の芯の筋の濃さ（0〜）
+ * 谷は細い V 字、山はなだらか。谷を暗く・山を明るく塗る（ao）。周りの向き u は継ぎ目をまたいでよい。
+ */
+function foldGeometry(g, folds, lineRatio = 0) {
+  const pos = g.attributes.position;
+  const nor = g.attributes.normal;
+  const uv = g.attributes.uv;
+  if (!uv) return;
+  const ao = g.attributes.ao ? g.attributes.ao.array : new Float32Array(pos.count);
+  let maxDepth = Number.EPSILON;
+  for (const f of folds) maxDepth = Math.max(maxDepth, Math.abs(f[2]));
+  const out = outwardSign(g);
+  for (let i = 0; i < pos.count; i++) {
+    const u = uv.getX(i);
+    const t = uv.getY(i);
+    let d = 0;
+    let shade = 0; // 塗り：谷の暗い帯は形のくぼみより広く取る（細い谷は1頂点しか沈まず、色が見えないため）
+    for (const [u0, w, depth, v0, v1, peak = HALF] of folds) {
+      if (t < v0 || t > v1) continue;
+      let du = Math.abs(u - u0);
+      du = Math.min(du, 1 - du);
+      if (du >= w) continue;
+      const k = 1 - du / w;
+      const across = depth > 0 ? k * k : k * k * (N3 - 2 * k);
+      const s = (t - v0) / Math.max(v1 - v0, Number.EPSILON);
+      const a = s < peak ? s / Math.max(peak, Number.EPSILON) : (1 - s) / Math.max(1 - peak, Number.EPSILON);
+      const along = Math.sin(Math.min(1, a) * HALF * Math.PI);
+      d += depth * across * along;
+      // 谷：広く淡い陰と、芯の細く濃い筋（墨の線のように見せる。lineRatio＝筋の濃さ）
+      shade += depth * (depth > 0 ? k + lineRatio * Math.max(0, (k - FOLD_LINE_FROM) / (1 - FOLD_LINE_FROM)) : across) * along;
+    }
+    if (d === 0) continue;
+    const push = d * out;
+    pos.setXYZ(i, pos.getX(i) - nor.getX(i) * push, pos.getY(i) - nor.getY(i) * push, pos.getZ(i) - nor.getZ(i) * push);
+    ao[i] -= shade / maxDepth;
+  }
+  g.setAttribute('ao', new BufferAttribute(ao, 1));
+  g.computeVertexNormals();
+}
+
 /** 反り（鳥居の笠木）：両端ほど上へ持ち上げる。 */
 function bendGeometry(g, bendY, halfLen) {
   const pos = g.attributes.position;
@@ -359,7 +493,7 @@ function jitterGeometry(g, amount, freq, seed, oct) {
 
 /**
  * 部品の表をためて、最後に1つのジオメトリにする。
- * @param {{models?:Record<string, any>, palette?:Record<string, any>, aoGain?:number, segMul?:number}} [lib] ref で引く部品の表と、色の名前の表
+ * @param {{models?:Record<string, any>, palette?:Record<string, any>, aoGain?:number, segMul?:number, faceOf?:(name:string)=>any, boneIndex?:(name:string)=>number}} [lib] ref で引く部品の表と、色の名前の表
  */
 export function createBuilder(lib = {}) {
   /** @type {number[]} */ const P = [];
@@ -368,6 +502,8 @@ export function createBuilder(lib = {}) {
   /** @type {number[]} */ const F = [];
   /** @type {number[]} */ const A = [];
   /** @type {number[]} */ const I = [];
+  /** 頂点ごとの骨の番号（剛体スキン。lib.boneIndex があるときだけ使う） @type {number[]} */ const B = [];
+  /** 顔の絵を貼る頂点（V5）：[頂点の番号, u, v, 濃さ] を並べる。ほかの頂点は 0 @type {number[]} */ const FACE = [];
   const colorCache = new Map();
   const color = (name) => {
     let c = colorCache.get(name);
@@ -383,22 +519,46 @@ export function createBuilder(lib = {}) {
 
   /**
    * @param {any} p 部品 @param {Matrix4} parent 親の行列
-   * @param {{col?:string, fx?:number[], anim?:number[]}} [inherit]
+   * @param {{col?:string, fx?:number[], anim?:number[], bone?:string}} [inherit]
    */
   function add(p, parent = new Matrix4(), inherit = {}) {
     const m = parent.clone().multiply(partMatrix(p));
-    const inh = { col: p.col ?? inherit.col, fx: p.fx ?? inherit.fx, anim: p.anim ?? inherit.anim };
+    const inh = { col: p.col ?? inherit.col, fx: p.fx ?? inherit.fx, anim: p.anim ?? inherit.anim, bone: p.bone ?? inherit.bone };
     if (p.s === 'group' || p.s === 'ref') {
       const parts = p.s === 'ref' ? lib.models?.[p.model]?.parts : p.parts;
       if (!parts) throw new Error(`lookdev: 部品の表が無い ${p.model}`);
-      const sub = p.s === 'ref' ? { fx: inh.fx, anim: inh.anim } : inh;
+      const sub = p.s === 'ref' ? { fx: inh.fx, anim: inh.anim, bone: inh.bone } : inh;
       for (const q of parts) add(q, m, sub);
+      return;
+    }
+    if (p.s === 'rope') {
+      // 撚った縄（V5）：道のりに沿って、細い縄を strands 本、螺旋に巻いた管として作る。twist＝[本数, 1m あたりの巻き数, 中心からのずれ(半径比), 1本の太さ(半径比)]
+      const curve = new CatmullRomCurve3(p.path.map(v3), p.closed === true);
+      const n = Math.max(N4, Math.round((p.seg ?? SEG_DEFAULT * N4) * (lib.segMul ?? 1)));
+      const frames = curve.computeFrenetFrames(n, p.closed === true);
+      const len = curve.getLength();
+      const [strands, turnsPerM, offRatio, strandRatio] = p.twist;
+      const c = new Vector3();
+      for (let k = 0; k < strands; k++) {
+        const pts = [];
+        for (let i = 0; i <= n; i++) {
+          const t = i / n;
+          curve.getPointAt(t, c);
+          const a = TAU * (k / strands + t * len * turnsPerM);
+          const nn = frames.normals[i];
+          const bn = frames.binormals[i];
+          const off = p.r * offRatio;
+          pts.push([c.x + (nn.x * Math.cos(a) + bn.x * Math.sin(a)) * off, c.y + (nn.y * Math.cos(a) + bn.y * Math.sin(a)) * off, c.z + (nn.z * Math.cos(a) + bn.z * Math.sin(a)) * off]);
+        }
+        add({ s: 'tube', path: pts, r: p.r * strandRatio, seg: n, rseg: p.rseg ?? N4 + 2, col: p.col, col2: p.col2, fx: p.fx, anim: p.anim }, m, inh);
+      }
       return;
     }
     let g = shapeGeometry(p, lib.segMul ?? 1);
     if (p.chisel) chiselGeometry(g, p.chisel);
     if (p.flute) fluteGeometry(g, p.flute);
     if (p.grooves) grooveGeometry(g, p.grooves);
+    if (p.folds) foldGeometry(g, p.folds, p.foldLine ?? 0);
     if (p.bendY) bendGeometry(g, p.bendY, p.size[0] * HALF);
     if (p.jitter) {
       jitterGeometry(g, p.jitter, p.jfreq ?? 1, p.seed ?? 1, p.joct ?? N3);
@@ -407,6 +567,13 @@ export function createBuilder(lib = {}) {
     if (p.flat) {
       g = g.toNonIndexed();
       g.computeVertexNormals();
+    }
+    if (p.folds && p.foldInk) {
+      const lg = foldInkGeometry(g, p.folds, p.foldInk);
+      if (lg) {
+        add({ s: 'geom', geom: lg, col: p.foldInkCol ?? 'ink', anim: p.anim, animGrad: p.animGrad, gradUv: true, bone: inh.bone, boneBelow: p.boneBelow }, m, inherit);
+        lg.dispose();
+      }
     }
     g.computeBoundingBox();
     const bb = g.boundingBox;
@@ -423,10 +590,27 @@ export function createBuilder(lib = {}) {
     const aoAttr = g.attributes.ao;
     const aoGain = p.ao ?? lib.aoGain ?? 0;
     const base = P.length / N3;
+    const face = p.face ? lib.faceOf?.(p.face) ?? null : null;
+    const boneId = lib.boneIndex ? lib.boneIndex(inh.bone ?? 'root') : 0;
+    // 骨の鎖（鉢巻の尾など）：帯の道のり（uv の v）で等分して順に付ける
+    // 高さで骨を分ける（羽織の裾など）：部品の座標で y より下の頂点は別の骨
+    const below = lib.boneIndex && p.boneBelow ? { y: p.boneBelow[0], id: lib.boneIndex(p.boneBelow[1]) } : null;
+    const chain = lib.boneIndex && p.boneChain ? p.boneChain.map((name) => /** @type {(n:string)=>number} */ (lib.boneIndex)(name)) : null;
     const normalM = m.clone().invert().transpose();
     for (let i = 0; i < pos.count; i++) {
       v.fromBufferAttribute(pos, i);
       const ty = (v.y - bb.min.y) / spanY;
+      const localY = v.y;
+      if (face) {
+        // 顔の絵：部品の座標で正面から平らに写す。前を向いた面だけ
+        const fu = (v.x - face.rect.x[0]) / (face.rect.x[1] - face.rect.x[0]);
+        const fv = (v.y - face.rect.y[0]) / (face.rect.y[1] - face.rect.y[0]);
+        // 面の向きの符号は部品の作り方で変わるので、前後は位置（zMin より前）で決め、濃さは面の傾きで決める
+        const front = v.z > face.rect.zMin ? Math.min(1, Math.max(0, Math.abs(nor.getZ(i)) * N4 - HALF)) : 0;
+        // 絵を貼らない頂点にも同じ座標を持たせる（濃さ0）。座標が途中で飛ぶと、境目に絵が細く縮んで写る
+        const inside = fu >= 0 && fu <= 1 && fv >= 0 && fv <= 1;
+        FACE.push(base + i, face.u0 + Math.min(1, Math.max(0, fu)) * face.size, face.v0 + Math.min(1, Math.max(0, fv)) * face.size, inside ? front : 0);
+      }
       v.applyMatrix4(m);
       P.push(v.x, v.y, v.z);
       v.fromBufferAttribute(nor, i).transformDirection(normalM);
@@ -439,6 +623,8 @@ export function createBuilder(lib = {}) {
       else F.push(fx[0], fx[1], fx[2], fx[N3]);
       const w = animGrad && uv ? animGrad[0] + (animGrad[1] - animGrad[0]) * (p.s === 'tube' ? uv.getX(i) : uv.getY(i)) : anim[1];
       A.push(anim[0], w, anim[2] ?? 0, anim[N3] ?? 0);
+      if (below && localY < below.y) B.push(below.id);
+      else B.push(chain && uv ? chain[Math.min(chain.length - 1, Math.floor(uv.getY(i) * chain.length))] : boneId);
     }
     const idx = g.index;
     if (idx) for (let i = 0; i < idx.count; i++) I.push(base + idx.getX(i));
@@ -465,6 +651,20 @@ export function createBuilder(lib = {}) {
       g.setAttribute('color', new BufferAttribute(new Float32Array(C), N3));
       g.setAttribute('aFx', new BufferAttribute(new Float32Array(F), N4));
       g.setAttribute('aAnim', new BufferAttribute(new Float32Array(A), N4));
+      const fa = new Float32Array(P.length);
+      for (let i = 0; i < FACE.length; i += N4) fa.set([FACE[i + 1], FACE[i + 2], FACE[i + N3]], FACE[i] * N3);
+      g.setAttribute('aFace', new BufferAttribute(fa, N3));
+      if (lib.boneIndex) {
+        // 剛体スキン（07 §6.1）：骨は1頂点に1本、重みは (1,0,0,0)
+        const si = new Uint16Array(B.length * N4);
+        const sw = new Float32Array(B.length * N4);
+        for (let i = 0; i < B.length; i++) {
+          si[i * N4] = B[i];
+          sw[i * N4] = 1;
+        }
+        g.setAttribute('skinIndex', new BufferAttribute(si, N4));
+        g.setAttribute('skinWeight', new BufferAttribute(sw, N4));
+      }
       g.setIndex(I);
       g.computeBoundingSphere();
       return g;
