@@ -10,6 +10,7 @@ export const lookdev = {
   heroMottleRatio: { v: 0.5, min: 0, max: 1, step: 0.05, desc: '主人公の服の色むらの強さ（場面の色むらに対する比）' },
   heroTexScaleMul: { v: 2.5, min: 0.5, max: 8, step: 0.1, desc: '主人公の服の質感の模様の細かさ（場面に対する倍率。大きいほど細かい）' },
   stoneEdgeGlowRatio: { v: 0.18, min: 0, max: 2, step: 0.05, desc: '石の上の縁（夕日の側を向く斜めの面）の暖かい光の強さ' },
+  lightKneeRatio: { v: 0.8, min: 0.5, max: 1.5, step: 0.02, desc: '明るい面の肩：この明るさより上をゆるやかに丸める（白い布が白く飛ばないように。1.5 でほぼ無効）' },
   wetRatio: { v: 0.5, min: 0, max: 1, step: 0.05, desc: '濡れた石の映り込みの強さ' },
   paveCellM: { v: 1.05, min: 0.4, max: 3, step: 0.05, desc: '敷石1枚の大きさ（m）' },
   shadowRatio: { v: 0.85, min: 0, max: 1, step: 0.05, desc: '置き影の濃さ' },
@@ -79,7 +80,7 @@ export const lookdev = {
   borderRatio: { v: 0.004, min: 0, max: 0.3, step: 0.005, desc: '周囲の紙の余白' },
   paperGrainRatio: { v: 0.22, min: 0, max: 1, step: 0.01, desc: '紙の目の強さ' },
   bloomRatio: { v: 0.4, min: 0, max: 2, step: 0.05, desc: '光のにじみの強さ' },
-  bloomThresholdRatio: { v: 0.7, min: 0, max: 1, step: 0.01, desc: '光のにじみ：これより明るい所だけ' },
+  bloomThresholdRatio: { v: 0.86, min: 0, max: 1, step: 0.01, desc: '光のにじみ：これより明るい所だけ（11/20 0.7→0.86：白い布が夕日の側でにじんで白くつぶれていた）' },
   bloomSpreadPx: { v: 2.2, min: 0.5, max: 8, step: 0.1, desc: '光のにじみの広がり（px）' },
   // ---- 品質ごとの量 ----
   postOn: { v: { high: true, mid: true, low: false }, desc: '後処理（水彩の仕上げ）を使う' },

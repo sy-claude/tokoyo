@@ -106,6 +106,7 @@ export function createLookdevView(renderer, cfg, opts = {}) {
     uFaceShift: { value: new Vector2() },
     uTexMottleMul: { value: 1 },
     uEdgeGlow: { value: 0 },
+    uKnee: { value: 1 },
   };
   // 主人公の骨組み（剛体スキン。07 §6.1・09 §8.2）。骨は humanBones の順
   const heroBoneDefs = [...humanBones, ...heroSpringBones];
@@ -500,6 +501,7 @@ export function createLookdevView(renderer, cfg, opts = {}) {
     U.uWind.value.set(L.windM, L.windHz, L.windM * HALF * HALF);
     U.uLook.value.set(L.mottleRatio, L.rimRatio, L.wetRatio, 1 / L.paveCellM);
     U.uEdgeGlow.value = L.stoneEdgeGlowRatio;
+    U.uKnee.value = L.lightKneeRatio;
     U.uTexScale.value.set(1 / L.texLargeTileM, 1 / L.texFineTileM, 1 / L.texBTileM, L.grainRatio);
     heroTexScale.value.copy(U.uTexScale.value).multiplyScalar(L.heroTexScaleMul).setW(L.grainRatio);
     heroMottle.value = L.heroMottleRatio;

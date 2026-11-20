@@ -99,6 +99,7 @@ uniform vec3 uReflCool;
 uniform vec3 uGlowCol;
 uniform vec4 uLook;   // x=色むら y=縁の光 z=濡れ w=石畳の升(1/m)
 uniform float uEdgeGlow; // 石の上の縁の暖かい光の強さ
+uniform float uKnee; // 明るい面の肩（この明るさより上をゆるやかに丸める）
 uniform vec4 uPlayer; // xyz=主人公の足元 w=置き影の濃さ
 #ifdef TERRAIN
 uniform vec3 uPath[PATH_N];    // 参道の中心線（x, z, 半幅）
@@ -316,6 +317,10 @@ void main() {
   float edgeUp = smoothstep(0.3, 0.5, Ng.y) * smoothstep(0.8, 0.6, Ng.y);
   float edgeSun = smoothstep(-0.2, 0.6, dot(normalize(Ng.xz + 1e-5), normalize(uSunDir.xz)));
   col += uRimCol * edgeUp * edgeSun * smoothstep(0.1, 0.3, stone) * uEdgeGlow * (0.4 + 0.6 * lit);
+
+  // --- 明るい面の肩：uKnee より上を、1 に近づくほどゆるやかに丸める（白い布が夕日の側で白く飛ばないように。発光の前に掛ける） ---
+  vec3 over = max(col - uKnee, 0.0);
+  col = min(col, vec3(uKnee)) + (1.0 - uKnee) * (1.0 - exp(-over / max(1.0 - uKnee, 1e-3)));
 
   // --- 発光（目・灯・裂け目） ---
   col = mix(col, vColor * 1.35, glow);
