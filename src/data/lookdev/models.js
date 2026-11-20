@@ -226,12 +226,14 @@ export const models = {
     ],
   },
   // ---- 岩（小。散らす用） ----
-  rockA: { parts: [{ s: 'sph', r: [0.9, 0.6, 0.75], seg: 18, at: [0, 0.3, 0], col: 'rock', col2: 'rockHi', fx: [0.35, 0, 1, 0], chisel: [9, 0.3, 2], jitter: 0.1, jfreq: 2.2, seed: 2, joct: 4, flat: true }] },
-  rockB: { parts: [{ s: 'sph', r: [0.7, 0.75, 0.6], seg: 18, at: [0, 0.35, 0], col: 'rockDark', col2: 'rock', fx: [0.3, 0, 1, 0], chisel: [9, 0.32, 11], jitter: 0.09, jfreq: 2.4, seed: 11, joct: 4, flat: true }] },
-  rockC: { parts: [{ s: 'sph', r: [1.5, 0.85, 1.1], seg: 20, at: [0, 0.3, 0], col: 'rock', col2: 'rockHi', fx: [0.35, 0, 1, 0], chisel: [11, 0.3, 21], jitter: 0.14, jfreq: 1.6, seed: 21, joct: 4, flat: true }] },
-  rockShore: { parts: [{ s: 'sph', r: [1.3, 1.0, 1.1], seg: 18, at: [0, 0.2, 0], col: 'rockWet', col2: 'rock', fx: [0.15, 0, 1, 0], chisel: [10, 0.32, 31], jitter: 0.14, jfreq: 1.7, seed: 31, joct: 4, flat: true }] },
-  pebbleA: { parts: [{ s: 'sph', r: [0.9, 0.6, 0.75], seg: 9, at: [0, 0.3, 0], col: 'rock', col2: 'rockHi', fx: [0.35, 0, 1, 0], jitter: 0.28, jfreq: 1.3, seed: 2, joct: 4 }] },
-  pebbleB: { parts: [{ s: 'sph', r: [0.7, 0.75, 0.6], seg: 9, at: [0, 0.35, 0], col: 'rockDark', col2: 'rockHi', fx: [0.3, 0, 1, 0], jitter: 0.25, jfreq: 1.6, seed: 11, joct: 4 }] },
+  // 岩（V5 作り直し。参考：鳥居の左下・右下手前の岩）。角ばった塊と平たい板石、大きな平面の割れ（chisel を少なく深く）、面ごとの明暗（facetTint）、
+  // 灰色の地（網目の割れは弱く。石の度合い 0.35）、上の面に苔
+  rockA: { parts: [{ s: 'sph', r: [0.9, 0.55, 0.75], seg: 16, at: [0, 0.28, 0], col: 'rockDark', col2: 'stone', fx: [0.3, 0, 0.35, 0], chisel: [7, 0.4, 2], jitter: 0.05, jfreq: 2.2, seed: 2, joct: 4, flat: true, facetTint: [0.8, 0.5], ao: 0.5 }] },
+  rockB: { parts: [{ s: 'sph', r: [0.7, 0.8, 0.6], seg: 16, at: [0, 0.36, 0], col: 'rockDark', col2: 'stone', fx: [0.25, 0, 0.35, 0], chisel: [7, 0.42, 11], jitter: 0.05, jfreq: 2.4, seed: 11, joct: 4, flat: true, facetTint: [0.8, 0.5], ao: 0.5 }] },
+  rockC: { parts: [{ s: 'sph', r: [1.5, 0.62, 1.1], seg: 18, at: [0, 0.24, 0], col: 'rockDark', col2: 'stone', fx: [0.32, 0, 0.35, 0], chisel: [8, 0.38, 21], jitter: 0.07, jfreq: 1.6, seed: 21, joct: 4, flat: true, facetTint: [0.8, 0.5], ao: 0.5 }] },
+  rockShore: { parts: [{ s: 'sph', r: [1.3, 1.0, 1.1], seg: 16, at: [0, 0.2, 0], col: 'rockWet', col2: 'rock', fx: [0.15, 0, 0.35, 0], chisel: [8, 0.38, 31], jitter: 0.08, jfreq: 1.7, seed: 31, joct: 4, flat: true, facetTint: [0.7, 0.4], ao: 0.5 }] },
+  pebbleA: { parts: [{ s: 'sph', r: [0.9, 0.6, 0.75], seg: 9, at: [0, 0.3, 0], col: 'rockDark', col2: 'stone', fx: [0.35, 0, 0.35, 0], jitter: 0.28, jfreq: 1.3, seed: 2, joct: 4 }] },
+  pebbleB: { parts: [{ s: 'sph', r: [0.7, 0.75, 0.6], seg: 9, at: [0, 0.35, 0], col: 'rockDark', col2: 'stone', fx: [0.3, 0, 0.35, 0], jitter: 0.25, jfreq: 1.6, seed: 11, joct: 4 }] },
   // ---- 茂み（枯れかけの低木・紅葉の残る低木） ----
   bush: { parts: [
     { s: 'sph', r: [0.9, 0.6, 0.8], seg: 12, at: [0, 0.45, 0], col: 'bushGreen', col2: 'bushGreenHi', jitter: 0.45, jfreq: 1.6, joct: 4, seed: 41 },
