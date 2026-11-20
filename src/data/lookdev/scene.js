@@ -69,6 +69,9 @@ export const scene = {
     hakamaLo: '#4d4440',
     obi: '#7a3f38',
     kyahan: '#d8d0c2',
+    // 草鞋と脚絆の縄（場面の枯れ草のわら色より濃く。白い脚絆・肌と見分ける）
+    waraji: '#8f7550',
+    warajiHi: '#a88b5e',
     skin: '#e3c5a9',
     hair: '#2f2a31',
     hilt: '#5c2f30',

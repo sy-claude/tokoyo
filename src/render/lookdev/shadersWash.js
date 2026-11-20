@@ -17,6 +17,10 @@ varying vec3 vNormal;
 varying vec3 vColor;
 varying vec4 vFx;
 varying vec3 vShadow;
+// 質感の模様を貼る座標と面の向き：ふつうは世界の座標。動くキャラ（LOCAL_TEX）は形の座標（骨で動かす前）で、模様が服に付いて動く
+varying vec3 vTexPos;
+varying vec3 vTexNormal;
+uniform float uTexMottleMul; // 色むらの強さに掛ける倍率（キャラの服は場面より控えめに）
 #include <skinning_pars_vertex>
 void main() {
   vec3 p = position;
@@ -50,6 +54,13 @@ void main() {
     w.xz += normalize(uWind.xz + 1e-5) * (sin(t * 0.7 + 1.3) * 0.08 + 0.05) * aAnim.y;
   }
   vWorld = w.xyz;
+#ifdef LOCAL_TEX
+  vTexPos = position;
+  vTexNormal = normal;
+#else
+  vTexPos = w.xyz;
+  vTexNormal = mat3(modelMatrix) * n;
+#endif
   vNormal = normalize(mat3(modelMatrix) * n);
   vColor = color;
   vFx = aFx;
@@ -100,6 +111,9 @@ varying vec3 vColor;
 varying vec4 vFx;
 varying vec3 vFace;
 varying vec3 vShadow;
+varying vec3 vTexPos;
+varying vec3 vTexNormal;
+uniform float uTexMottleMul;
 
 // 質感テクスチャを三方向から貼る。A は側面で「u=高さ」（筋が縦に走る）、B は「v=高さ」（垂れが縦に走る）
 vec4 triA(vec3 p, vec3 w) {
@@ -138,11 +152,11 @@ void main() {
   if (!gl_FrontFacing) N = -N;
   float flatTop = smoothstep(0.4, 0.8, N.y); // 上を向いた面（地面）
   vec3 V = normalize(cameraPosition - vWorld);
-  vec3 tw = pow(abs(N), vec3(4.0));
+  vec3 tw = pow(abs(normalize(vTexNormal)), vec3(4.0));
   tw /= tw.x + tw.y + tw.z;
-  vec4 dA = triA(vWorld * uTexScale.x, tw);
-  vec4 dF = triA(vWorld * uTexScale.y + 0.37, tw);
-  vec4 dB = triB(vWorld * uTexScale.z, tw);
+  vec4 dA = triA(vTexPos * uTexScale.x, tw);
+  vec4 dF = triA(vTexPos * uTexScale.y + 0.37, tw);
+  vec4 dB = triB(vTexPos * uTexScale.z, tw);
   vec3 base = vColor;
   float stone = vFx.z;
   float glow = vFx.w;
@@ -238,16 +252,17 @@ void main() {
   base *= 1.0 + (dF.a - 0.5) * uShadow.w;
   // 墨線：木目・布のしわ。筋の暗い谷だけを細い線にする（石と発光する所には引かない）
   float gl = smoothstep(0.2, 0.08, dF.a) * (0.55 + 0.45 * smoothstep(0.35, 0.65, dA.r));
-  base = mix(base, base * uCrackCol * 1.6, gl * uInk.y * (1.0 - stone) * (1.0 - glow));
+  base = mix(base, base * uCrackCol * 1.6, gl * uInk.y * uTexMottleMul * (1.0 - stone) * (1.0 - glow));
 
   // --- 水彩の色むら：大きなにじみ。暗い所は紫へ、明るい所は暖色へ寄る ---
+  float mottK = uLook.x * uTexMottleMul;
   float mott = (dA.r - 0.5) * 1.1 + (dF.r - 0.5) * 0.6;
-  base *= 1.0 + mott * uLook.x;
-  base = mix(base, base * vec3(0.90, 0.86, 1.10), smoothstep(0.55, 0.85, dA.r) * uLook.x);
-  base = mix(base, base * vec3(1.10, 1.02, 0.86), smoothstep(0.45, 0.15, dA.r) * uLook.x);
+  base *= 1.0 + mott * mottK;
+  base = mix(base, base * vec3(0.90, 0.86, 1.10), smoothstep(0.55, 0.85, dA.r) * mottK);
+  base = mix(base, base * vec3(1.10, 1.02, 0.86), smoothstep(0.45, 0.15, dA.r) * mottK);
 
   // 筆のむら：面の向きを少し乱して、陰影が筆触のように割れる
-  N = normalize(N + (vec3(dF.r, dF.g, dA.r) - 0.5) * 0.6);
+  N = normalize(N + (vec3(dF.r, dF.g, dA.r) - 0.5) * 0.6 * uTexMottleMul);
 
   // --- 顔の絵（目・眉・口）：色むらを掛けた後に重ねる。線はむらで薄れない ---
   if (vFace.z > 0.01) {

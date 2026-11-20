@@ -7,6 +7,8 @@ export const lookdev = {
   // ---- 塗り（材質） ----
   mottleRatio: { v: 0.62, min: 0, max: 1, step: 0.01, desc: '水彩の色むらの強さ' },
   rimRatio: { v: 0.55, min: 0, max: 2, step: 0.05, desc: '逆光の縁の光の強さ' },
+  heroMottleRatio: { v: 0.5, min: 0, max: 1, step: 0.05, desc: '主人公の服の色むらの強さ（場面の色むらに対する比）' },
+  heroTexScaleMul: { v: 2.5, min: 0.5, max: 8, step: 0.1, desc: '主人公の服の質感の模様の細かさ（場面に対する倍率。大きいほど細かい）' },
   wetRatio: { v: 0.5, min: 0, max: 1, step: 0.05, desc: '濡れた石の映り込みの強さ' },
   paveCellM: { v: 1.05, min: 0.4, max: 3, step: 0.05, desc: '敷石1枚の大きさ（m）' },
   shadowRatio: { v: 0.85, min: 0, max: 1, step: 0.05, desc: '置き影の濃さ' },

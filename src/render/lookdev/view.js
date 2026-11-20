@@ -45,6 +45,8 @@ export function createLookdevView(renderer, cfg, opts = {}) {
   const terrain = createTerrain(S.terrain, S.path);
   const post = createPost(cfg, S);
   const camDir = new Vector3();
+  const heroMottle = { value: 1 };
+  const heroTexScale = { value: new Vector4() };
   const sun = new Vector3(S.sunDir[0], S.sunDir[1], S.sunDir[2]).normalize();
   /** @type {{dispose:()=>void}[]} */
   let disposables = [];
@@ -101,6 +103,7 @@ export function createLookdevView(renderer, cfg, opts = {}) {
     uInk: { value: new Vector4() },
     uFaceTex: { value: /** @type {any} */ (null) },
     uFaceShift: { value: new Vector2() },
+    uTexMottleMul: { value: 1 },
   };
   // 主人公の骨組み（剛体スキン。07 §6.1・09 §8.2）。骨は humanBones の順
   const heroBoneDefs = [...humanBones, ...heroSpringBones];
@@ -319,7 +322,8 @@ export function createLookdevView(renderer, cfg, opts = {}) {
     heroBoneDefs.forEach((d, i) => {
       if (d.parent) heroBones[boneIndex.get(d.parent) ?? 0].add(heroBones[i]);
     });
-    hero = new SkinnedMesh(heroGeo, washMaterial(baseDefines, {}));
+    // 主人公：模様は形の座標で貼る（歩いても服の上を滑らない）。色むらは控えめ、模様は細かく
+    hero = new SkinnedMesh(heroGeo, washMaterial({ ...baseDefines, LOCAL_TEX: 1 }, { uTexMottleMul: heroMottle, uTexScale: heroTexScale }));
     hero.frustumCulled = false;
     hero.add(heroBones[0]);
     hero.updateMatrixWorld(true);
@@ -494,6 +498,8 @@ export function createLookdevView(renderer, cfg, opts = {}) {
     U.uWind.value.set(L.windM, L.windHz, L.windM * HALF * HALF);
     U.uLook.value.set(L.mottleRatio, L.rimRatio, L.wetRatio, 1 / L.paveCellM);
     U.uTexScale.value.set(1 / L.texLargeTileM, 1 / L.texFineTileM, 1 / L.texBTileM, L.grainRatio);
+    heroTexScale.value.copy(U.uTexScale.value).multiplyScalar(L.heroTexScaleMul).setW(L.grainRatio);
+    heroMottle.value = L.heroMottleRatio;
     U.uInk.value.set(L.inkCrackRatio, L.inkGrainRatio, L.paveJointM, 0);
     m.skyMat.uniforms.uSky.value.set(L.sunRadiusDeg * DEG2RAD, 0, 0, 0);
     m.seaMat.uniforms.uSea.value.set(L.seaSpeedRatio, L.seaGlitterRatio, L.seaFoamRatio, L.seaLaneRatio);
