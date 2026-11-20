@@ -98,6 +98,7 @@ uniform vec3 uReflWarm;
 uniform vec3 uReflCool;
 uniform vec3 uGlowCol;
 uniform vec4 uLook;   // x=色むら y=縁の光 z=濡れ w=石畳の升(1/m)
+uniform float uEdgeGlow; // 石の上の縁の暖かい光の強さ
 uniform vec4 uPlayer; // xyz=主人公の足元 w=置き影の濃さ
 #ifdef TERRAIN
 uniform vec3 uPath[PATH_N];    // 参道の中心線（x, z, 半幅）
@@ -150,6 +151,7 @@ float blobShadow(vec2 p, vec2 c, float r, float len, vec2 dir) {
 void main() {
   vec3 N = normalize(vNormal);
   if (!gl_FrontFacing) N = -N;
+  vec3 Ng = N; // 形そのものの面の向き（筆のむらで乱す前）
   float flatTop = smoothstep(0.4, 0.8, N.y); // 上を向いた面（地面）
   vec3 V = normalize(cameraPosition - vWorld);
   vec3 tw = pow(abs(normalize(vTexNormal)), vec3(4.0));
@@ -310,6 +312,10 @@ void main() {
   // --- 縁の光（逆光の輪郭が橙に光る） ---
   float rim = pow(1.0 - abs(dot(N, V)), 3.0) * smoothstep(-0.2, 0.6, dot(-V, normalize(uSunDir)));
   col += uRimCol * rim * uLook.y * smoothstep(-0.3, 0.4, ndl + 0.3) * (0.4 + 0.6 * lit) * (1.0 - flatTop);
+  // 石の上の縁（上と横の間の斜めの面）で、夕日の側を向くものが暖かく光る（参考の岩・灯籠・石段の縁）
+  float edgeUp = smoothstep(0.3, 0.5, Ng.y) * smoothstep(0.8, 0.6, Ng.y);
+  float edgeSun = smoothstep(-0.2, 0.6, dot(normalize(Ng.xz + 1e-5), normalize(uSunDir.xz)));
+  col += uRimCol * edgeUp * edgeSun * smoothstep(0.1, 0.3, stone) * uEdgeGlow * (0.4 + 0.6 * lit);
 
   // --- 発光（目・灯・裂け目） ---
   col = mix(col, vColor * 1.35, glow);
