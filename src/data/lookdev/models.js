@@ -45,7 +45,7 @@ const HAORI_HEM = [0.9, 'hemB'];
 
 /** 毛束（平たい房）：根元 → 中ほど → 毛先 の3点を通る。w＝幅（m）、side＝房の幅の向き。 */
 // 石凝神の岩1つ（割れた平らな面・面ごとの明暗・苔）。r＝半径 [x, y, z]、at＝位置、seed＝割れ方の種
-const bossRock = (r, at, seed) => ({ s: 'sph', r, seg: 14, at, col: 'bossRockLo', col2: 'bossRock', fx: [0.6, 0, 0.35, 0], chisel: [10, 0.38, seed], jitter: 0.05, jfreq: 1.8, seed, joct: 3, flat: true, facetTint: [0.7, 0.5], ao: 0.5 });
+const bossRock = (r, at, seed) => ({ s: 'sph', r: r.map((v) => v * 1.08), seg: 14, at, col: 'bossRockLo', col2: 'bossRock', fx: [0.6, 0, 0.35, 0], chisel: [14, 0.3, seed], jitter: 0.05, jfreq: 1.8, seed, joct: 3, flat: true, facetTint: [0.7, 0.5], ao: 0.5 });
 // 水平な輪の道のり（8点。注連縄の輪）。中心 (cx, cy, cz)、半径 rx・rz
 const ring = (cx, cy, cz, rx, rz) => [0, 1, 2, 3, 4, 5, 6, 7].map((i) => [cx + rx * Math.cos((i * Math.PI) / 4), cy, cz + rz * Math.sin((i * Math.PI) / 4)]);
 const lock = (a, b, c, w, side = [1, 0, 0]) => ({
@@ -380,41 +380,46 @@ export const models = {
     parts: [
       // 平たい石の台座
       { s: 'cyl', r: [1.85, 1.95], h: 0.6, seg: 16, at: [0, 0, 0], scale: [1, 1, 0.8], col: 'bossRockLo', col2: 'bossRock', fx: [0.4, 0, 0.35, 0], jitter: 0.05, jfreq: 1.5, seed: 61, flat: true, facetTint: [0.6, 0.6], ao: 0.4 },
-      // 脚：足・すね・太もも（左右）
+      // 脚：足（大きな素足と指の岩）・すね・太もも（2つの岩）。短く太い
       ...[1, -1].map((k) => [
-        bossRock([0.48, 0.3, 0.7], [0.78 * k, 0.88, 0.22], 70 + k),
-        bossRock([0.6, 0.62, 0.6], [0.78 * k, 1.8, 0.0], 72 + k),
-        bossRock([0.74, 0.8, 0.72], [0.76 * k, 3.0, 0.0], 74 + k),
+        bossRock([0.56, 0.32, 0.8], [0.8 * k, 0.9, 0.25], 70 + k),
+        ...[-0.25, 0, 0.25].map((dx, i) => bossRock([0.13, 0.11, 0.14], [0.8 * k + dx, 0.72, 1.0 - 0.06 * Math.abs(i - 1)], 100 + i + k)),
+        bossRock([0.66, 0.62, 0.64], [0.8 * k, 1.78, 0.0], 72 + k),
+        bossRock([0.8, 0.74, 0.78], [0.78 * k, 2.92, 0.0], 74 + k),
+        bossRock([0.62, 0.42, 0.62], [0.7 * k, 3.55, 0.06], 76 + k),
       ]).flat(),
-      // 胴：横長の腰岩、丸い大きな胸岩
-      bossRock([1.38, 0.66, 1.05], [0, 4.25, 0.05], 80),
-      bossRock([1.3, 1.12, 1.1], [0, 5.85, 0.1], 81),
-      // 肩の岩、離れて浮く前腕と拳（太ももの高さまで垂れる）
+      // 胴：横長の腰岩、丸い大きな胸岩と、胸の上の岩・背中の岩（岩どうしはほぼ接する）
+      bossRock([1.48, 0.72, 1.12], [0, 4.3, 0.05], 80),
+      bossRock([1.35, 1.15, 1.15], [0, 5.85, 0.1], 81),
+      ...[1, -1].map((k) => bossRock([0.72, 0.5, 0.62], [0.6 * k, 6.55, 0.38], 92 + k)),
+      ...[1, -1].map((k) => bossRock([0.82, 0.92, 0.62], [0.55 * k, 6.0, -0.58], 94 + k)),
+      // 肩の岩と上腕、離れて浮く前腕と拳（頭より大きく、太ももの高さ）
       ...[1, -1].map((k) => [
-        bossRock([0.82, 0.74, 0.78], [1.7 * k, 6.2, 0.0], 84 + k),
-        bossRock([0.62, 0.78, 0.62], [2.15 * k, 4.75, 0.05], 86 + k),
-        bossRock([0.62, 0.56, 0.66], [2.15 * k, 3.6, 0.12], 88 + k),
+        bossRock([0.92, 0.8, 0.86], [1.78 * k, 6.25, 0.0], 84 + k),
+        bossRock([0.7, 0.56, 0.7], [1.98 * k, 5.5, 0.0], 96 + k),
+        bossRock([0.7, 0.85, 0.7], [2.22 * k, 4.5, 0.05], 86 + k),
+        bossRock([0.74, 0.68, 0.8], [2.22 * k, 3.3, 0.15], 88 + k),
       ]).flat(),
       // 頂の顔岩（閉じた目・太い眉・への字の口は顔の絵 faces.boss）と鼻
       { s: 'sph', r: [0.46, 0.55, 0.48], seg: 16, at: [0, 7.4, 0.25], col: 'bossRockLo', col2: 'bossRock', fx: [0.35, 0, 0.3, 0], chisel: [5, 0.12, 91], jitter: 0.02, jfreq: 3, seed: 91, ao: 0.4, face: 'boss' },
       { s: 'sph', r: [0.08, 0.16, 0.09], seg: 10, at: [0, 7.36, 0.7], rot: [-12, 0, 0], col: 'bossRock', col2: 'bossRockLo' },
       // 胸の中央の銅鏡（縁は青銅、面は曇った銀）
-      { s: 'cyl', r: [0.62, 0.62], h: 0.12, seg: 24, at: [0, 5.75, 1.1], rot: [90, 0, 0], col: 'bossBronzeLo', col2: 'bossBronze' },
-      { s: 'cyl', r: [0.5, 0.5], h: 0.05, seg: 24, at: [0, 5.75, 1.21], rot: [90, 0, 0], col: 'bossMirror', col2: 'bossMirrorLo' },
+      { s: 'cyl', r: [0.62, 0.62], h: 0.12, seg: 24, at: [0, 5.75, 1.22], rot: [90, 0, 0], col: 'bossBronzeLo', col2: 'bossBronze' },
+      { s: 'cyl', r: [0.5, 0.5], h: 0.05, seg: 24, at: [0, 5.75, 1.33], rot: [90, 0, 0], col: 'bossMirror', col2: 'bossMirrorLo' },
       // 注連縄：首から胸へ垂れる輪、腰、肩、手首、膝、足首
-      { s: 'rope', r: 0.1, twist: [2, 1.5, 0.5, 0.65], seg: 80, rseg: 4, closed: true, col: 'straw', col2: 'strawHi',
-        path: [[0, 6.95, -0.55], [0.62, 6.9, -0.3], [0.82, 6.65, 0.25], [0.62, 6.25, 1.05], [0, 6.05, 1.28], [-0.62, 6.25, 1.05], [-0.82, 6.65, 0.25], [-0.62, 6.9, -0.3]] },
-      { s: 'rope', r: 0.1, twist: [2, 1.5, 0.5, 0.65], seg: 80, rseg: 4, closed: true, col: 'straw', col2: 'strawHi', path: ring(0, 4.3, 0.05, 1.42, 1.1) },
-      ...[1, -1].map((k) => ({ s: 'rope', r: 0.07, twist: [2, 1.8, 0.5, 0.65], seg: 44, rseg: 4, closed: true, col: 'straw', col2: 'strawHi', path: ring(1.7 * k, 5.85, 0, 0.78, 0.74) })),
-      ...[1, -1].map((k) => ({ s: 'rope', r: 0.07, twist: [2, 1.8, 0.5, 0.65], seg: 36, rseg: 4, closed: true, col: 'straw', col2: 'strawHi', path: ring(2.15 * k, 4.05, 0.08, 0.6, 0.6) })),
-      ...[1, -1].map((k) => ({ s: 'rope', r: 0.07, twist: [2, 1.8, 0.5, 0.65], seg: 36, rseg: 4, closed: true, col: 'straw', col2: 'strawHi', path: ring(0.77 * k, 2.3, 0, 0.66, 0.64) })),
-      ...[1, -1].map((k) => ({ s: 'rope', r: 0.07, twist: [2, 1.8, 0.5, 0.65], seg: 36, rseg: 4, closed: true, col: 'straw', col2: 'strawHi', path: ring(0.78 * k, 1.22, 0, 0.6, 0.6) })),
+      { s: 'rope', r: 0.1, twist: [3, 1.5, 0.55, 0.55], seg: 80, rseg: 4, closed: true, col: 'straw', col2: 'strawHi',
+        path: [[0, 6.95, -0.55], [0.62, 6.9, -0.3], [0.82, 6.65, 0.25], [0.66, 6.3, 1.12], [0, 6.1, 1.4], [-0.66, 6.3, 1.12], [-0.82, 6.65, 0.25], [-0.62, 6.9, -0.3]] },
+      { s: 'rope', r: 0.1, twist: [3, 1.5, 0.55, 0.55], seg: 80, rseg: 4, closed: true, col: 'straw', col2: 'strawHi', path: ring(0, 4.3, 0.05, 1.55, 1.2) },
+      ...[1, -1].map((k) => ({ s: 'rope', r: 0.07, twist: [3, 1.8, 0.55, 0.55], seg: 44, rseg: 4, closed: true, col: 'straw', col2: 'strawHi', path: ring(1.88 * k, 5.85, 0, 0.82, 0.8) })),
+      ...[1, -1].map((k) => ({ s: 'rope', r: 0.07, twist: [3, 1.8, 0.55, 0.55], seg: 36, rseg: 4, closed: true, col: 'straw', col2: 'strawHi', path: ring(2.22 * k, 3.95, 0.1, 0.68, 0.7) })),
+      ...[1, -1].map((k) => ({ s: 'rope', r: 0.07, twist: [3, 1.8, 0.55, 0.55], seg: 36, rseg: 4, closed: true, col: 'straw', col2: 'strawHi', path: ring(0.79 * k, 2.3, 0, 0.74, 0.72) })),
+      ...[1, -1].map((k) => ({ s: 'rope', r: 0.07, twist: [3, 1.8, 0.55, 0.55], seg: 36, rseg: 4, closed: true, col: 'straw', col2: 'strawHi', path: ring(0.8 * k, 1.22, 0, 0.66, 0.66) })),
       // 紙垂（首の縄から胸へ2本、腰の縄から3本）
-      { s: 'ref', model: 'shide', at: [0.6, 6.3, 1.08], rot: [0, 0, 8], scale: 0.9 },
-      { s: 'ref', model: 'shide', at: [-0.75, 6.3, 1.04], rot: [0, 0, -4], scale: 0.9 },
-      { s: 'ref', model: 'shide', at: [-0.75, 4.2, 1.15], scale: 0.9 },
-      { s: 'ref', model: 'shide', at: [-0.12, 4.15, 1.17], scale: 0.9 },
-      { s: 'ref', model: 'shide', at: [0.55, 4.2, 1.15], scale: 0.9 },
+      { s: 'ref', model: 'shide', at: [0.62, 6.32, 1.16], rot: [0, 0, 8], scale: 0.9 },
+      { s: 'ref', model: 'shide', at: [-0.78, 6.32, 1.12], rot: [0, 0, -4], scale: 0.9 },
+      { s: 'ref', model: 'shide', at: [-0.8, 4.2, 1.26], scale: 0.9 },
+      { s: 'ref', model: 'shide', at: [-0.12, 4.15, 1.29], scale: 0.9 },
+      { s: 'ref', model: 'shide', at: [0.58, 4.2, 1.26], scale: 0.9 },
     ],
   },
   // ---- 千本鳥居の1基（遠景用の簡単な形） ----
