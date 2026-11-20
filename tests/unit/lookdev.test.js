@@ -98,6 +98,9 @@ test('lookdevTriBudget：主人公（本体・武器）・妖怪・大灯籠の�
   const tsuchiN = count(models.tsuchi.parts);
   assert.ok(count(models.ganjo.parts) - tsuchiN <= L.budgetHeroTriCount.v, '岩丈の本体');
   assert.ok(tsuchiN <= L.budgetWeaponTriCount.v, '大槌');
+  // 石凝神（ボス）
+  const bossN = count(models.boss.parts);
+  assert.ok(bossN <= L.budgetBossTriCount.v, `石凝神 ${bossN}`);
   // 面鬼（鬼面を含む）
   const menkiN = count(models.menki.parts);
   assert.ok(menkiN <= L.budgetLargeEnemyTriCount.v, `面鬼 ${menkiN}`);
