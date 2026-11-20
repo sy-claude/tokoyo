@@ -308,7 +308,7 @@
 | 穢狗 | root, pelvis, chest(pelvis), neck, head, jaw(head), flA/flB/flC(chest→順), frA/B/C, blA/B/C(pelvis→順), brA/B/C | tail1..5 |
 | 灯魂 | root, body, lid(body。口の上半分の蝶番), eye(lid) | tongue1..3 |
 | 唐笠 | root, leg, canopy(leg), geta(leg) | tongue1..3 |
-| 面鬼 | 人型（weapon なし）＋ mask(chest) | hemF, hemB |
+| 面鬼 | 人型（weapon なし）＋ mask(head。11/20 依頼者：顔にかぶる) | hemF, hemB |
 | 石凝神 | root, rockBase, rockWaist, rockChest, rockShoulder, head, fistL(root), fistR(root) | （紙垂はメッシュに固定） |
 
 ### 6.4 部品表
@@ -367,7 +367,7 @@
 | 穢狗（水） 体長1.1m 肩高0.6m 特徴形＝背の毛先の列 | 胸 lathe 楔形 長0.45（chest）、腰 lathe 長0.35（pelvis）、頭 cone 鼻先 r0.11 長0.32（head）、顎 box 0.08×0.03×0.22（jaw）、脚 cyl 3節 0.05→0.03、長 0.22/0.20/0.12（つま先立ち）、尾 cone ×5 節0.12（tail1..5）、毛先 cone r0.04 h0.16 ×9 を背の線に後ろへ35°（chest/pelvis） | 体 #17151a、目と口の中 elemWaterCore（加算可：暗い体の上）、毛先の先端は #3a3f5a へ |
 | 灯魂（金） 高0.9m 径0.6m 特徴形＝一つ目と裂けた口 | 胴 lathe 提灯形 r0.30（下半分 body / 上半分 lid、口の線で分割）、肋 tube 輪 ×8（各半分の骨へ）、蓋 cyl r0.16 h0.06 上下、目 cap（顔セル8）、舌 box 0.08×0.14×0.02 ×3（tongue1..3） | 上 #e2d6bb、下 #8f8066、肋・蓋 ink、舌 shuEnv。射撃の予兆中は内側の uniform `uGlow` で elemMetalCore（暗い口の中に加算） |
 | 唐笠（木） 傘径1.2m 特徴形＝破れ傘の円錐 | 傘 cone r0.6 h0.45 12分割 開き（縁の頂点をノイズで±0.06 削りぎざぎざ、canopy）、骨 box 0.01×0.01×0.6 ×12（canopy）、目 cap（顔セル9）、脚 cyl 0.05/0.04/0.7（leg）、下駄 box 0.20×0.05×0.30＋歯2（geta）、舌 box ×3 | 傘 #2e4a34 に ink のまだら（頂点色ノイズ）、骨 ink、舌 shuEnv、目の瞳 elemWoodCore |
-| 面鬼（土） 2.6m 猫背 特徴形＝幅0.8mの鬼面 | 人型 scaleMul 1.5（腕の長さ×1.4、chest を前へ20°）。衣 lathe 裾ぎざぎざ（hips から hemF/hemB）、鬼面 sphere r0.42 (1,1.1,0.45)＋角 cone ×2＋眉 box＋牙 cone ×4（mask）、面の裏の顔 cap 一つ目（顔セル10、崩れで見える） | 面 #b8862b、眉・牙 #f2ecdf、角 ink、体 #1d1a1f |
+| 面鬼（土） 2.6m 猫背 特徴形＝顔にかぶる金の鬼面と角（11/20 依頼者の判断で、胸の前に持つ幅0.8mの面から変更。参考 `design-notes/lookdev/refs/menki_*.png`。面は幅約0.4m） | 人型 scaleMul 1.5（腕の長さ×1.4、chest を前へ20°）。衣 lathe 裾ぎざぎざ（hips から hemF/hemB）、鬼面 sphere r0.42 (1,1.1,0.45)＋角 cone ×2＋眉 box＋牙 cone ×4（mask）、面の裏の顔 cap 一つ目（顔セル10、崩れで見える） | 面 #b8862b、眉・牙 #f2ecdf、角 ink、体 #1d1a1f |
 
 **石凝神（土・ボス・高8m）** 特徴形＝浮く岩の積み重ねと離れた拳
 | 部品 | 形・寸法 | 骨 | 色 |

@@ -495,6 +495,47 @@ function chiselGeometry(g, chisel) {
   g.computeVertexNormals();
 }
 
+const TATTER_MIN_RATIO = 0.3; // num-ok: 切れ端の長さの下限（一番長い切れ端に対する比。形の作り方の定数）
+const TATTER_EVERY = 3; // num-ok: 切れ端にする列の間隔（残りの列は切れ込み。切れ端どうしの間にすき間ができる。形の作り方の定数）
+/**
+ * ぼろぼろの裾（V5。面鬼の衣）：管（loft）の端の輪を、周りの列ごとに長さを変えて下（部品の −Y）へ伸ばす。
+ * 3列に1つを「切れ端」（下へ伸ばす）、残りを「切れ込み」（上へ引く）にするので、切れ端は先が尖り、間にすき間ができる。端の近くほど強く効かせる。
+ * 切れ端は道のりに沿って横へ波打たせる（墨の煙のような裾）。三角形は増えない。
+ * tatter＝[端（0＝道のりの始まり, 1＝終わり）, 効かせる帯（道のりの割合）, 一番長い切れ端(m), 切れ込みの深さ(m), 波の幅(m), 種]
+ * @param {BufferGeometry} g loft（uv の u＝周り、v＝道のり）
+ */
+function tatterGeometry(g, tatter) {
+  const [end, band, maxLen, notch, wave, seed] = tatter;
+  const seg = g.userData.seg;
+  const rng = createRng(seed);
+  const lens = [];
+  const phase = [];
+  for (let j = 0; j < seg; j++) {
+    const r = rng.float();
+    lens.push(j % TATTER_EVERY === 0 ? maxLen * (TATTER_MIN_RATIO + (1 - TATTER_MIN_RATIO) * r * r) : -notch * r);
+    phase.push(rng.float() * TAU);
+  }
+  g.computeBoundingBox();
+  const c = g.boundingBox.getCenter(new Vector3());
+  const pos = g.attributes.position;
+  const uv = g.attributes.uv;
+  const v = new Vector3();
+  for (let i = 0; i < pos.count; i++) {
+    const dv = end === 0 ? uv.getY(i) : 1 - uv.getY(i);
+    if (dv >= band) continue;
+    const j = Math.round(uv.getX(i) * seg) % seg;
+    const w = (1 - dv / band) ** 2;
+    v.fromBufferAttribute(pos, i);
+    // 横の向き（周りの接線）。切れ端の先ほど大きく波打つ
+    const tx = -(v.z - c.z);
+    const tz = v.x - c.x;
+    const tl = Math.hypot(tx, tz) || 1;
+    const s = Math.sin(w * TAU + phase[j]) * wave * w;
+    pos.setXYZ(i, v.x + (tx / tl) * s, v.y - lens[j] * w, v.z + (tz / tl) * s);
+  }
+  g.computeVertexNormals();
+}
+
 /**
  * 割れ面の塗り分け（V5）：平らな塗り（flat）の形で、面（三角形）ごとに明暗を変える。画家が割れた面を1枚ずつ塗り分けるのにならう。
  * 近い向きの面は同じ明るさになるよう、面の向きから明暗を決める（三角形ごとの乱数だと細かい市松になるため）。上を向いた面ほど明るい。
@@ -616,6 +657,7 @@ export function createBuilder(lib = {}) {
     let g = shapeGeometry(p, lib.segMul ?? 1);
     if (p.chisel) chiselGeometry(g, p.chisel);
     if (p.flute) fluteGeometry(g, p.flute);
+    if (p.tatter) tatterGeometry(g, p.tatter);
     if (p.grooves) grooveGeometry(g, p.grooves);
     if (p.cornerLift) cornerLiftGeometry(g, p.cornerLift);
     if (p.folds) foldGeometry(g, p.folds, p.foldLine ?? 0);
