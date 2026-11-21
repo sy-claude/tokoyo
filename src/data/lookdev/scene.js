@@ -468,7 +468,7 @@ export const scene = {
   shadowCenter: [-1, 1, 4],
 
   // 外部の3Dモデル（Blender で作って焼いた GLB。public/ からの相対パス）。名前は models の形と同じ表で引く（工房の &model=、yokai の model）
-  // normalMul＝凹凸の絵の強さ、fx＝頂点の効果 [苔, 塗りのはげ, 石, 発光]（models の fx と同じ。無ければ全部0）、procMul＝シェーダが足す線（割れ目・木目）の強さ（無ければ1）
+  // at・scale＝読み込んだ形をずらす・縮める（同じファイルを別の形として使う）、normalMul＝凹凸の絵の強さ、fx＝頂点の効果 [苔, 塗りのはげ, 石, 発光]（models の fx と同じ。無ければ全部0）、procMul＝シェーダが足す線（割れ目・木目）の強さ（無ければ1）
   glb: {
     chochinBl: { url: 'assets/lookdev/chochin.glb', normalMul: 1.0 },
     // 岩（tools/blender/rocks.py）。models の同じ名前より優先（場面の配置・散らしもこちらで描く）
@@ -476,6 +476,9 @@ export const scene = {
     rockB: { url: 'assets/lookdev/rockB.glb', normalMul: 1.0, fx: [0, 0, 1, 0], procMul: 0.15 },
     rockC: { url: 'assets/lookdev/rockC.glb', normalMul: 1.0, fx: [0, 0, 1, 0], procMul: 0.15 },
     rockShore: { url: 'assets/lookdev/rockShore.glb', normalMul: 1.0, fx: [0, 0, 1, 0], procMul: 0.15 },
+    // 大きな石灯籠（tools/blender/lantern_big.py）。灯は頂点の色で光らせる（fx の4番目＝発光の強さ）。奥の小さい灯籠は同じ形を 0.85 倍
+    lanternBig: { url: 'assets/lookdev/lanternBig.glb', normalMul: 1.0, fx: [0, 0, 1, 0.75], procMul: 0.15 },
+    lantern: { url: 'assets/lookdev/lanternBig.glb', normalMul: 1.0, fx: [0, 0, 1, 0.75], procMul: 0.15, at: [0, 0.1, 0], scale: 0.85 },
   },
 
   // 工房（?scene=lookdev&model=形の名前）：台と、カメラの距離（形の半径の何倍か）

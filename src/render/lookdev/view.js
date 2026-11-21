@@ -170,6 +170,9 @@ export function createLookdevView(renderer, cfg, opts = {}) {
     const m = glbCache.get(name);
     if (!m) throw new Error(`lookdev: 3Dモデルが読み込まれていない ${name}`);
     const g = m.geometry.clone();
+    // 登録の表の縮め・ずらし（同じファイルを別の大きさの形として使う。奥の小さい灯籠など）
+    const e = S.glb[name];
+    if (e.scale !== undefined || e.at) g.applyMatrix4(partMatrix({ at: e.at, scale: e.scale }));
     disposables.push(g);
     const mat = washMaterial({ ...baseDefines, MAP_TEX: 1, USE_TANGENT: 1 }, {
       uMap: { value: m.map }, uNormalMap: { value: m.normalMap }, uNormalMul: { value: S.glb[name].normalMul }, uProcMul: { value: S.glb[name].procMul ?? 1 },

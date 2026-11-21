@@ -128,10 +128,11 @@ def bake_maps(ob, res, high=None, bump=None):
     def pid(nodes, links, k, sock):
         sock.default_value = (k / 16 + 1 / 32, 0, 0, 1)
     out = {}
+    # 位置・面の向き・部位は少ない形そのものから焼く（細かい形は作り直しで部位の番号が消えるため）
     for name, b in (('pos', pos), ('nrm', nrm), ('id', pid)):
         img = _image(name, res)
-        _set_materials(srcs, _emit(b))
-        _bake(ob, 'EMIT', img, high)
+        _set_materials([ob], _emit(b))
+        _bake(ob, 'EMIT', img)
         out[name] = _arr(img, res)
     def diffuse(nodes, links, k, o):
         d = nodes.new('ShaderNodeBsdfDiffuse'); links.new(d.outputs[0], o.inputs['Surface'])
@@ -149,8 +150,21 @@ def bake_maps(ob, res, high=None, bump=None):
             'valid': out['id'][..., 3] > 0.5, 'normal_img': out['tn']}
 
 
+def set_glow(ob, glow_parts):
+    """光る部位（材質の番号の集合）を頂点の色（R）に入れる。ゲームの読み込みで発光（aFx の4番目）になる。"""
+    me = ob.data
+    attr = me.color_attributes.new('glow', 'FLOAT_COLOR', 'POINT')
+    for v in range(len(me.vertices)):
+        attr.data[v].color = (0, 0, 0, 1)
+    for p in me.polygons:
+        if p.material_index in glow_parts:
+            for vi in p.vertices:
+                attr.data[vi].color = (1, 1, 1, 1)
+    me.color_attributes.active_color = attr
+
+
 def export_glb(ob, rgba, normal_img, path, res, webp_quality=88):
-    """色（RGBA）と凹凸の絵を1つの材質に貼り、GLB に書き出して WebP に圧縮する。"""
+    """色（RGBA）と凹凸の絵を1つの材質に貼り、GLB に書き出して WebP に圧縮する。頂点の色（set_glow）があれば一緒に書き出す。"""
     work = os.path.dirname(path)
     tex = bpy.data.images.new(os.path.basename(path) + '_col', res, res, alpha=True)
     tex.pixels.foreach_set(np.clip(rgba, 0, 1).astype(np.float32).ravel())
@@ -173,7 +187,9 @@ def export_glb(ob, rgba, normal_img, path, res, webp_quality=88):
     ob.data.materials.append(mat)
     select_only(ob)
     raw = path.replace('.glb', '_raw.glb')
-    bpy.ops.export_scene.gltf(filepath=raw, export_format='GLB', use_selection=True, export_yup=True, export_image_format='AUTO')
+    has_col = len(ob.data.color_attributes) > 0
+    bpy.ops.export_scene.gltf(filepath=raw, export_format='GLB', use_selection=True, export_yup=True, export_image_format='AUTO',
+                              export_vertex_color='ACTIVE' if has_col else 'NONE')
     subprocess.run(['npx', '-y', '@gltf-transform/cli@4.1.1', 'webp', raw, path, '--quality', str(webp_quality)], check=True,
                    stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     return os.path.getsize(path)

@@ -33,9 +33,12 @@ export async function loadGlbModel(url, fx = [0, 0, 0, 0]) {
   if (!geometry.attributes.tangent && geometry.index && geometry.attributes.uv) geometry.computeTangents();
   // 塗りの材質が読む頂点の属性をそろえる：色は白（色は絵から）、効果・動き・顔の絵は無し
   const n = geometry.attributes.position.count;
+  const glowAttr = geometry.attributes.color; // 白で上書きする前に読む
   geometry.setAttribute('color', new BufferAttribute(new Float32Array(n * N3).fill(1), N3));
   const F = new Float32Array(n * N4);
   for (let i = 0; i < n; i++) F.set(fx, i * N4);
+  // 頂点の色（Blender の set_glow）の R＝光る部位：発光（aFx の4番目）を fx[3] の強さで
+  if (glowAttr) for (let i = 0; i < n; i++) F[i * N4 + N3] = glowAttr.getX(i) * fx[N3];
   geometry.setAttribute('aFx', new BufferAttribute(F, N4));
   geometry.setAttribute('aAnim', new BufferAttribute(new Float32Array(n * N4), N4));
   geometry.setAttribute('aFace', new BufferAttribute(new Float32Array(n * N3), N3));

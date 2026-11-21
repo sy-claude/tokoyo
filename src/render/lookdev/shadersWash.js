@@ -365,7 +365,11 @@ void main() {
   col = min(col, vec3(uKnee)) + (1.0 - uKnee) * (1.0 - exp(-over / max(1.0 - uKnee, 1e-3)));
 
   // --- 発光（目・灯・裂け目） ---
+#ifdef MAP_TEX
+  col = mix(col, vColor * mapC.rgb * 1.35, glow); // 外部モデルは絵の色で光る
+#else
   col = mix(col, vColor * 1.35, glow);
+#endif
   col += uGlowCol * fisGlow * 0.3;
 
   col = applyFog(col, vWorld);
