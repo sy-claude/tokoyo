@@ -7,9 +7,10 @@ import { N3, N4 } from './consts.js';
 
 /**
  * @param {string} url
+ * @param {number[]} [fx] 頂点の効果 [苔, 塗りのはげ, 石, 発光]（石は割れ目の墨線と縁の光が乗り、木目の線は乗らない）
  * @returns {Promise<{geometry:any, map:any, normalMap:any}>}
  */
-export async function loadGlbModel(url) {
+export async function loadGlbModel(url, fx = [0, 0, 0, 0]) {
   const gltf = await new GLTFLoader().loadAsync(url);
   gltf.scene.updateMatrixWorld(true);
   /** @type {any[]} */
@@ -33,7 +34,9 @@ export async function loadGlbModel(url) {
   // 塗りの材質が読む頂点の属性をそろえる：色は白（色は絵から）、効果・動き・顔の絵は無し
   const n = geometry.attributes.position.count;
   geometry.setAttribute('color', new BufferAttribute(new Float32Array(n * N3).fill(1), N3));
-  geometry.setAttribute('aFx', new BufferAttribute(new Float32Array(n * N4), N4));
+  const F = new Float32Array(n * N4);
+  for (let i = 0; i < n; i++) F.set(fx, i * N4);
+  geometry.setAttribute('aFx', new BufferAttribute(F, N4));
   geometry.setAttribute('aAnim', new BufferAttribute(new Float32Array(n * N4), N4));
   geometry.setAttribute('aFace', new BufferAttribute(new Float32Array(n * N3), N3));
   if (map) map.colorSpace = SRGBColorSpace;

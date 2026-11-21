@@ -30,6 +30,11 @@ varying vec4 vTangent;
 void main() {
   vec3 p = position;
   vec3 n = normal;
+  // インスタンス描画（同じ形の小道具を1回で描く）：置き場所の行列を先に掛ける
+#ifdef USE_INSTANCING
+  p = (instanceMatrix * vec4(p, 1.0)).xyz;
+  n = normalize(mat3(instanceMatrix) * n);
+#endif
   float kind = aAnim.x;
   // 7：まぶた（まばたき）。上端（aAnim.z＝形の座標の高さ）を止めたまま下へ伸び、目の前へ出る（aAnim.y＝伸びる倍率、aAnim.w＝面の傾き）
   if (kind > 6.5 && kind < 7.5) {
@@ -69,7 +74,11 @@ void main() {
   vNormal = normalize(mat3(modelMatrix) * n);
 #ifdef MAP_TEX
   vUv = uv;
-  vTangent = vec4(normalize(mat3(modelMatrix) * tangent.xyz), tangent.w);
+  vec3 tg = tangent.xyz;
+#ifdef USE_INSTANCING
+  tg = mat3(instanceMatrix) * tg;
+#endif
+  vTangent = vec4(normalize(mat3(modelMatrix) * tg), tangent.w);
 #endif
   vColor = color;
   vFx = aFx;
@@ -111,6 +120,7 @@ uniform vec4 uLook;   // x=色むら y=縁の光 z=濡れ w=石畳の升(1/m)
 uniform sampler2D uMap;       // 色（a＝0 は穴：破れ・口）
 uniform sampler2D uNormalMap; // 凹凸（接線空間）
 uniform float uNormalMul;     // 凹凸の強さ
+uniform float uProcMul;       // シェーダが足す線（割れ目・木目）の強さ。絵に細部が入っているので弱める
 varying vec2 vUv;
 varying vec4 vTangent;
 #endif
@@ -273,17 +283,21 @@ void main() {
   }
 
   // --- 石の描き込み：ひび・粒・かすれた明るい面 ---
-  float ck = max(dF.b, dA.b * 0.9) * stone;
+  float procK = 1.0;
+#ifdef MAP_TEX
+  procK = uProcMul;
+#endif
+  float ck = max(dF.b, dA.b * 0.9) * stone * procK;
   base = mix(base, uCrackCol, ck * 0.7 * (1.0 - uInk.x * 0.6));
   // 墨線：割れ目の芯だけを細く濃く引く（参考の「形の内側まで描いた細い線」）
-  base = mix(base, uCrackCol * 0.75, smoothstep(0.45, 0.8, dF.b * stone) * uInk.x);
+  base = mix(base, uCrackCol * 0.75, smoothstep(0.45, 0.8, dF.b * stone) * uInk.x * procK);
   base *= 1.0 + (dF.g - 0.5) * uTexScale.w * (0.45 + 0.55 * stone);
   base += vec3(0.09, 0.08, 0.065) * dB.a * stone * smoothstep(0.0, 0.7, N.y);
   // 筆の筋（木目・岩の層・布のしわ）
   base *= 1.0 + (dF.a - 0.5) * uShadow.w;
   // 墨線：木目・布のしわ。筋の暗い谷だけを細い線にする（石と発光する所には引かない）
   float gl = smoothstep(0.2, 0.08, dF.a) * (0.55 + 0.45 * smoothstep(0.35, 0.65, dA.r));
-  base = mix(base, base * uCrackCol * 1.6, gl * uInk.y * uTexMottleMul * (1.0 - stone) * (1.0 - glow));
+  base = mix(base, base * uCrackCol * 1.6, gl * uInk.y * uTexMottleMul * (1.0 - stone) * (1.0 - glow) * procK);
 
   // --- 水彩の色むら：大きなにじみ。暗い所は紫へ、明るい所は暖色へ寄る ---
   float mottK = uLook.x * uTexMottleMul;

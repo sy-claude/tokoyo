@@ -468,9 +468,14 @@ export const scene = {
   shadowCenter: [-1, 1, 4],
 
   // 外部の3Dモデル（Blender で作って焼いた GLB。public/ からの相対パス）。名前は models の形と同じ表で引く（工房の &model=、yokai の model）
-  // normalMul＝凹凸の絵の強さ
+  // normalMul＝凹凸の絵の強さ、fx＝頂点の効果 [苔, 塗りのはげ, 石, 発光]（models の fx と同じ。無ければ全部0）、procMul＝シェーダが足す線（割れ目・木目）の強さ（無ければ1）
   glb: {
     chochinBl: { url: 'assets/lookdev/chochin.glb', normalMul: 1.0 },
+    // 岩（tools/blender/rocks.py）。models の同じ名前より優先（場面の配置・散らしもこちらで描く）
+    rockA: { url: 'assets/lookdev/rockA.glb', normalMul: 1.0, fx: [0, 0, 1, 0], procMul: 0.15 },
+    rockB: { url: 'assets/lookdev/rockB.glb', normalMul: 1.0, fx: [0, 0, 1, 0], procMul: 0.15 },
+    rockC: { url: 'assets/lookdev/rockC.glb', normalMul: 1.0, fx: [0, 0, 1, 0], procMul: 0.15 },
+    rockShore: { url: 'assets/lookdev/rockShore.glb', normalMul: 1.0, fx: [0, 0, 1, 0], procMul: 0.15 },
   },
 
   // 工房（?scene=lookdev&model=形の名前）：台と、カメラの距離（形の半径の何倍か）

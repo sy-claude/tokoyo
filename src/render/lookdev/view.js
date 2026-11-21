@@ -4,7 +4,7 @@
 // 描画命令：場面11＋影の図6（高・中）＋後処理（中1・高5）。
 /** @import {Cfg} from '../../config/index.js' */
 import {
-  BackSide, Color, DataTexture, DepthTexture, DoubleSide, Group, InstancedBufferAttribute, InstancedBufferGeometry, LinearFilter,
+  BackSide, Color, InstancedMesh, DataTexture, DepthTexture, DoubleSide, Group, InstancedBufferAttribute, InstancedBufferGeometry, LinearFilter,
   Bone, Matrix4, Mesh, NearestFilter, Skeleton, SkinnedMesh, OrthographicCamera, PlaneGeometry, RedFormat, Scene, ShaderMaterial, SphereGeometry,
   UnsignedByteType, UnsignedIntType, Vector2, Vector3, Vector4, WebGLRenderTarget,
 } from 'three';
@@ -165,16 +165,16 @@ export function createLookdevView(renderer, cfg, opts = {}) {
     return m;
   }
 
-  /** 外部の3Dモデル（S.glb。読み込み済み）→ 色の絵と凹凸の絵を貼った塗りの材質のメッシュ。 @param {string} name @param {Record<string, any>} baseDefines */
-  function glbMesh(name, baseDefines) {
+  /** 外部の3Dモデル（S.glb。読み込み済み）→ 色の絵と凹凸の絵を貼った塗りの材質のメッシュ。 @param {string} name @param {Record<string, any>} baseDefines @param {number} [instances] 数を渡すとインスタンス描画 */
+  function glbMesh(name, baseDefines, instances = 0) {
     const m = glbCache.get(name);
     if (!m) throw new Error(`lookdev: 3Dモデルが読み込まれていない ${name}`);
     const g = m.geometry.clone();
     disposables.push(g);
     const mat = washMaterial({ ...baseDefines, MAP_TEX: 1, USE_TANGENT: 1 }, {
-      uMap: { value: m.map }, uNormalMap: { value: m.normalMap }, uNormalMul: { value: S.glb[name].normalMul },
+      uMap: { value: m.map }, uNormalMap: { value: m.normalMap }, uNormalMul: { value: S.glb[name].normalMul }, uProcMul: { value: S.glb[name].procMul ?? 1 },
     });
-    const mesh = new Mesh(g, mat);
+    const mesh = instances > 0 ? new InstancedMesh(g, mat, instances) : new Mesh(g, mat);
     mesh.frustumCulled = false;
     return mesh;
   }
@@ -273,6 +273,8 @@ export function createLookdevView(renderer, cfg, opts = {}) {
     // 小道具・木の枝・千本鳥居・島（動かない物を1つにまとめる）
     const washMat = washMaterial(baseDefines, {});
     const sb = createBuilder(lib);
+    /** @type {Map<string, any[]>} 外部の3Dモデルの小道具の置き場所（形の名前 → 行列） */
+    const glbInstances = new Map();
     if (atelier) {
       if (atelier !== charRig.model && !S.glb[atelier]) sb.addAll(models[atelier].parts, new Matrix4().makeTranslation(0, S.atelier.liftM[atelier] ?? 0, 0), {});
       if (S.glb[atelier]) {
@@ -282,13 +284,31 @@ export function createLookdevView(renderer, cfg, opts = {}) {
         addCaster(gm);
       }
     } else {
-      placeAll(sb, S.placements, terrain);
-      addScatter(sb, S, terrain, rng.fork('scatter'), L.scatterMul[q]);
+      // 外部の3Dモデル（S.glb）がある小道具は1つにまとめず、形ごとに1回で描く（インスタンス描画）。配置と散らし方は同じ
+      const sbx = Object.create(sb);
+      sbx.add = (p, parent = new Matrix4(), inherit = {}) => {
+        if (p.s === 'ref' && S.glb[p.model]) {
+          const list = glbInstances.get(p.model) ?? [];
+          list.push(parent.clone().multiply(partMatrix(p)));
+          glbInstances.set(p.model, list);
+          return;
+        }
+        sb.add(p, parent, inherit);
+      };
+      placeAll(sbx, S.placements, terrain);
+      addScatter(sbx, S, terrain, rng.fork('scatter'), L.scatterMul[q]);
       addSenbon(sb, S, terrain);
       addIslands(sb, S);
       addBareTrees(sb, S, terrain, rng.fork('trees'));
       addWires(sb, S);
       addMapleBranches(sb, S);
+    }
+    for (const [name, mats] of glbInstances) {
+      const im = glbMesh(name, baseDefines, mats.length);
+      mats.forEach((m, i) => im.setMatrixAt(i, m));
+      im.instanceMatrix.needsUpdate = true;
+      root.add(im);
+      addCaster(im);
     }
     const staticMesh = meshOf(sb, washMat);
     if (atelier) {
@@ -589,10 +609,11 @@ export function createLookdevView(renderer, cfg, opts = {}) {
   return {
     /** 外部の3Dモデル（S.glb）を使う場面なら読み込んでから作る。 @param {any} world */
     async setWorld(world) {
-      const names = new Set([opts.atelierModel ?? '', ...S.yokai.map((y) => y.model), ...(opts.lineup ? S.lineup.map((y) => y.model) : [])]);
+      // 工房はその形だけ、場面は登録した全部（小道具の散らしにも使うため）
+      const names = new Set(opts.atelierModel ? [opts.atelierModel] : Object.keys(S.glb));
       for (const name of names) {
         if (!S.glb[name] || glbCache.has(name)) continue;
-        glbCache.set(name, await loadGlbModel(`${import.meta.env.BASE_URL}${S.glb[name].url}`));
+        glbCache.set(name, await loadGlbModel(`${import.meta.env.BASE_URL}${S.glb[name].url}`, S.glb[name].fx));
       }
       build(world, renderer.quality);
     },
