@@ -21,6 +21,9 @@ varying vec3 vShadow;
 varying vec3 vTexPos;
 varying vec3 vTexNormal;
 uniform float uTexMottleMul; // 色むらの強さに掛ける倍率（キャラの服は場面より控えめに）
+#ifdef MAP_TEX
+varying vec2 vUv; // 外部素材の色の画像の座標（docs/11）
+#endif
 #include <skinning_pars_vertex>
 void main() {
   vec3 p = position;
@@ -35,7 +38,13 @@ void main() {
   }
   // 骨組み（剛体スキン。07 §6.1）：骨は1頂点に1本なので、その骨の行列を掛けるだけ
 #ifdef USE_SKINNING
+#ifdef SKIN_BLEND
+  // 骨を最大4本混ぜる（外部素材に付けた骨。関節のまわりがなめらかに曲がる）
+  mat4 skinM = bindMatrixInverse * (getBoneMatrix(skinIndex.x) * skinWeight.x + getBoneMatrix(skinIndex.y) * skinWeight.y
+    + getBoneMatrix(skinIndex.z) * skinWeight.z + getBoneMatrix(skinIndex.w) * skinWeight.w) * bindMatrix;
+#else
   mat4 skinM = bindMatrixInverse * getBoneMatrix(skinIndex.x) * bindMatrix;
+#endif
   p = (skinM * vec4(p, 1.0)).xyz;
   n = normalize(mat3(skinM) * n);
 #endif
@@ -63,6 +72,9 @@ void main() {
 #endif
   vNormal = normalize(mat3(modelMatrix) * n);
   vColor = color;
+#ifdef MAP_TEX
+  vUv = uv;
+#endif
   vFx = aFx;
   vFace = aFace;
   vShadow = (uShadowMat * vec4(w.xyz + vNormal * uShadowOffset, 1.0)).xyz;
@@ -115,6 +127,11 @@ varying vec3 vShadow;
 varying vec3 vTexPos;
 varying vec3 vTexNormal;
 uniform float uTexMottleMul;
+#ifdef MAP_TEX
+uniform sampler2D uMap; // 外部素材の色の画像（docs/11 §5：色の画像だけ使う）
+uniform float uMapGain; // その明るさの倍率
+varying vec2 vUv;
+#endif
 
 // 質感テクスチャを三方向から貼る。A は側面で「u=高さ」（筋が縦に走る）、B は「v=高さ」（垂れが縦に走る）
 vec4 triA(vec3 p, vec3 w) {
@@ -160,6 +177,9 @@ void main() {
   vec4 dF = triA(vTexPos * uTexScale.y + 0.37, tw);
   vec4 dB = triB(vTexPos * uTexScale.z, tw);
   vec3 base = vColor;
+#ifdef MAP_TEX
+  base *= texture2D(uMap, vUv).rgb * uMapGain;
+#endif
   float stone = vFx.z;
   float glow = vFx.w;
   float wetK = 0.0;

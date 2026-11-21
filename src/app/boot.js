@@ -58,7 +58,7 @@ export async function boot() {
   const rootEl = $('root');
   const canvas = /** @type {HTMLCanvasElement} */ ($('game'));
   const renderer = createRenderer(canvas, cfg, params.q ?? 'high');
-  const frame = createFrame(renderer, cfg, { atelierModel: params.model, atelierFocus: params.focus, atelierAnim: params.anim, atelierView: params.view });
+  const frame = createFrame(renderer, cfg, { atelierModel: params.model, atelierFocus: params.focus, atelierAnim: params.anim, atelierView: params.view, atelierGlb: params.glb });
   const bus = createBus(cfg.debug.eventRingCount);
 
   /** ゲーム全体の入れ物。app と debug だけが持つ */
@@ -298,6 +298,7 @@ export async function boot() {
     // ?test=1：シムのループを起動しない。__game.step / render で進める（UI の表示だけ毎フレーム更新する）
     game.overlay?.update(null);
     globalThis.requestAnimationFrame(onUiFrame);
+    await frame.assetsReady();
     testApi.markReady();
     return;
   }

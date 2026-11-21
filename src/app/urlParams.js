@@ -8,7 +8,7 @@ const QUALITIES = ['high', 'mid', 'low'];
 /**
  * @param {string} search 例 '?test=1&seed=3&scene=sandbox'
  * @returns {{debug:boolean, test:boolean, audio:boolean, bench:boolean, benchS:number|null, seed:number,
- *   scene:string|null, char:string, q:QualityLevel|null, model:string|null, focus:string|null, anim:string|null, view:number[]|null}}
+ *   scene:string|null, char:string, q:QualityLevel|null, model:string|null, focus:string|null, anim:string|null, view:number[]|null, glb:boolean}}
  */
 export function parseUrlParams(search) {
   const p = new URLSearchParams(search);
@@ -40,5 +40,7 @@ export function parseUrlParams(search) {
     anim: anim === 'walk' || anim === 'run' ? anim : null,
     // 工房の視点の固定：&view=横の向き,縦の向き（度）
     view: view.length === 2 && view.every(Number.isFinite) ? view : null,
+    // 工房の外部素材：&glb=1 で、目録（data/assets.js）にある素材（GLB）を映す（11/21 の試し）
+    glb: flag('glb'),
   };
 }
