@@ -2,6 +2,19 @@
 > **見た目の作業は `docs/12_visual_plan.md` を先に読む**（11/16 依頼者と合意した V5 以降の進め方。1体ずつ工房で作り込み、依頼者の目で合格を決める）。
 ## 現在：M2a（移動と試験場）を実装（ブランチ claude/relaxed-sagan-groa11、依頼者の実機確認待ち）。見た目の作業 V5（1体ずつ作り込む）は継続中で、鳥居は合格、キャラ・妖怪は2〜3割の評価（11/20）。M0b までは main
 
+## Blender の試作（11/21。依頼者：良いものができるなら方針変更してよい）
+- 依頼者が Blender（無料の3D制作ソフト）での質の向上を提案。docs/12 の「コードと three.js だけで作る」方針は、良いものができるなら変えてよいとの了承。まず提灯お化け1体で試作して比べた
+- [x] **道具**：この環境に Blender 5.3（Python の bpy。pip で作業用の venv に入れる。npm の依存には足さない）。画面の機能が無いので描画は Cycles（CPU）
+  - `tools/blender/chochin.py`：形（今の提灯と同じ寸法。胴・目のまわりの盛り上がり・まぶた・目玉・口の中・S字の舌・金輪・取っ手・鉤・折れた骨）。三角形 5,916（小型の敵の上限 6,000 以内）
+  - `tools/blender/bake_chochin.py`：UV を展開し、位置・部位・陰（AO）・凹凸（紙のしわと繊維）を焼く → numpy で色（紙のしみ・繊維・骨の墨線・下の煤・目のまわりのしわ・琥珀の瞳・歯ぐき・舌・錆）と透明（口の裂け目・破れ穴。ぎざぎざの縁）を描く → 1024² の色と凹凸の絵を貼って GLB に書き出し（`public/assets/lookdev/chochin.glb`、3.0MB）
+  - `tools/blender/preview.py`：形の確認用に Blender で3方向を撮る
+  - 実行：`python -m venv V && V/bin/pip install bpy` のあと `V/bin/python tools/blender/chochin.py 作業フォルダ` → `V/bin/python tools/blender/bake_chochin.py 作業フォルダ public/assets/lookdev/chochin.glb`
+- [x] **ゲーム側**：`render/lookdev/glb.js`（three 同梱の GLTFLoader で読み、塗りの材質の頂点の属性をそろえる。接線が無ければ計算）。塗りの材質に `MAP_TEX`（色の絵を掛け、透明は捨て、凹凸の絵で面の向きを変える）。`scene.js` の `glb` 表に登録した名前は工房（`?scene=lookdev&model=chochinBl`）と妖怪の配置で使える。場面の読込は GLB を読み終えてから作る（`frame.setWorld` を非同期に）
+- つまずいた点：Blender の GLB の書き出しで接線が入らなかった（凹凸の計算が壊れて真っ白）→ 読み込み時に `computeTangents`。色の絵を JPEG で書き出すと透明が消える → PNG。Workbench の描画は GPU が要る → Cycles
+- 比較 `design-notes/lookdev/atelier/chochin_blender_v1_compare.png`（上＝今のコード版、下＝Blender 版）・`chochin_blender_v1.png`（6視点、左＝参考）
+- 自己評価：紙の質感（繊維・しみ・煤）、本当に穴の開いた口と破れ（ぎざぎざの縁）、立体の目玉は、コード版より参考に近い。まだ：横の骨の線が多く規則的すぎる、まぶたが輪に見える、口が小さい（参考は顔の幅いっぱい）、舌の付け根が細い、紙のめくれ（垂れる切れ端）が無い、まばたきが無い
+- 次（依頼者の判定を受けて）：Blender で他の妖怪・人物へ広げるか。広げるなら、提灯の2巡目（上の「まだ」）→ 唐傘・山犬 → 人物（骨組みは GLB の骨か、今の剛体スキンへの付け替え）
+
 ## M2a 移動と試験場（11/21。依頼者の実機確認待ち）
 - [x] **試験場の地形と小道具**（10 §4.5）：T1 海・T2 下段・T3 斜面44°/46°・S1 段差・S2 隙間・S3 壁・S4 カメラの箱と柱。`data/stages/sandbox.js`・`data/props.js`（sb*）。地形は `gen/terrain.js`（sandboxRects・面種別・崖と海までの距離）、当たりは `gen/props.js`
 - [x] **衝突**（09 §6）：`sim/collision/{heightfield, shapes, grid, queries, mover}.js`。段差0.40m は登り0.41m は止まる、44° は登り46° は止まる、押し出し、着地、下りの吸着、海の判定

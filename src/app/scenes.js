@@ -46,7 +46,7 @@ export function createScenes(game) {
       game.seed = seed;
       game.charId = charId;
       game.bus.clear();
-      game.frame.setWorld(world);
+      await game.frame.setWorld(world);
       game.frame.render(world, 1);
     },
     /** シムの場面へ入って遊ぶ。 @param {string} name @param {{char?:string, seed?:number}} [o] */

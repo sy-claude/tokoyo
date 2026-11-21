@@ -467,17 +467,24 @@ export const scene = {
   // 落ち影の図の中心（この周りだけ影を落とす）
   shadowCenter: [-1, 1, 4],
 
+  // 外部の3Dモデル（Blender で作って焼いた GLB。public/ からの相対パス）。名前は models の形と同じ表で引く（工房の &model=、yokai の model）
+  // normalMul＝凹凸の絵の強さ
+  glb: {
+    chochinBl: { url: 'assets/lookdev/chochin.glb', normalMul: 1.0 },
+  },
+
   // 工房（?scene=lookdev&model=形の名前）：台と、カメラの距離（形の半径の何倍か）
   atelier: {
     floorParts: [{ s: 'cyl', r: [9, 9], h: 0.2, seg: 32, at: [0, -0.2, 0], col: 'paveHi' }],
     distMul: 1.5,
     // 形を床から持ち上げる高さ（m。吊り下がる妖怪の舌が床に埋もれないように）
-    liftM: { chochin: 1.3 },
+    liftM: { chochin: 1.3, chochinBl: 1.3 },
     // 寄りの枠 [中心の高さ(m), 半径(m)]。all＝全身（長い武器や鉢巻の尾を枠の基準にしない）
     focus: {
       hero: { all: [0.88, 1.28], head: [1.56, 0.26], body: [1.02, 0.72], legs: [0.35, 0.45] },
       lanternBig: { all: [1.5, 2.35], top: [2.45, 1.5] },
       chochin: { all: [1.7, 2.2], face: [2.2, 0.9] },
+      chochinBl: { all: [1.7, 2.2], face: [2.2, 0.9] },
       karakasa: { all: [1.2, 1.8], face: [1.7, 0.45] },
       yamainu: { all: [0.55, 1.15], head: [0.9, 0.35] },
       shirayuki: { all: [0.82, 1.2], head: [1.5, 0.28] },

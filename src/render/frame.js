@@ -35,12 +35,12 @@ export function createFrame(renderer, cfg, opts = {}) {
      * 場面の見た目を作り直す。床はステージのデータ（衝突と同じもの）から作る。
      * @param {{stage:import('../data/types.js').StageDef, player:{capsule:{rM:number, hM:number}}}} world
      */
-    setWorld(world) {
+    async setWorld(world) {
       clear();
       useLookdev = world.stage.id === LOOKDEV_STAGE;
       if (useLookdev) {
         lookdev ??= createLookdevView(renderer, cfg, opts);
-        lookdev.setWorld(world);
+        await lookdev.setWorld(world);
         return;
       }
       sandbox.setWorld(world);

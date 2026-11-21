@@ -28,6 +28,7 @@ import { LEAF_FRAG, LEAF_VERT, MIST_FRAG, MIST_VERT, SEA_FRAG, SEA_VERT } from '
 import { SKY_FRAG, SKY_VERT } from './shadersBake.js';
 import { SHADOW_FRAG, WASH_FRAG, WASH_VERT } from './shadersWash.js';
 import { createTerrain } from './terrain.js';
+import { loadGlbModel } from './glb.js';
 
 const col = (hex, gain = 1) => new Color(hex).multiplyScalar(gain);
 
@@ -37,7 +38,7 @@ const col = (hex, gain = 1) => new Color(hex).multiplyScalar(gain);
  * @param {{atelierModel?:string|null, atelierFocus?:string|null, atelierAnim?:string|null, atelierView?:number[]|null, lineup?:boolean, char?:string}} [opts] 工房：形の名前を渡すと、その形だけを台の上に大きく映す（docs/12 4章）
  */
 export function createLookdevView(renderer, cfg, opts = {}) {
-  const atelier = opts.atelierModel && models[opts.atelierModel] ? opts.atelierModel : null;
+  const atelier = opts.atelierModel && (models[opts.atelierModel] || S.glb[opts.atelierModel]) ? opts.atelierModel : null;
   /** 工房で映す形の中心の高さと半径（カメラの距離を決める） */
   const atelierFrame = { y: 0, r: 1 };
   const scene = new Scene();
@@ -53,6 +54,8 @@ export function createLookdevView(renderer, cfg, opts = {}) {
   let disposables = [];
   /** @type {any} */
   let hero = null;
+  /** 読み込んだ外部の3Dモデル（S.glb の名前 → 形と絵） @type {Map<string, {geometry:any, map:any, normalMap:any}>} */
+  const glbCache = new Map();
   /** @type {any} */
   let root = null;
   /** @type {any} */
@@ -162,6 +165,20 @@ export function createLookdevView(renderer, cfg, opts = {}) {
     return m;
   }
 
+  /** 外部の3Dモデル（S.glb。読み込み済み）→ 色の絵と凹凸の絵を貼った塗りの材質のメッシュ。 @param {string} name @param {Record<string, any>} baseDefines */
+  function glbMesh(name, baseDefines) {
+    const m = glbCache.get(name);
+    if (!m) throw new Error(`lookdev: 3Dモデルが読み込まれていない ${name}`);
+    const g = m.geometry.clone();
+    disposables.push(g);
+    const mat = washMaterial({ ...baseDefines, MAP_TEX: 1, USE_TANGENT: 1 }, {
+      uMap: { value: m.map }, uNormalMap: { value: m.normalMap }, uNormalMul: { value: S.glb[name].normalMul },
+    });
+    const mesh = new Mesh(g, mat);
+    mesh.frustumCulled = false;
+    return mesh;
+  }
+
   /** カメラへ向く板のインスタンス（靄・舞う葉）。 */
   function billboards(count, fill) {
     const g = new InstancedBufferGeometry();
@@ -257,7 +274,13 @@ export function createLookdevView(renderer, cfg, opts = {}) {
     const washMat = washMaterial(baseDefines, {});
     const sb = createBuilder(lib);
     if (atelier) {
-      if (atelier !== charRig.model) sb.addAll(models[atelier].parts, new Matrix4().makeTranslation(0, S.atelier.liftM[atelier] ?? 0, 0), {});
+      if (atelier !== charRig.model && !S.glb[atelier]) sb.addAll(models[atelier].parts, new Matrix4().makeTranslation(0, S.atelier.liftM[atelier] ?? 0, 0), {});
+      if (S.glb[atelier]) {
+        const gm = glbMesh(atelier, baseDefines);
+        gm.position.y = S.atelier.liftM[atelier] ?? 0;
+        root.add(gm);
+        addCaster(gm);
+      }
     } else {
       placeAll(sb, S.placements, terrain);
       addScatter(sb, S, terrain, rng.fork('scatter'), L.scatterMul[q]);
@@ -301,9 +324,13 @@ export function createLookdevView(renderer, cfg, opts = {}) {
     // 妖怪（1体＝1メッシュ。形は自分の座標で作り、配置と身じろぎはメッシュの行列で掛ける）
     // &lineup=1 のときだけ、作り込んだ人物と妖怪（S.lineup）も並べる（遠目の確認用。構図の比較には使わない）
     for (const y of atelier ? [] : opts.lineup ? [...S.yokai, ...S.lineup] : S.yokai) {
-      const yb = createBuilder(lib);
-      yb.addAll(models[y.model].parts, new Matrix4(), {});
-      const ym = meshOf(yb, washMat);
+      let ym;
+      if (S.glb[y.model]) ym = glbMesh(y.model, baseDefines);
+      else {
+        const yb = createBuilder(lib);
+        yb.addAll(models[y.model].parts, new Matrix4(), {});
+        ym = meshOf(yb, washMat);
+      }
       const at = y.ground ? [y.at[0], y.at[1] + terrain.height(y.at[0], y.at[2]), y.at[2]] : y.at;
       const place = partMatrix({ at, rot: y.rot, scale: y.scale });
       ym.matrixAutoUpdate = false;
@@ -560,8 +587,13 @@ export function createLookdevView(renderer, cfg, opts = {}) {
   }
 
   return {
-    /** @param {any} world */
-    setWorld(world) {
+    /** 外部の3Dモデル（S.glb）を使う場面なら読み込んでから作る。 @param {any} world */
+    async setWorld(world) {
+      const names = new Set([opts.atelierModel ?? '', ...S.yokai.map((y) => y.model), ...(opts.lineup ? S.lineup.map((y) => y.model) : [])]);
+      for (const name of names) {
+        if (!S.glb[name] || glbCache.has(name)) continue;
+        glbCache.set(name, await loadGlbModel(`${import.meta.env.BASE_URL}${S.glb[name].url}`));
+      }
       build(world, renderer.quality);
     },
     /** @param {any} world @param {number} alpha */

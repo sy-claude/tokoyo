@@ -21,6 +21,11 @@ varying vec3 vShadow;
 varying vec3 vTexPos;
 varying vec3 vTexNormal;
 uniform float uTexMottleMul; // 色むらの強さに掛ける倍率（キャラの服は場面より控えめに）
+// 外部の3Dモデル（Blender で作って焼いた GLB。MAP_TEX）：色の絵と凹凸の絵を uv で貼る。凹凸は接線（tangent）で向きを決める
+#ifdef MAP_TEX
+varying vec2 vUv;
+varying vec4 vTangent;
+#endif
 #include <skinning_pars_vertex>
 void main() {
   vec3 p = position;
@@ -62,6 +67,10 @@ void main() {
   vTexNormal = mat3(modelMatrix) * n;
 #endif
   vNormal = normalize(mat3(modelMatrix) * n);
+#ifdef MAP_TEX
+  vUv = uv;
+  vTangent = vec4(normalize(mat3(modelMatrix) * tangent.xyz), tangent.w);
+#endif
   vColor = color;
   vFx = aFx;
   vFace = aFace;
@@ -98,6 +107,13 @@ uniform vec3 uReflWarm;
 uniform vec3 uReflCool;
 uniform vec3 uGlowCol;
 uniform vec4 uLook;   // x=色むら y=縁の光 z=濡れ w=石畳の升(1/m)
+#ifdef MAP_TEX
+uniform sampler2D uMap;       // 色（a＝0 は穴：破れ・口）
+uniform sampler2D uNormalMap; // 凹凸（接線空間）
+uniform float uNormalMul;     // 凹凸の強さ
+varying vec2 vUv;
+varying vec4 vTangent;
+#endif
 uniform float uEdgeGlow; // 石の上の縁の暖かい光の強さ
 uniform float uKnee; // 明るい面の肩（この明るさより上をゆるやかに丸める）
 uniform vec4 uPlayer; // xyz=主人公の足元 w=置き影の濃さ
@@ -153,6 +169,15 @@ void main() {
   vec3 N = normalize(vNormal);
   if (!gl_FrontFacing) N = -N;
   vec3 Ng = N; // 形そのものの面の向き（筆のむらで乱す前）
+#ifdef MAP_TEX
+  vec4 mapC = texture2D(uMap, vUv);
+  if (mapC.a < 0.5) discard;
+  vec3 nt = texture2D(uNormalMap, vUv).xyz * 2.0 - 1.0;
+  nt.xy *= uNormalMul;
+  vec3 Tt = normalize(vTangent.xyz - N * dot(N, vTangent.xyz));
+  vec3 Bt = cross(N, Tt) * vTangent.w;
+  N = normalize(Tt * nt.x + Bt * nt.y + N * max(nt.z, 0.05));
+#endif
   float flatTop = smoothstep(0.4, 0.8, N.y); // 上を向いた面（地面）
   vec3 V = normalize(cameraPosition - vWorld);
   vec3 tw = pow(abs(normalize(vTexNormal)), vec3(4.0));
@@ -161,6 +186,9 @@ void main() {
   vec4 dF = triA(vTexPos * uTexScale.y + 0.37, tw);
   vec4 dB = triB(vTexPos * uTexScale.z, tw);
   vec3 base = vColor;
+#ifdef MAP_TEX
+  base *= mapC.rgb;
+#endif
   float stone = vFx.z;
   float glow = vFx.w;
   float wetK = 0.0;
@@ -328,4 +356,7 @@ void main() {
 
   col = applyFog(col, vWorld);
   gl_FragColor = vec4(toDisplay(col), 1.0);
+#ifdef MAP_DEBUG
+  gl_FragColor = vec4(mapC.rgb, 1.0);
+#endif
 }`;
