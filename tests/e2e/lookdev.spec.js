@@ -38,19 +38,19 @@ test('lookdevWalkAndTurn：前へ歩ける・カメラを回せる', async ({ pa
   expect(Math.abs(b.camera.yawDeg - a.camera.yawDeg)).toBeGreaterThan(30);
 });
 
-test('lookdevGlbFallback：工房で外部素材（&glb=1）を頼んでも、公開版に入らない試しの素材ならコードの形で映る（警告1回・エラー0）', async ({ page }) => {
+test('lookdevGlb：工房で外部素材（&glb=1）を映せる（公開版でも読める・警告0・エラー0・描画命令は予算内）', async ({ page }) => {
   test.setTimeout(120000);
   /** @type {string[]} */
   const warns = [];
   page.on('console', (m) => {
     if (m.type() === 'warning') warns.push(m.text());
   });
-  await boot(page, { scene: 'lookdev', q: 'low', extra: '&model=ganjo&glb=1' });
+  await boot(page, { scene: 'lookdev', q: 'low', extra: '&model=ganjo&glb=1&anim=run' });
   await game(page, 'step', 2);
   await game(page, 'render');
   await game(page, 'render');
   const info = await game(page, 'renderInfo');
   expect(info.calls).toBeGreaterThan(1);
   expect(info.calls).toBeLessThanOrEqual(cfg.quality.drawCallMaxCount);
-  expect(warns.filter((w) => w.includes('素材 ganjo')).length).toBe(1);
+  expect(warns.filter((w) => w.includes('素材 ganjo')).length).toBe(0);
 });

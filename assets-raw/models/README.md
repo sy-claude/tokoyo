@@ -1,3 +1,3 @@
 # ここに素材の元ファイルを置く（docs/11_assets.md §2 の ID をファイル名にする）
 
-- `ganjo.glb`：**試し**（11/21。Tripo 無料版の岩丈を 1.2万三角形・色の画像1枚 1024² に軽くした版。元の 16.5MB は入れていない）。開発サーバでだけ読み、公開版には入らない（`src/data/assets.js` の `trial`）
+- 試しの岩丈（Tripo 無料版を軽くした版）は、公開URLで見るために `public/assets/models/ganjo.glb` へ移した（11/21）

@@ -24,11 +24,6 @@ function warnOnce(id, why) {
  * @returns {Promise<{geometry:any, map:any, boneDefs:ReturnType<typeof rigBoneDefs>|null}|null>}
  */
 export async function loadModelAsset(def, baseUrl, skin) {
-  // 試しの素材（assets-raw/）は公開版に入らない：取りに行かずに戻る（404 を出さない）
-  if (def.trial && !import.meta.env.DEV) {
-    warnOnce(def.id, '試しの素材は開発サーバ（npm run dev）でだけ読める');
-    return null;
-  }
   /** @type {any} */
   let gltf;
   try {
