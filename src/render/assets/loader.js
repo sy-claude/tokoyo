@@ -5,6 +5,7 @@ import { Float32BufferAttribute, SRGBColorSpace } from 'three';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DEG2RAD } from '../../core/math.js';
 import { HALF, N3, N4 } from '../lookdev/consts.js';
+import { autoSkin, rigBoneDefs } from './autoSkin.js';
 
 /** @type {Set<string>} */
 const warned = new Set();
@@ -19,9 +20,10 @@ function warnOnce(id, why) {
 /**
  * @param {import('../../data/assets.js').AssetDef} def
  * @param {string} baseUrl import.meta.env.BASE_URL
- * @returns {Promise<{geometry:any, map:any}|null>}
+ * @param {{softRatio:number, behindMul:number, minWeightRatio:number}} [skin] 目録に骨（rig）があるときの重みの付け方（autoSkin）
+ * @returns {Promise<{geometry:any, map:any, boneDefs:ReturnType<typeof rigBoneDefs>|null}|null>}
  */
-export async function loadModelAsset(def, baseUrl) {
+export async function loadModelAsset(def, baseUrl, skin) {
   // 試しの素材（assets-raw/）は公開版に入らない：取りに行かずに戻る（404 を出さない）
   if (def.trial && !import.meta.env.DEV) {
     warnOnce(def.id, '試しの素材は開発サーバ（npm run dev）でだけ読める');
@@ -72,5 +74,9 @@ export async function loadModelAsset(def, baseUrl) {
   g.setAttribute('aFace', new Float32BufferAttribute(new Float32Array(n * N3), N3));
   g.computeBoundingSphere();
   map.colorSpace = SRGBColorSpace;
-  return { geometry: g, map };
+  if (def.rig && skin) {
+    autoSkin(g, def.rig, skin);
+    return { geometry: g, map, boneDefs: rigBoneDefs(def.rig) };
+  }
+  return { geometry: g, map, boneDefs: null };
 }

@@ -45,14 +45,22 @@ export function createLookdevView(renderer, cfg, opts = {}) {
   const atelierFrame = { y: 0, r: 1 };
   // 外部素材（GLB）：読み終わるまではコードの形を映し、読めたら差し替える。読めなければコードの形のまま（docs/11 §1.3）
   const glbDef = atelier && opts.atelierGlb ? assets[atelier] ?? null : null;
-  /** @type {{geometry:any, map:any}|null} */
+  /** @type {Awaited<ReturnType<typeof loadModelAsset>>} */
   let glbData = null;
+  /** 素材に付けた骨（build ごとに作り直す）と、その姿勢の入れ物 @type {any[]} */
+  let glbBones = [];
+  /** @type {Float32Array} */
+  let glbPose = new Float32Array(0);
   /** 読み終えた素材を今の場面へ入れる（build ごとに作り直す） @type {(() => void)|null} */
   let attachGlb = null;
   const glbGain = { value: 1 };
   const glbMottle = { value: 1 };
   const glbReady = glbDef
-    ? loadModelAsset(glbDef, import.meta.env.BASE_URL).then((d) => {
+    ? loadModelAsset(glbDef, import.meta.env.BASE_URL, {
+        softRatio: cfg.lookdev.assetSkinSoftRatio,
+        behindMul: cfg.lookdev.assetSkinBehindMul,
+        minWeightRatio: cfg.lookdev.assetSkinMinWeightRatio,
+      }).then((d) => {
         glbData = d;
         attachGlb?.();
       })
@@ -148,11 +156,12 @@ export function createLookdevView(renderer, cfg, opts = {}) {
     disposables.push(m);
     return m;
   }
-  /** 影の図を描くときの材質（頂点の動きは同じ、色は書かない）。 */
-  function shadowMaterial() {
+  /** 影の図を描くときの材質（頂点の動きは同じ、色は書かない）。 @param {Record<string, number>} [defines] */
+  function shadowMaterial(defines = {}) {
     const m = new ShaderMaterial({
       vertexShader: WASH_VERT,
       fragmentShader: SHADOW_FRAG,
+      defines,
       uniforms: { uTime: U.uTime, uWind: U.uWind, uShadowMat: U.uShadowMat, uShadowOffset: U.uShadowOffset },
       vertexColors: true,
       side: DoubleSide,
@@ -199,6 +208,7 @@ export function createLookdevView(renderer, cfg, opts = {}) {
     root = null;
     hero = null;
     sky = null;
+    glbBones = [];
   }
 
   /** @param {any} world @param {import('../../config/index.js').QualityLevel} q */
@@ -291,18 +301,38 @@ export function createLookdevView(renderer, cfg, opts = {}) {
     addCaster(staticMesh);
     attachGlb = () => {
       if (!glbData || !atelier) return;
-      // 色は素材の画像、陰影・色むら・輪郭・霧は場面と同じ塗り（docs/11 §1.2）。模様は形の座標で貼る
-      const mat = washMaterial({ ...baseDefines, LOCAL_TEX: 1, MAP_TEX: 1 }, {
+      const boneDefs = glbData.boneDefs;
+      // 色は素材の画像、陰影・色むら・輪郭・霧は場面と同じ塗り（docs/11 §1.2）。模様は形の座標（骨で動かす前）で貼る
+      /** @type {Record<string, number>} */
+      const skinDef = boneDefs ? { SKIN_BLEND: 1 } : {};
+      const mat = washMaterial({ ...baseDefines, LOCAL_TEX: 1, MAP_TEX: 1, ...skinDef }, {
         uMap: { value: glbData.map },
         uMapGain: glbGain,
         uTexMottleMul: glbMottle,
         uTexScale: heroTexScale,
       });
-      const gm = new Mesh(glbData.geometry, mat);
+      const gm = boneDefs ? new SkinnedMesh(glbData.geometry, mat) : new Mesh(glbData.geometry, mat);
       gm.position.y = S.atelier.liftM[atelier] ?? 0;
       gm.frustumCulled = false;
       root.add(gm);
-      addCaster(gm);
+      if (boneDefs) {
+        // 骨（主人公と同じ名前と親子。位置は目録の関節）。姿勢は毎フレーム poseAt で当てる
+        const index = new Map(boneDefs.map((b, i) => [b.name, i]));
+        glbBones = boneDefs.map((d) => {
+          const b = new Bone();
+          b.name = d.name;
+          b.position.set(d.posM[0], d.posM[1], d.posM[2]);
+          return b;
+        });
+        boneDefs.forEach((d, i) => {
+          if (d.parent) glbBones[index.get(d.parent) ?? 0].add(glbBones[i]);
+        });
+        glbPose = new Float32Array(boneDefs.length * N4 + N3);
+        gm.add(glbBones[0]);
+        gm.updateMatrixWorld(true);
+        gm.bind(new Skeleton(glbBones));
+      }
+      addCaster(gm, boneDefs ? shadowMaterial(skinDef) : stillShadow);
       staticMesh.visible = false;
       attachGlb = null;
     };
@@ -642,6 +672,15 @@ export function createLookdevView(renderer, cfg, opts = {}) {
       hero.rotation.y = lerpDeg(p.prevYawDeg, p.yawDeg, alpha) * DEG2RAD;
       setPose(time);
       springs?.apply();
+      // 外部素材に付けた骨：主人公と同じ移動の姿勢（07 §6.6）
+      if (glbBones.length && glbData?.boneDefs) {
+        poseAt({ bones: glbData.boneDefs }, null, 0, { timeS: time, speedMps: speed, runSpeedMps: cfg.movement.runSpeedMps, tickRateHz: hz, anim: A }, glbPose);
+        for (let i = 0; i < glbBones.length; i++) {
+          glbBones[i].quaternion.set(glbPose[i * N4], glbPose[i * N4 + 1], glbPose[i * N4 + 2], glbPose[i * N4 + N3]);
+        }
+        const n4 = glbBones.length * N4;
+        glbBones[0].position.set(glbPose[n4], glbPose[n4 + 1], glbPose[n4 + 2]);
+      }
       // まばたき：閉じた目の絵の升へずらす（主人公の顔だけが絵を持つ）
       const fh = faces.hero;
       const shut = blinkAt(time, A, hz);

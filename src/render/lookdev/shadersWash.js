@@ -38,7 +38,13 @@ void main() {
   }
   // 骨組み（剛体スキン。07 §6.1）：骨は1頂点に1本なので、その骨の行列を掛けるだけ
 #ifdef USE_SKINNING
+#ifdef SKIN_BLEND
+  // 骨を最大4本混ぜる（外部素材に付けた骨。関節のまわりがなめらかに曲がる）
+  mat4 skinM = bindMatrixInverse * (getBoneMatrix(skinIndex.x) * skinWeight.x + getBoneMatrix(skinIndex.y) * skinWeight.y
+    + getBoneMatrix(skinIndex.z) * skinWeight.z + getBoneMatrix(skinIndex.w) * skinWeight.w) * bindMatrix;
+#else
   mat4 skinM = bindMatrixInverse * getBoneMatrix(skinIndex.x) * bindMatrix;
+#endif
   p = (skinM * vec4(p, 1.0)).xyz;
   n = normalize(mat3(skinM) * n);
 #endif

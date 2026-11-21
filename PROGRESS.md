@@ -31,7 +31,15 @@
 - テスト：単体 `assets.test`（目録の形・GLB の三角形・メッシュ数・画像の数と大きさ・ファイルの大きさが上限内）、e2e `lookdevGlbFallback`（公開版では警告1回・エラー0でコードの形）。`npm run verify` 成功（e2e 47件）
 - 比較 `design-notes/lookdev/atelier/ganjo_glb_v1_compare.png`（参考｜コード版｜Tripo版｜顔2つ）・`ganjo_glb_v1.png`（6視点）・`ganjo_glb_v1_head.png`（顔の寄り）
 - 実装AIの見立て：形の密度（筋肉・縄の帯・腹当て・袴のふくらみ）は、コード版の1巡目よりはるかに参考に近い。水彩の塗りもそのまま乗る。足りないのは ①骨と動き ②髷・顔の形 ③顔の寄りの細かさ。①は Tripo の自動リグ（有料の機能らしい）で動き込みの GLB にするのが早い
-- まだ：骨と動き、大槌を持たせること、場面（白鷺岬）の中での遠目の確認
+- **2回目（11/21。依頼者の選択「コードで試す」）：コードで骨と動きを付けた**
+  - 骨：主人公と同じ骨の名前と親子（`humanBones`）。関節の位置は、正面・横の正射影の画像に 0.1m の升目を重ねて読み、目録 `assets.ganjo.rig` に書いた（`at`＝関節、`end`＝その骨が受け持つ区間の終わり、`rM`＝体の太さ）
+  - 体への付け方（`src/render/assets/autoSkin.js`）：各点を骨の区間からの近さ（太さで割った値）で比べ、近い骨を最大4本なめらかに混ぜる。関節より親の側の点は遠く数える（帯が脚につられないように）。調整値 `assetSkinSoftRatio`（混ぜる幅）・`assetSkinBehindMul`・`assetSkinMinWeightRatio`
+  - 塗りの材質に、骨を4本混ぜる `SKIN_BLEND` を足した（主人公は今までどおり1点1本）
+  - 動き：主人公の移動の姿勢（`poseAt`）をそのまま当てる。工房で `&anim=walk|run`
+  - 結果：歩き・走りで脚が振れ、膝が曲がり、袴も脚について動く。破れや大きな潰れは見えない。気になる点：①腕の振りが小さい（主人公の値。右腕は刀を持つ前提でさらに小さい）②肩衣の前の裾が前へ出た脚につられて少し伸びる ③股の間の袴が膜のように伸びる
+  - 単体 `assetsAutoSkin`（重みの和が1・手・足首・頭・胸・帯の横が正しい骨に付く）。`npm run verify` 成功（e2e 47件）
+  - 連続写真 `design-notes/lookdev/atelier/ganjo_glb_v2_walk_side.png`・`_run_side.png`・`_run_front.png`
+- まだ：岩丈用の動き（腕を大きく振る・重い足取り）、大槌を持たせること、技の動き、場面（白鷺岬）の中での遠目の確認
 
 ## 見た目 V5 第1回 — 工房と、鳥居の作り直し1巡目（ブランチ claude/ecstatic-cannon-86xafc、依頼者の判定待ち）
 - [x] **工房**（docs/12 4章の最小版）：`?scene=lookdev&model=形の名前`（例 `&model=toriiMain`）で、その形だけを台の上に大きく映す。指のドラッグで回せる。撮影は `node scripts/atelier-shot.mjs 形の名前 --ref=参考画像`（6視点の一覧。参考を左に並べる）
@@ -426,6 +434,7 @@ M0a（受け入れ基準：09受1〜10・13・17〜20・22・23、01受27、M0a-
 verify 結果：`npm run verify` 成功（型検査・単体テスト・ブラウザ試験47件・スクリーンショット8枚）。コンソールのエラー0件。
 
 依頼者が試すこと（公開URLでは見られないので画像で）：
+0. `ganjo_glb_v2_run_side.png`・`_run_front.png`・`_walk_side.png`（コードで付けた動きの連続写真）で、関節の曲がり方が気にならないかを見る。
 1. `design-notes/lookdev/atelier/ganjo_glb_v1_compare.png` で、参考・コード版・Tripo版を見比べる。
 2. `ganjo_glb_v1.png`（6方向）で、水彩の画面になじんでいるか（浮いて見えないか）を見る。
 3. `ganjo_glb_v1_head.png`（顔の寄り）で、顔のぼやけと髷が無い点が気になるかを見る。

@@ -70,3 +70,29 @@ test('assetsBudget：置いてある GLB は上限内（1体＝1メッシュ、�
   }
   assert.ok(checked >= 1, '少なくとも1つの GLB を調べた');
 });
+
+test('assetsAutoSkin：骨の重みは足して1、手・足・頭・胴の点はそれぞれの骨に一番重く付く、帯の横は脚につられない', async () => {
+  const { BufferGeometry, Float32BufferAttribute } = await import('three');
+  const { autoSkin } = await import('../../src/render/assets/autoSkin.js');
+  const { humanBones } = await import('../../src/data/lookdev/rigs.js');
+  const { lookdev } = await import('../../src/config/lookdev.js');
+  const rig = /** @type {any} */ (assets.ganjo.rig);
+  // 点：左手の中・右の足首・頭・胸の中・帯の左横（腰の関節より上）
+  const pts = [[0.4, 0.85, 0.05], [-0.21, 0.08, 0.05], [0, 1.82, 0], [0, 1.4, 0.1], [0.2, 1.05, 0]];
+  const want = ['handL', 'footR', 'head', 'chest', 'hips'];
+  const g = new BufferGeometry();
+  g.setAttribute('position', new Float32BufferAttribute(pts.flat(), 3));
+  autoSkin(g, rig, { softRatio: lookdev.assetSkinSoftRatio.v, behindMul: lookdev.assetSkinBehindMul.v, minWeightRatio: lookdev.assetSkinMinWeightRatio.v });
+  const si = g.attributes.skinIndex;
+  const sw = g.attributes.skinWeight;
+  pts.forEach((_, v) => {
+    let sum = 0;
+    let best = 0;
+    for (let q = 0; q < 4; q++) {
+      sum += sw.getComponent(v, q);
+      if (sw.getComponent(v, q) > sw.getComponent(v, best)) best = q;
+    }
+    assert.ok(Math.abs(sum - 1) < 1e-5, `点${v}の重みの和 ${sum}`);
+    assert.equal(humanBones[si.getComponent(v, best)].name, want[v], `点${v}`);
+  });
+});
