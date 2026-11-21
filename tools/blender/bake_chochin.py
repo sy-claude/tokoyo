@@ -2,6 +2,7 @@
 # 1. UV を展開 2. 位置・部位・陰（AO）・凹凸（紙のしわ）を Cycles で焼く 3. 位置と部位から numpy で色と透明（破れ穴・口）を描く
 # 4. 色（RGBA）と凹凸の絵を1つの材質に貼って GLB に書き出す
 # 使い方：python tools/blender/bake_chochin.py <作業フォルダ（chochin_model.blend がある）> <GLB の出力先>
+# 出力は <名前>_raw.glb。そのあと画像を WebP に圧縮する：npx -y @gltf-transform/cli@4.1.1 webp X_raw.glb public/assets/lookdev/chochin.glb --quality 90
 import sys, os, math
 import bpy
 import numpy as np
@@ -75,14 +76,14 @@ def bump_builder(nodes, links, k, out):
     nz = nodes.new('ShaderNodeTexNoise'); nz.inputs['Scale'].default_value = 9 if k == 0 else 30; nz.inputs['Detail'].default_value = 8
     links.new(tc.outputs['Object'], nz.inputs['Vector'])
     h = nz.outputs['Fac']
-    if k in (0, 3):
+    if k == 0:
         wv = nodes.new('ShaderNodeTexWave'); wv.bands_direction = 'Z'; wv.inputs['Scale'].default_value = 26; wv.inputs['Distortion'].default_value = 6
         wv.inputs['Detail'].default_value = 4
         links.new(tc.outputs['Object'], wv.inputs['Vector'])
         mx = nodes.new('ShaderNodeMath'); mx.operation = 'ADD'
         links.new(nz.outputs['Fac'], mx.inputs[0]); links.new(wv.outputs['Fac'], mx.inputs[1])
         h = mx.outputs[0]
-    bump.inputs['Strength'].default_value = {0: 0.55, 3: 0.6, 4: 0.25}.get(k, 0.2)
+    bump.inputs['Strength'].default_value = {0: 0.28, 3: 0.15, 4: 0.2}.get(k, 0.15)
     bump.inputs['Distance'].default_value = 0.02
     links.new(h, bump.inputs['Height']); links.new(bump.outputs['Normal'], bs.inputs['Normal'])
     links.new(bs.outputs[0], out.inputs['Surface'])
@@ -136,12 +137,14 @@ n2 = fbm(x, y, z, 12, 3, 2)
 # 紙
 paper = mix(hexc('#e0cfa6')[None, None], hexc('#b99f74')[None, None], smooth(0.35, 0.7, n1))
 paper = mix(paper, hexc('#9a7a50')[None, None], smooth(0.62, 0.8, fbm(x, y, z, 5, 4, 3)) * 0.55)   # しみ
-fiber = np.abs(np.sin(z * 180 + n2 * 6)) ** 18
-paper = mix(paper, hexc('#8c7454')[None, None], fiber * 0.25)                                          # 横の繊維の筋
+fiber = np.abs(np.sin(z * 140 + n2 * 9)) ** 30
+paper = mix(paper, hexc('#8c7454')[None, None], fiber * 0.15 * smooth(0.4, 0.6, fbm(x, y, z, 6, 2, 21)))                                          # 横の繊維の筋
 soot = 1 - smooth(0.18, 0.52, z + (n1 - 0.5) * 0.25)
 paper = mix(paper, hexc('#2a2420')[None, None], soot * 0.92)                                           # 下の煤
-for rh in [0.135 + 0.1 * i for i in range(13)]:                                                        # 横の骨の墨線
-    paper = mix(paper, hexc('#4a3a2c')[None, None], np.exp(-((z - rh) / 0.006) ** 2) * 0.75)
+for i, rh in enumerate([0.135 + 0.1 * i for i in range(13)]):                                         # 横の骨の墨線（太い骨は3本に1本、ほかは淡く途切れる）
+    strong = 0.8 if i % 3 == 1 else 0.3
+    brk = smooth(0.35, 0.55, fbm(x * 3, y * 3, np.full_like(z, rh * 7), 4, 2, 20 + i))
+    paper = mix(paper, hexc('#4a3a2c')[None, None], np.exp(-((z - rh) / 0.005) ** 2) * strong * brk)
 for k8 in range(8):                                                                                    # 縦の骨（細い線）
     da = np.angle(np.exp(1j * (ang - (k8 + 0.5) * math.pi / 4)))
     paper = mix(paper, hexc('#5a4632')[None, None], np.exp(-((da * 0.52) / 0.004) ** 2) * 0.5)
@@ -154,8 +157,8 @@ paper = mix(paper, hexc('#7a5e40')[None, None], np.exp(-((de - 0.17) / 0.04) ** 
 
 # 口（三日月の裂け目）と破れ穴：透明。縁は焦げ茶
 jag = (fbm(x, y, z, 30, 2, 9) - 0.5) * 0.05
-top = 0.60 + 0.45 * arcS ** 2 + jag
-bot = 0.40 + 1.15 * arcS ** 2 + jag
+top = 0.64 + 0.42 * arcS ** 2 + jag
+bot = 0.36 + 1.25 * arcS ** 2 + jag
 front = np.cos(ang) > 0.2
 mouth = front & (z < top) & (z > bot)
 holes = np.zeros_like(alpha, dtype=bool)
@@ -235,6 +238,6 @@ nt.links.new(tn.outputs['Color'], nm.inputs['Color'])
 nt.links.new(nm.outputs['Normal'], bsdf.inputs['Normal'])
 ob.data.materials.clear()
 ob.data.materials.append(mat)
-bpy.ops.export_scene.gltf(filepath=GLB, export_format='GLB', use_selection=True, export_tangents=True, export_yup=True,
+bpy.ops.export_scene.gltf(filepath=GLB.replace('.glb', '_raw.glb'), export_format='GLB', use_selection=True, export_tangents=True, export_yup=True,
                           export_image_format='AUTO')
-print('GLB', GLB, os.path.getsize(GLB))
+print('GLB', GLB.replace('.glb', '_raw.glb'))

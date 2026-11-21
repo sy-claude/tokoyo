@@ -45,7 +45,7 @@ EYE_C = (0.0, 0.92)  # 正面の目の中心（角度0、高さ）
 EYE_R = 0.15
 
 # ---- 胴（紙）：角度 SEG × 高さ RINGS の格子 ----
-SEG, RINGS = 48, 30
+SEG, RINGS = 48, 28
 bm = bmesh.new()
 grid = []
 for j in range(RINGS + 1):
@@ -83,28 +83,42 @@ for v in bm.verts:
     v.co = Vector((v.co.x, v.co.y * 0.85 - 0.5, v.co.z + EYE_C[1]))
 eye = new_obj('eye', bm)
 
-# ---- まぶた：目を包む厚い輪（上は厚く目にかぶさる、下は薄い） ----
-bm = bmesh.new()
-bmesh.ops.create_circle(bm, segments=1, radius=1)  # 空のメッシュを作るため
-bm.clear()
-LS, LR = 32, 6
-ring = []
-for i in range(LS):
-    t = 2 * math.pi * i / LS
-    up = max(0.0, math.sin(t))
-    R = EYE_R * (1.02 - 0.18 * up)          # 上は目の中心へ寄せて目にかぶせる
-    minor = 0.035 + 0.035 * up               # 上まぶたは厚い
-    cx, cz = math.cos(t) * R * 1.25, math.sin(t) * R + EYE_C[1] - 0.01 * up
-    loop = []
-    for k in range(LR):
-        s = 2 * math.pi * k / LR
-        n = Vector((math.cos(t) * math.cos(s), -math.sin(s) * 0.9, math.sin(t) * math.cos(s)))
-        loop.append(bm.verts.new((cx + n.x * minor, -0.53 + n.y * minor * 1.3, cz + n.z * minor)))
-    ring.append(loop)
-for i in range(LS):
-    for k in range(LR):
-        bm.faces.new((ring[i][k], ring[(i + 1) % LS][k], ring[(i + 1) % LS][(k + 1) % LR], ring[i][(k + 1) % LR]))
-lid = new_obj('lid', bm)
+# ---- まぶた：上は厚く目の上 1/3 にかぶさる弧、下は薄い弧。端は細くなって紙の盛り上がりに埋もれる ----
+def lid_arc(name, t0, t1, R, minor0, drop, n=20, m=6):
+    bm = bmesh.new()
+    loops = []
+    for i in range(n + 1):
+        u = i / n
+        t = math.radians(t0 + (t1 - t0) * u)
+        taper = math.sin(math.pi * u) ** 0.7
+        minor = minor0 * (0.25 + 0.75 * taper)
+        cx, cz = math.cos(t) * R * 1.12, math.sin(t) * R + EYE_C[1] - drop * taper
+        loop = []
+        for k in range(m):
+            s_ = 2 * math.pi * k / m
+            nx, ny, nz = math.cos(t) * math.cos(s_), -math.sin(s_), math.sin(t) * math.cos(s_)
+            loop.append(bm.verts.new((cx + nx * minor, -0.5 - EYE_R * 0.55 + ny * minor * 1.6, cz + nz * minor)))
+        loops.append(loop)
+    for i in range(n):
+        for k in range(m):
+            bm.faces.new((loops[i][k], loops[i + 1][k], loops[i + 1][(k + 1) % m], loops[i][(k + 1) % m]))
+    return new_obj(name, bm)
+lid_up = lid_arc('lid', 0, 180, EYE_R * 0.92, 0.055, 0.04)
+lid_lo = lid_arc('lidLo', 195, 345, EYE_R * 1.02, 0.035, -0.0)
+
+# ---- 紙のめくれ：破れの縁から垂れる切れ端（薄い板。紙の色は位置から描く） ----
+def flap(name, a, h, w, l, tilt):
+    bm = bmesh.new()
+    R = prof(h) + 0.01
+    cx, cy = math.sin(a) * R, -math.cos(a) * R
+    tx, ty = math.cos(a), math.sin(a)
+    nx, ny = math.sin(a), -math.cos(a)
+    pts = [(-w / 2, 0), (w / 2, 0), (w * 0.15, -l), (-w * 0.2, -l * 0.8)]
+    vs = [bm.verts.new((cx + tx * u + nx * (-v) * tilt, cy + ty * u + ny * (-v) * tilt, h + v)) for u, v in pts]
+    bm.faces.new(vs)
+    return new_obj(name, bm)
+flaps = [flap(f'flap{i}', *f) for i, f in enumerate([(0.55, 0.64, 0.09, 0.12, 0.35), (-0.6, 0.62, 0.08, 0.1, 0.3), (0.25, 0.42, 0.06, 0.08, 0.2),
+                                                     (1.1, 1.12, 0.07, 0.1, 0.4), (-1.3, 1.0, 0.06, 0.09, 0.4), (2.4, 0.78, 0.08, 0.1, 0.4)])]
 
 # ---- 舌：口から前へ出て S 字に垂れ、先が丸く前へ巻く。幅広く平たい ----
 pts = [(0.0, -0.40, 0.58), (0.0, -0.58, 0.50), (0.01, -0.64, 0.25), (-0.02, -0.60, -0.15), (0.0, -0.55, -0.55),
@@ -128,7 +142,7 @@ for i, c in enumerate(path):
     tan = (path[min(i + 1, len(path) - 1)] - path[max(i - 1, 0)]).normalized()
     side = Vector((1, 0, 0))
     up = tan.cross(side).normalized()
-    w = lerp(0.17, 0.10, t) * (1 - max(0, (t - 0.93) / 0.07) ** 2 * 0.8)
+    w = lerp(0.22, 0.10, t ** 0.6) * (1 - max(0, (t - 0.93) / 0.07) ** 2 * 0.8)
     th = lerp(0.05, 0.035, t) * (1 - max(0, (t - 0.93) / 0.07) ** 2 * 0.7)
     loop = []
     for k in range(TS):
@@ -175,9 +189,9 @@ ribs = [tube_obj(f'brokenRib{i}', [p0, p1], 0.008, 5, 2) for i, (p0, p1) in enum
     ((0.45, -0.25, 1.03), (0.72, -0.18, 1.06)), ((-0.45, -0.25, 0.63), (-0.74, -0.2, 0.6)), ((0.47, -0.2, 0.63), (0.7, -0.25, 0.62))])]
 
 # ---- 1つにまとめる（部位は頂点グループでなく、材質の番号で覚える：0 紙 1 口 2 目 3 まぶた 4 舌 5 金属 6 骨） ----
-PART = {'paper': 0, 'mouth': 1, 'eye': 2, 'lid': 3, 'tongue': 4, 'rimTop': 5, 'rimBot': 5, 'handle': 5, 'hook': 5}
+PART = {'paper': 0, 'mouth': 1, 'eye': 2, 'lid': 3, 'lidLo': 3, 'tongue': 4, 'rimTop': 5, 'rimBot': 5, 'handle': 5, 'hook': 5}
 for ob in list(scene.objects):
-    pid = PART.get(ob.name, 6)
+    pid = 0 if ob.name.startswith('flap') else PART.get(ob.name, 6)
     for k in range(7):
         ob.data.materials.append(bpy.data.materials.get(f'part{k}') or bpy.data.materials.new(f'part{k}'))
     for p in ob.data.polygons:
