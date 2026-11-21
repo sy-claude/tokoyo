@@ -1,39 +1,13 @@
 // 1フレームの描画。シムの状態を読み、補間して描くだけ（シムを import しない）。
-// M0a は灰色の仮表示：床（灰色＋1m格子）とカプセル（単色）。本物の材質・地形・キャラは M1 以降。
+// 試験場は灰色の仮表示（render/stage/sandboxView：地形・小道具・海・カプセル）。見た目の試作（lookdev）は専用の描画。
 /** @import {Cfg} from '../config/index.js' */
-import { CapsuleGeometry, Color, Mesh, MeshBasicMaterial, PlaneGeometry, Scene, ShaderMaterial } from 'three';
-import { DEG2RAD, lerp, lerpDeg } from '../core/math.js';
+import { Color, Scene } from 'three';
 import { createCameraView } from './cameraView.js';
 import { createLookdevView } from './lookdev/view.js';
+import { createSandboxView } from './stage/sandboxView.js';
 
 /** 見た目の試作（V1）の場面。この場面だけ専用の描画（render/lookdev）へ任せる。 */
 const LOOKDEV_STAGE = 'lookdev';
-
-const GRID_VERT = /* glsl */ `
-varying vec3 vWorld;
-void main() {
-  vec4 w = modelMatrix * vec4(position, 1.0);
-  vWorld = w.xyz;
-  gl_Position = projectionMatrix * viewMatrix * w;
-}`;
-
-// 格子の線は画面上の太さ（px）で描き、遠くで細かくなりすぎたら床の色へ溶かす（ちらつき防止）
-const GRID_FRAG = /* glsl */ `
-uniform vec3 uFloor;
-uniform vec3 uGrid;
-uniform float uStepM;
-uniform float uLinePx;
-varying vec3 vWorld;
-void main() {
-  vec2 g = vWorld.xz / uStepM;
-  vec2 fw = max(fwidth(g), vec2(1e-6));
-  vec2 d = abs(fract(g - 0.5) - 0.5) / fw;
-  float line = 1.0 - clamp(min(d.x, d.y) - (uLinePx * 0.5 - 0.5), 0.0, 1.0);
-  float dense = max(fw.x, fw.y);
-  float fade = 1.0 - clamp((dense - 0.12) / 0.38, 0.0, 1.0);
-  gl_FragColor = vec4(mix(uFloor, uGrid, line * fade), 1.0);
-  #include <colorspace_fragment>
-}`;
 
 /**
  * @param {ReturnType<typeof import('./renderer.js').createRenderer>} renderer
@@ -45,35 +19,15 @@ export function createFrame(renderer, cfg, opts = {}) {
   const bg = new Color(cfg.debug.grayBgColor);
   scene.background = bg;
 
-  const floorMat = new ShaderMaterial({
-    vertexShader: GRID_VERT,
-    fragmentShader: GRID_FRAG,
-    uniforms: {
-      uFloor: { value: new Color(cfg.debug.grayFloorColor) },
-      uGrid: { value: new Color(cfg.debug.grayGridColor) },
-      uStepM: { value: cfg.debug.grayGridStepM },
-      uLinePx: { value: cfg.debug.grayGridLinePx },
-    },
-  });
-  const capsuleMat = new MeshBasicMaterial({ color: new Color(cfg.debug.grayCapsuleColor) });
-  /** @type {any} */
-  let floor = null;
-  /** @type {any} */
-  let capsule = null;
-  let capsuleHM = 0;
+  const sandbox = createSandboxView(cfg);
+  let hasWorld = false;
   /** @type {ReturnType<typeof createLookdevView>|null} 見た目の試作の描画（その場面を開いたときに作る） */
   let lookdev = null;
   let useLookdev = false;
 
   function clear() {
-    for (const m of [floor, capsule]) {
-      if (m) {
-        scene.remove(m);
-        m.geometry.dispose();
-      }
-    }
-    floor = null;
-    capsule = null;
+    scene.remove(sandbox.root);
+    hasWorld = false;
   }
 
   return {
@@ -89,19 +43,9 @@ export function createFrame(renderer, cfg, opts = {}) {
         lookdev.setWorld(world);
         return;
       }
-      const [sx, sz] = world.stage.sizeM;
-      const baseM = Number(world.stage.terrain.params.baseM ?? 0);
-      const floorGeo = new PlaneGeometry(sx, sz);
-      floorGeo.rotateX(-Math.PI / 2);
-      floor = new Mesh(floorGeo, floorMat);
-      floor.position.set(sx / 2, baseM, sz / 2);
-      scene.add(floor);
-
-      const { rM, hM } = world.player.capsule;
-      const seg = cfg.debug.grayCapsuleSegCount;
-      capsule = new Mesh(new CapsuleGeometry(rM, Math.max(0, hM - rM * 2), Math.ceil(seg / 2), seg), capsuleMat);
-      capsuleHM = hM;
-      scene.add(capsule);
+      sandbox.setWorld(world);
+      scene.add(sandbox.root);
+      hasWorld = true;
     },
     /**
      * @param {any} world シムのワールド（読むだけ）
@@ -112,22 +56,10 @@ export function createFrame(renderer, cfg, opts = {}) {
         lookdev.render(world, alpha);
         return;
       }
-      if (!floor || !capsule) return;
+      if (!hasWorld) return;
       // 調整パネルで変えた値を反映する
       bg.set(cfg.debug.grayBgColor);
-      floorMat.uniforms.uFloor.value.set(cfg.debug.grayFloorColor);
-      floorMat.uniforms.uGrid.value.set(cfg.debug.grayGridColor);
-      floorMat.uniforms.uStepM.value = cfg.debug.grayGridStepM;
-      floorMat.uniforms.uLinePx.value = cfg.debug.grayGridLinePx * renderer.three.getPixelRatio();
-      capsuleMat.color.set(cfg.debug.grayCapsuleColor);
-
-      const p = world.player;
-      capsule.position.set(
-        lerp(p.prevPos[0], p.pos[0], alpha),
-        lerp(p.prevPos[1], p.pos[1], alpha) + capsuleHM / 2,
-        lerp(p.prevPos[2], p.pos[2], alpha),
-      );
-      capsule.rotation.y = lerpDeg(p.prevYawDeg, p.yawDeg, alpha) * DEG2RAD;
+      sandbox.render(world, alpha, renderer.three.getPixelRatio());
 
       const [w, h] = renderer.viewPx();
       cameraView.update(world.camera, alpha, w / h);
@@ -135,9 +67,8 @@ export function createFrame(renderer, cfg, opts = {}) {
     },
     dispose() {
       clear();
+      sandbox.dispose();
       lookdev?.dispose();
-      floorMat.dispose();
-      capsuleMat.dispose();
     },
   };
 }

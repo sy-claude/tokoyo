@@ -27,6 +27,7 @@ import { copyV3 } from '../core/math.js';
  * @property {number} fu
  * @property {number} magatama
  * @property {number} kekkai
+ * @property {import('./player/fsm.js').PlayerMove} [mv]  プレイヤーの移動の状態（02）
  */
 
 /**

@@ -46,7 +46,8 @@ test('stickDrag：スティックを右へ60px ドラッグ → stick.x 1.0、�
   const s2 = await game(page, 'getState');
   expect(Math.sign(s2.player.pos[0] - s0.player.pos[0])).toBe(dirX);
   expect(Math.abs(s2.player.pos[0] - s0.player.pos[0])).toBeGreaterThan(1);
-  expect(near(s2.player.pos[2], s0.player.pos[2], 1e-6)).toBe(true);
+  // 向きは旋回（900°/s）で右へ回るので、回り切るまでの間に前へ少しずれる（02 §2.2）
+  expect(Math.abs(s2.player.pos[2] - s0.player.pos[2])).toBeLessThan(0.3);
   await t.up(1);
   await game(page, 'step', 1);
   expect((await game(page, 'getState')).lastInput.stick).toEqual([0, 0]);

@@ -2,44 +2,9 @@
 /** @import {InputFrame} from '../data/types.js' */
 /** @import {World} from './world.js' */
 import { advanceTime } from '../core/time.js';
-import { clamp, forwardXZ, rightXZ, yawOfXZ } from '../core/math.js';
 import { compactEntities, savePrev } from './entities.js';
 import { snapCamera, stepCamera } from './camera.js';
-
-/**
- * 仮の移動（M0a）：平面上を、カメラ基準のスティック方向へ runSpeedMps×スティック量で等速移動するだけ。
- * 加減速・重力・衝突・跳躍・回避は M2a（02）で sim/player/ に作る。
- * @param {World} world @param {InputFrame} input
- */
-function stepPlayerProvisional(world, input) {
-  const p = world.player;
-  const cfg = world.cfg;
-  let sx = input.stick[0];
-  let sy = input.stick[1];
-  const m = Math.hypot(sx, sy);
-  if (m > 1) {
-    sx /= m;
-    sy /= m;
-  }
-  if (m > 0) {
-    const f = forwardXZ(world.camera.yawDeg);
-    const r = rightXZ(world.camera.yawDeg);
-    const speed = cfg.movement.runSpeedMps;
-    p.vel[0] = (f[0] * sy + r[0] * sx) * speed;
-    p.vel[2] = (f[2] * sy + r[2] * sx) * speed;
-    p.yawDeg = yawOfXZ(p.vel[0], p.vel[2]);
-    p.state = 'run';
-  } else {
-    p.vel[0] = 0;
-    p.vel[2] = 0;
-    p.state = 'idle';
-  }
-  const dt = p.scale / cfg.time.tickRateHz;
-  const r = p.capsule.rM;
-  // 仮：地図の外へ出ないように端で止める（本物の衝突は M2a）
-  p.pos[0] = clamp(p.pos[0] + p.vel[0] * dt, r, world.stage.sizeM[0] - r);
-  p.pos[2] = clamp(p.pos[2] + p.vel[2] * dt, r, world.stage.sizeM[1] - r);
-}
+import { stepPlayer } from './player/fsm.js';
 
 /**
  * @param {World} world
@@ -54,10 +19,11 @@ export function stepWorld(world, input) {
   // 2. 時間：世界倍率と各エンティティの scale を決める
   advanceTime(world, world.cfg.time);
   // 3. プレイヤー
-  stepPlayerProvisional(world, input);
-  // 4〜7. 敵・弾・攻撃判定・ステージの処理（M2a 以降で足す）
+  stepPlayer(world, input);
+  // 4〜7. 敵・弾・攻撃判定・ステージの処理（M3a 以降で足す。海と安全地点は stepPlayer の中＝stageLogic/sea）
   // 8. カメラ（実tickで更新）
-  stepCamera(world.camera, world.player, input, world.cfg);
+  // 海へ落ちている間は追従を止める（02 §5 の3。camera.mode='sea'）
+  if (world.camera.mode !== 'sea') stepCamera(world.camera, world.player, input, world.cfg);
   // 9. 死んだエンティティを詰め、tick を進める
   compactEntities(world.entities);
   world.tick += 1;

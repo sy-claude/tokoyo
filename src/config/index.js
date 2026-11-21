@@ -14,8 +14,9 @@ import { palette } from './palette.js';
 import { audio } from './audio.js';
 import { lookdev } from './lookdev.js';
 import { anim } from './anim.js';
+import { combat } from './combat.js';
 
-export const configTables = { time, collision, movement, camera, input, layout, ui, settings, palette, audio, quality, save, debug, lookdev, anim };
+export const configTables = { time, collision, movement, camera, input, layout, ui, settings, palette, audio, quality, save, debug, lookdev, anim, combat };
 
 /**
  * 表の集まり → 値だけの形。

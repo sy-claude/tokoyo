@@ -85,14 +85,21 @@ test('localFExact：1/4096 の倍数の和は誤差なく足せる', () => {
   assert.equal(ent.localF, SLOW_IN_FU * n);
 });
 
-test('moveIntegration：移動は pos += vel × scale / 60（倍率0.15なら進みも0.15倍）', () => {
+test('moveIntegration：移動は pos += vel × scale / 60（最高速で走っている間、倍率0.15なら進みも0.15倍）', () => {
   const a = createSceneWorld('sandbox', { seed: 1, cfg: makeCfg() });
   const b = createSceneWorld('sandbox', { seed: 1, cfg: makeCfg() });
+  // 最高速まで走る（0.12s で最高速。60tick あれば十分）
+  const WARM = 60;
+  for (let i = 0; i < WARM; i++) {
+    stepWorld(a, makeFrame(a.tick, { stick: [0, 1] }));
+    stepWorld(b, makeFrame(b.tick, { stick: [0, 1] }));
+  }
   requestWorldMul(b.time, T.fuWorldMul);
-  stepWorld(b, makeFrame(b.tick));
+  stepWorld(a, makeFrame(a.tick, { stick: [0, 1] }));
+  stepWorld(b, makeFrame(b.tick, { stick: [0, 1] }));
   const z0a = a.player.pos[2];
   const z0b = b.player.pos[2];
-  const n = 60;
+  const n = 30;
   for (let i = 0; i < n; i++) {
     stepWorld(a, makeFrame(a.tick, { stick: [0, 1] }));
     stepWorld(b, makeFrame(b.tick, { stick: [0, 1] }));

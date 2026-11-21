@@ -51,23 +51,27 @@ test('replayMatchesNode：保存したリプレイをブラウザで流すと、
   expect(await game(page, 'hash')).toBe(json.hashes.final);
 });
 
-test('walkForward：setInput({stick:[0,1]}) と step(60) → カプセルが 仮速度×1s 前へ進む（09受13）', async ({ page }) => {
+test('walkForward：setInput({stick:[0,1]}) と step(60) → 走りの速さ×(1s − 加速の時間の半分) 前へ進む（09受13・02 §2.2）', async ({ page }) => {
   await boot(page);
   const s0 = await game(page, 'getState');
   await game(page, 'setInput', { stick: [0, 1] });
   await game(page, 'step', cfg.time.tickRateHz);
   const s1 = await game(page, 'getState');
-  const expected = cfg.movement.runSpeedMps; // m/s × 1s
+  // 0→最高速は runAccelS の等加速度なので、1s の距離は 速さ×(1 − runAccelS/2)
+  const expected = cfg.movement.runSpeedMps * (1 - cfg.movement.runAccelS / 2);
   const moved = Math.hypot(s1.player.pos[0] - s0.player.pos[0], s1.player.pos[2] - s0.player.pos[2]);
   expect(near(moved, expected, expected * 0.02), `moved=${moved}`).toBe(true);
   // 前＝カメラの向き（開始時は +Z）。カメラも同じだけ追う
   expect(near(s1.player.pos[2] - s0.player.pos[2], expected, expected * 0.02)).toBe(true);
   expect(near(s1.camera.pos[2] - s0.camera.pos[2], expected, expected * 0.02)).toBe(true);
-  // 止めれば止まる
+  // 止めれば止まる（runDecelS で減速してから）
   await game(page, 'setInput', { stick: [0, 0] });
   await game(page, 'step', 10);
   const s2 = await game(page, 'getState');
-  expect(s2.player.pos).toEqual(s1.player.pos);
+  await game(page, 'step', 10);
+  const s3 = await game(page, 'getState');
+  expect(s3.player.pos).toEqual(s2.player.pos);
+  expect(s2.player.pos[2] - s1.player.pos[2]).toBeLessThan(cfg.movement.runSpeedMps * cfg.movement.runDecelS);
 });
 
 test('setConfigLive：setConfig で変えた値がすぐシムに効く', async ({ page }) => {
@@ -78,7 +82,8 @@ test('setConfigLive：setConfig で変えた値がすぐシムに効く', async 
   await game(page, 'setInput', { stick: [0, 1] });
   await game(page, 'step', cfg.time.tickRateHz);
   const s1 = await game(page, 'getState');
-  expect(near(s1.player.pos[2] - s0.player.pos[2], speed, speed * 0.02)).toBe(true);
+  const want = speed * (1 - cfg.movement.runAccelS / 2);
+  expect(near(s1.player.pos[2] - s0.player.pos[2], want, want * 0.02)).toBe(true);
 });
 
 test('cameraTurnAndPitch：camDeg で回り、縦角は config の範囲で止まる', async ({ page }) => {
@@ -108,7 +113,9 @@ test('sandbox300：sandbox を起動して300tick → コンソールエラー0�
   }
   expect((await game(page, 'getState')).tick).toBe(300);
   expect((await game(page, 'renderInfo')).calls).toBeGreaterThan(0);
-  expect(await game(page, 'getEvents')).toEqual([]); // M0a はイベントを出す機能がまだ無い
+  // M2a から移動のイベント（足音・跳躍・着地・海）が出る。知らない種類は出ない
+  const kinds = new Set((await game(page, 'getEvents')).map((e) => e.type));
+  for (const k of kinds) expect(['footstep', 'jump', 'land', 'dodge', 'seaFall', 'respawn']).toContain(k);
 });
 
 test('normalLoopRuns：通常のループで起動して1秒待つと tick ≥ 30（M0a-1）', async ({ page }) => {
@@ -185,7 +192,8 @@ test('debugPanelCopy：?debug=1 で調整パネルが出て、「JSONをコピ�
   await game(page, 'setInput', { stick: [0, 1] });
   await game(page, 'step', cfg.time.tickRateHz);
   const s1 = await game(page, 'getState');
-  expect(near(s1.player.pos[2] - s0.player.pos[2], speed, speed * 0.02)).toBe(true);
+  const want = speed * (1 - cfg.movement.runAccelS / 2);
+  expect(near(s1.player.pos[2] - s0.player.pos[2], want, want * 0.02)).toBe(true);
   // 値は tokoyo:debug に残り、開き直しても使われる
   await boot(page, { extra: '&debug=1' });
   await page.locator('#dbg-toggle').click();

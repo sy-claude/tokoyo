@@ -1,97 +1,112 @@
-// スクリーンショット8地点（M0b。10 §M0b の表）。Mごとにこの8枚を置き換える。
+// スクリーンショット8地点（M2a。10 §M2a の表）。Mごとにこの8枚を置き換える（M0b の配置の検査は m0bLayout.spec.js）。
 // 合否は状態で判定し、画像（sheet.png・sheet_gray.png）では「見る点」だけを確かめる。
 import { boot, cfg, expect, game, test } from './helpers/game.js';
 import { shot } from './helpers/shots.js';
-import { createTouch } from './helpers/touch.js';
 
 test.describe.configure({ mode: 'serial' });
 
-/** 見た目円がどれも safe 矩形の中で、互いに重ならない */
-function checkLayout(L) {
-  const bs = L.buttons.filter((b) => b.id !== 'pause');
-  for (const a of bs) {
-    expect(a.x - a.rVisPx >= L.safeL - 1e-6 && a.x + a.rVisPx <= L.safeR + 1e-6, a.id).toBe(true);
-    expect(a.y - a.rVisPx >= L.safeT - 1e-6 && a.y + a.rVisPx <= L.safeB + 1e-6, a.id).toBe(true);
-    for (const b of bs) if (a !== b) expect(Math.hypot(a.x - b.x, a.y - b.y) >= a.rVisPx + b.rVisPx, `${a.id}-${b.id}`).toBe(true);
-  }
+const mv = cfg.movement;
+const state = async (page) => (await game(page, 'getState')).player;
+
+/** 跳躍を押し続けて n tick（押した tick を含む）。 */
+async function jumpHold(page, n, stick = [0, 0]) {
+  await game(page, 'setInput', { stick, down: { jump: true } });
+  await game(page, 'step', n);
 }
 
-test('shot 1：タイトル（題字、2つのボタンが中央下、設定は右下）', async ({ page }) => {
-  await boot(page, { scene: 'title' });
-  await expect(page.locator('#title')).toBeVisible();
+test('shot 1：開始点（試験場の全体：段差・台・壁・海）', async ({ page }) => {
+  await boot(page);
+  await game(page, 'setInput', { camDeg: [0, 12] });
+  await game(page, 'step', 1);
   await shot(page, 1);
-  const box = await page.locator('#title-sound-on').boundingBox();
-  const [W, H] = cfg.input.refViewPx;
-  expect(Math.abs(box.y + box.height / 2 - H * cfg.ui.titleBtnCyRatio) < 1).toBe(true);
-  const set = await page.locator('#title-settings').boundingBox();
-  expect(set.x > W / 2 && set.y > H / 2).toBe(true);
+  const p = await state(page);
+  expect(p.pos).toEqual([30, 0, 14]);
+  expect(p.state).toBe('idle');
 });
 
-test('shot 2：試験メニュー（項目が指で押せる大きさ）', async ({ page }) => {
-  await boot(page, { scene: 'title' });
-  const t = await createTouch(page);
-  await t.tapElement(page.locator('#title-sound-off'));
-  await expect(page.locator('#dev-menu')).toBeVisible();
+test('shot 2：1.8m の段の上（足が段に接している）', async ({ page }) => {
+  await boot(page);
+  await game(page, 'teleport', 25, 1.8, 14.2, 180);
+  await game(page, 'step', 5);
+  await game(page, 'teleport', 25, 1.8, 16, 180);
+  await game(page, 'step', 2);
   await shot(page, 2);
-  const box = await page.locator('[data-item=sandbox]').boundingBox();
-  expect(box.height).toBeGreaterThanOrEqual(cfg.ui.devMenuItemHPx - 0.5);
+  const p = await state(page);
+  expect(p.pos[1]).toBe(1.8);
+  expect(p.grounded).toBe(true);
 });
 
-test('shot 3：試験場 844×390（7ボタンと一時停止の位置）', async ({ page }) => {
+test('shot 3：跳躍の頂点（跳躍の姿勢）', async ({ page }) => {
   await boot(page);
+  await game(page, 'teleport', 30, 0, 20, 90);
+  await jumpHold(page, 20);
   await shot(page, 3);
-  const L = await game(page, 'layout');
-  expect(L.buttons.length).toBe(8);
-  checkLayout(L);
+  const p = await state(page);
+  expect(p.state).toBe('jumpRise');
+  expect(p.pos[1]).toBeGreaterThan(2.3);
 });
 
-test('shot 4：667×375（重なり・欠けなし）', async ({ page }) => {
-  await page.setViewportSize({ width: 667, height: 375 });
+test('shot 4：神通足の途中（隙間6m。水平の姿勢）', async ({ page }) => {
   await boot(page);
+  await game(page, 'teleport', 17.3, 2, 36, 90);
+  await jumpHold(page, 20, [0, 1]);
+  await game(page, 'setInput', { stick: [0, 1], down: { jump: true, dodge: true } });
+  await game(page, 'step', 6);
   await shot(page, 4);
-  const L = await game(page, 'layout');
-  expect([L.viewW, L.viewH]).toEqual([667, 375]);
-  checkLayout(L);
+  const p = await state(page);
+  expect(p.state).toBe('airDash');
+  expect(p.pos[0]).toBeGreaterThan(20); // 隙間（x 18〜24）の上
 });
 
-test('shot 5：932×430（重なり・欠けなし）', async ({ page }) => {
-  await page.setViewportSize({ width: 932, height: 430 });
+test('shot 5：ステップ f8（後方への身のこなし）', async ({ page }) => {
   await boot(page);
+  await game(page, 'teleport', 30, 0, 24, 0);
+  await game(page, 'setInput', { down: { dodge: true } });
+  await game(page, 'step', 8);
   await shot(page, 5);
-  const L = await game(page, 'layout');
-  expect([L.viewW, L.viewH]).toEqual([932, 430]);
-  checkLayout(L);
+  const p = await state(page);
+  expect(p.state).toBe('step');
+  expect(p.pos[2]).toBeLessThan(24 - 2);
 });
 
-test('shot 6：左利き（左右反転、一時停止は右上のまま）', async ({ page }) => {
+test('shot 6：崖（T2）の縁に歩いて止まる（落ちていない）', async ({ page }) => {
   await boot(page);
-  const R = await game(page, 'layout');
-  await game(page, 'setSettings', { leftHanded: true });
+  await game(page, 'teleport', 47, 0, 30, 90);
+  await game(page, 'setInput', { stick: [0, 0.4] });
+  await game(page, 'step', 120);
+  await game(page, 'setInput', { stick: [0, 0], camDeg: [-60, 8] });
+  await game(page, 'step', 1);
   await shot(page, 6);
-  const L = await game(page, 'layout');
-  const at = (lay, id) => lay.buttons.find((b) => b.id === id);
-  expect(Math.abs(at(L, 'attack').x - (L.viewW - at(R, 'attack').x)) < 0.5).toBe(true);
-  expect(at(L, 'pause').x).toBe(at(R, 'pause').x);
+  const p = await state(page);
+  expect(p.pos[1]).toBe(0);
+  expect(p.pos[0]).toBeGreaterThan(49);
 });
 
-test('shot 7：390×844（縦向き案内）', async ({ page }) => {
+test('shot 7：海へ落ちた直後（沈む表現）', async ({ page }) => {
   await boot(page);
-  await page.setViewportSize({ width: 390, height: 844 });
-  await expect(page.locator('#rotate-prompt')).toBeVisible();
-  await shot(page, 7);
-  expect((await game(page, 'getState')).paused).toBe(true);
-});
-
-test('shot 8：一時停止（2項目、背後の画面が止まっている）', async ({ page }) => {
-  await boot(page);
+  await game(page, 'teleport', 30, 0, 13, 180);
   await game(page, 'setInput', { stick: [0, 1] });
-  await game(page, 'step', 30);
-  const t = await createTouch(page);
-  const p = (await game(page, 'layout')).buttons.find((b) => b.id === 'pause');
-  await t.tap(p.x, p.y, 1);
-  await expect(page.locator('#pause-menu')).toBeVisible();
+  let p = await state(page);
+  for (let i = 0; i < 60 && p.state !== 'fallSea'; i++) {
+    await game(page, 'step', 1);
+    p = await state(page);
+  }
+  await game(page, 'setInput', { stick: [0, 0] });
+  await game(page, 'step', mv.seaSinkF / 2);
+  await shot(page, 7);
+  p = await state(page);
+  expect(p.state).toBe('fallSea');
+  expect((await game(page, 'getState')).camera.mode).toBe('sea');
+});
+
+test('shot 8：char=shirayuki で宙返りの頂点（回転の姿勢。体はカプセル）', async ({ page }) => {
+  await boot(page, { char: 'shirayuki' });
+  await game(page, 'teleport', 30, 0, 24, 0);
+  await jumpHold(page, 20);
+  await game(page, 'setInput', { down: { jump: true, dodge: true } });
+  await game(page, 'step', mv.flipF / 2);
   await shot(page, 8);
-  const s = await game(page, 'getState');
-  expect(s.paused).toBe(true);
-  expect(await page.locator('#pause-menu button').count()).toBe(2);
+  const p = await state(page);
+  expect(p.state).toBe('flip');
+  expect(p.pos[1]).toBeGreaterThan(3.2);
 });

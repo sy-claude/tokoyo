@@ -1,4 +1,4 @@
-// 衝突の設定（09 6章の表）。衝突そのものは M2a で作る。M0a で使うのは仮のカプセル寸法だけ。
+// 衝突の設定（09 6章の表）。キャラのカプセルは data/characters.js（06 1.2）。
 /** @import {ConfigTable} from '../data/types.js' */
 
 /** @satisfies {ConfigTable} */
@@ -18,7 +18,4 @@ export const collision = {
   safePointEveryF: { v: 30, min: 1, max: 300, step: 1, desc: '安全地点の記録間隔（実tick）' },
   safeEdgeDistM: { v: 1.5, min: 0, max: 5, step: 0.1, desc: '安全地点に必要な崖・海からの距離（m）' },
   knockbackEdgeStopM: { v: 1.0, min: 0, max: 5, step: 0.1, desc: '被弾の吹き飛びを止める崖・海からの距離（m）' },
-  // ---- 仮（M0a）：キャラのデータが入る M2a で CharacterDef.capsule に置き換える。値は楓真（06 1.2）と同じ ----
-  m0CapsuleRM: { v: 0.35, min: 0.1, max: 1, step: 0.01, desc: '仮：カプセルの半径（m）' },
-  m0CapsuleHM: { v: 1.7, min: 0.5, max: 3, step: 0.01, desc: '仮：カプセルの高さ（m）' },
 };

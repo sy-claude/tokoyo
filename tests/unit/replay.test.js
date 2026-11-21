@@ -32,9 +32,10 @@ test('inputChangesHash：入力が1tick違えばハッシュが変わる', () =>
   const frames = sixHundred();
   const a = runFrames({ scene: 'sandbox', seed: 1, frames });
   const edited = sixHundred();
-  edited[300] = makeFrame(300, { stick: [1, 0] });
+  // 最後の止まっている区間で1tickだけ動かす（M2a から地形があり、途中で海に落ちて復帰すると位置がそろってしまうため）
+  edited[540] = makeFrame(540, { stick: [1, 0] });
   const b = runFrames({ scene: 'sandbox', seed: 1, frames: edited });
-  assert.equal(a.hashes['300'], b.hashes['300']); // 変える前までは同じ
+  assert.equal(a.hashes['540'], b.hashes['540']); // 変える前までは同じ
   assert.notEqual(a.hashes.final, b.hashes.final);
 });
 

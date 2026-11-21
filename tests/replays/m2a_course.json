@@ -1,0 +1,42 @@
+{
+  "format": 1,
+  "name": "m2a_course",
+  "scene": "sandbox",
+  "char": "fuma",
+  "seed": 1,
+  "ticks": 600,
+  "hashes": {
+    "60": "fa689bef",
+    "120": "222314b3",
+    "180": "27ace30e",
+    "240": "b949c42b",
+    "300": "26b517d4",
+    "360": "f4c3bf5f",
+    "420": "c6f263cb",
+    "480": "1fd79694",
+    "540": "8535b05b",
+    "600": "e2938063",
+    "final": "e2938063"
+  },
+  "frames": [
+    [5,{}],
+    [40,{"stick":[0,1]}],
+    [1,{"stick":[0,1],"btn":{"jump":{"down":true,"pressed":true}}}],
+    [19,{"stick":[0,1],"btn":{"jump":{"down":true}}}],
+    [1,{"stick":[0,1],"btn":{"dodge":{"down":true,"pressed":true},"jump":{"down":true}}}],
+    [1,{"stick":[0,1],"btn":{"dodge":{"released":true},"jump":{"released":true}}}],
+    [24,{"stick":[0,1]}],
+    [20,{"stick":[-1,0]}],
+    [1,{"btn":{"dodge":{"down":true,"pressed":true}}}],
+    [1,{"btn":{"dodge":{"released":true}}}],
+    [14,{}],
+    [40,{"stick":[-1,0.3],"camDeg":[1.5,0]}],
+    [1,{"stick":[0,1],"btn":{"jump":{"down":true,"pressed":true}}}],
+    [3,{"stick":[0,1],"btn":{"jump":{"down":true}}}],
+    [1,{"stick":[0,1],"btn":{"jump":{"released":true}}}],
+    [39,{"stick":[0,1]}],
+    [20,{"stick":[0,0.3],"camDeg":[-3,0]}],
+    [225,{"stick":[-0.3,-1]}],
+    [144,{}]
+  ]
+}

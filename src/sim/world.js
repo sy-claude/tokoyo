@@ -11,7 +11,10 @@ import { copyV3 } from '../core/math.js';
 import { validateStage } from '../data/validate.js';
 import { sandbox } from '../data/stages/sandbox.js';
 import { lookdev } from '../data/stages/lookdev.js';
+import { characters } from '../data/characters.js';
 import { createPlayer } from './entities.js';
+import { buildCollisionWorld } from './collision/queries.js';
+import { createPlayerMove } from './player/fsm.js';
 import { createCamera, resetCameraBehind } from './camera.js';
 
 /**
@@ -32,6 +35,7 @@ import { createCamera, resetCameraBehind } from './camera.js';
  * @property {Entity[]} entities  ID昇順
  * @property {Entity} player
  * @property {CameraState} camera
+ * @property {import('./collision/queries.js').CollisionWorld} collision  地形と静的形状（ステージのデータから作る。描画も同じデータから作る＝不変条件6）
  * @property {InputFrame|null} input  このtickの入力
  * @property {SimEvent[]} eventsOut   このtickに出たイベント
  */
@@ -74,8 +78,13 @@ export function createWorld(o) {
     input: null,
     eventsOut: [],
   };
-  const capsule = { rM: o.cfg.collision.m0CapsuleRM, hM: o.cfg.collision.m0CapsuleHM };
-  world.player = createPlayer(world, o.stage.playerStart.pos, o.stage.playerStart.yawDeg, capsule);
+  world.collision = buildCollisionWorld(o.stage, o.cfg);
+  const ch = characters[world.charId] ?? characters.fuma;
+  const start = /** @type {V3} */ ([...o.stage.playerStart.pos]);
+  world.player = createPlayer(world, start, o.stage.playerStart.yawDeg, ch.capsule);
+  world.player.hp = ch.hpMax;
+  world.player.hpMax = ch.hpMax;
+  world.player.mv = createPlayerMove(start);
   world.camera = createCamera(world.player, o.cfg, o.stage.cameraView ?? null);
   return world;
 }
@@ -96,6 +105,11 @@ export function teleportPlayer(world, x, y, z, yawDeg) {
   p.pos[0] = x;
   p.pos[1] = y;
   p.pos[2] = z;
+  if (p.mv) {
+    p.mv.lastGround = [x, z];
+    p.mv.peakY = y;
+    p.mv.speed = 0;
+  }
   p.vel[0] = 0;
   p.vel[1] = 0;
   p.vel[2] = 0;
