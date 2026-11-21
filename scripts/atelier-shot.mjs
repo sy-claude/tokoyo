@@ -15,7 +15,7 @@ const focus = opt('focus', '');
 const animName = opt('anim', '');
 // --strip：動きの連続写真（8コマ。視点は --view の番号、--every tick ごと）
 const strip = args.includes('--strip');
-// --glb：目録（src/data/assets.js）にある外部素材（GLB）を映す（assets-raw の試しの素材は開発サーバでだけ読める）
+// --glb：目録（src/data/assets.js）にある外部素材（GLB）を映す
 const glb = args.includes('--glb');
 const stripView = Number(opt('view', 2));
 const every = Number(opt('every', 4));

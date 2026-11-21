@@ -1,4 +1,4 @@
-// 外部素材の目録（docs/11 §4・§5）：名前と ID が合う・パスは相対・試しの素材は assets-raw（公開版に入らない）・
+// 外部素材の目録（docs/11 §4・§5）：名前と ID が合う・パスは相対・素材は public/assets/ にある・
 // GLB の中身（三角形・メッシュ・画像の数と大きさ・ファイルの大きさ）が上限内。
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -34,20 +34,19 @@ function imageSize(d) {
   throw new Error('画像の大きさが読めない');
 }
 
-test('assetsCatalog：名前と ID が合い、パスは相対、試しの素材は assets-raw に置く', () => {
+test('assetsCatalog：名前と ID が合い、パスは相対で public/assets/ を指し、ファイルがある', () => {
   for (const [key, def] of Object.entries(assets)) {
     assert.equal(def.id, key);
     assert.ok(!def.url.startsWith('/'), `${key}: 絶対パス`);
     assert.ok(assetBudgets[def.budget], `${key}: 上限の種類 ${def.budget}`);
-    if (def.trial) assert.ok(def.url.startsWith('assets-raw/'), `${key}: 試しの素材は公開版に入らない場所へ`);
-    else assert.ok(def.url.startsWith('assets/'), `${key}: 本番の素材は public/assets/`);
+    assert.ok(def.url.startsWith('assets/'), `${key}: 素材は public/assets/`);
   }
 });
 
 test('assetsBudget：置いてある GLB は上限内（1体＝1メッシュ、色の画像だけ）', () => {
   let checked = 0;
   for (const def of Object.values(assets)) {
-    const file = def.trial ? def.url : `public/${def.url}`;
+    const file = `public/${def.url}`;
     if (def.kind !== 'model' || !existsSync(file)) continue;
     const lim = assetBudgets[def.budget];
     const buf = readFileSync(file);

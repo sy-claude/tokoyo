@@ -1,6 +1,6 @@
 // 外部素材の目録（docs/11 §4）。いまは試しの1件だけ（11/21 依頼者：Tripo 無料版の岩丈を工房で試す）。
-// 本番の素材は public/assets/models/<ID>.glb に置く。試しの素材（trial）は assets-raw/ に置くので、
-// 開発サーバ（npm run dev）でだけ読める。公開版（build）には入らず、読めなければコードの見た目に戻る。
+// 素材は public/assets/models/<ID>.glb に置く（公開版に入る）。読めなければコードの見た目に戻る。
+// 11/21 依頼者の指示で、試し（trial＝Tripo 無料版）も公開URLで見られるよう public に置いた。本番の素材ができたら差し替える。
 
 /**
  * 骨の無い素材にコードで付ける人型の骨（07 §6.3 の骨名。親子は data/lookdev/rigs.js の humanBones）。
@@ -25,7 +25,7 @@ export const assets = {
   ganjo: {
     id: 'ganjo',
     kind: 'model',
-    url: 'assets-raw/models/ganjo.glb',
+    url: 'assets/models/ganjo.glb',
     required: false,
     budget: 'harai',
     heightM: 1.95, // 07 §6.4 の岩丈の身長
