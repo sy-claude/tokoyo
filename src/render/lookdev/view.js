@@ -12,6 +12,8 @@ import { DEG2RAD, forwardYawPitch, lerp, lerpDeg } from '../../core/math.js';
 import { createRng, presentationSeed } from '../../core/rng.js';
 import { scene as S } from '../../data/lookdev/scene.js';
 import { models } from '../../data/lookdev/models.js';
+import { assets } from '../../data/assets.js';
+import { loadModelAsset } from '../assets/loader.js';
 import { createCameraView } from '../cameraView.js';
 import { createBuilder, partMatrix } from './build.js';
 import { createFaceAtlas, faceCellRect } from './faceAtlas.js';
@@ -34,12 +36,27 @@ const col = (hex, gain = 1) => new Color(hex).multiplyScalar(gain);
 /**
  * @param {ReturnType<typeof import('../renderer.js').createRenderer>} renderer
  * @param {Cfg} cfg
- * @param {{atelierModel?:string|null, atelierFocus?:string|null, atelierAnim?:string|null, atelierView?:number[]|null}} [opts] 工房：形の名前を渡すと、その形だけを台の上に大きく映す（docs/12 4章）
+ * @param {{atelierModel?:string|null, atelierFocus?:string|null, atelierAnim?:string|null, atelierView?:number[]|null, atelierGlb?:boolean}} [opts] 工房：形の名前を渡すと、その形だけを台の上に大きく映す（docs/12 4章）。
+ *   atelierGlb：目録（data/assets.js）に同じ名前の外部素材があれば、コードの形の代わりにそれを映す（11/21 の試し）
  */
 export function createLookdevView(renderer, cfg, opts = {}) {
   const atelier = opts.atelierModel && models[opts.atelierModel] ? opts.atelierModel : null;
   /** 工房で映す形の中心の高さと半径（カメラの距離を決める） */
   const atelierFrame = { y: 0, r: 1 };
+  // 外部素材（GLB）：読み終わるまではコードの形を映し、読めたら差し替える。読めなければコードの形のまま（docs/11 §1.3）
+  const glbDef = atelier && opts.atelierGlb ? assets[atelier] ?? null : null;
+  /** @type {{geometry:any, map:any}|null} */
+  let glbData = null;
+  /** 読み終えた素材を今の場面へ入れる（build ごとに作り直す） @type {(() => void)|null} */
+  let attachGlb = null;
+  const glbGain = { value: 1 };
+  const glbMottle = { value: 1 };
+  const glbReady = glbDef
+    ? loadModelAsset(glbDef, import.meta.env.BASE_URL).then((d) => {
+        glbData = d;
+        attachGlb?.();
+      })
+    : Promise.resolve();
   const scene = new Scene();
   const cameraView = createCameraView(cfg);
   const terrain = createTerrain(S.terrain, S.path);
@@ -272,6 +289,24 @@ export function createLookdevView(renderer, cfg, opts = {}) {
     }
     root.add(staticMesh);
     addCaster(staticMesh);
+    attachGlb = () => {
+      if (!glbData || !atelier) return;
+      // 色は素材の画像、陰影・色むら・輪郭・霧は場面と同じ塗り（docs/11 §1.2）。模様は形の座標で貼る
+      const mat = washMaterial({ ...baseDefines, LOCAL_TEX: 1, MAP_TEX: 1 }, {
+        uMap: { value: glbData.map },
+        uMapGain: glbGain,
+        uTexMottleMul: glbMottle,
+        uTexScale: heroTexScale,
+      });
+      const gm = new Mesh(glbData.geometry, mat);
+      gm.position.y = S.atelier.liftM[atelier] ?? 0;
+      gm.frustumCulled = false;
+      root.add(gm);
+      addCaster(gm);
+      staticMesh.visible = false;
+      attachGlb = null;
+    };
+    attachGlb();
 
     // 草・野菊・紅葉・落ち葉（風で動く）
     const fb = createBuilder(lib);
@@ -503,6 +538,8 @@ export function createLookdevView(renderer, cfg, opts = {}) {
     U.uTexScale.value.set(1 / L.texLargeTileM, 1 / L.texFineTileM, 1 / L.texBTileM, L.grainRatio);
     heroTexScale.value.copy(U.uTexScale.value).multiplyScalar(L.heroTexScaleMul).setW(L.grainRatio);
     heroMottle.value = L.heroMottleRatio;
+    glbGain.value = L.assetMapGainMul;
+    glbMottle.value = L.assetMottleRatio;
     U.uInk.value.set(L.inkCrackRatio, L.inkGrainRatio, L.paveJointM, 0);
     m.skyMat.uniforms.uSky.value.set(L.sunRadiusDeg * DEG2RAD, 0, 0, 0);
     m.seaMat.uniforms.uSea.value.set(L.seaSpeedRatio, L.seaGlitterRatio, L.seaFoamRatio, L.seaLaneRatio);
@@ -552,6 +589,10 @@ export function createLookdevView(renderer, cfg, opts = {}) {
     /** @param {any} world */
     setWorld(world) {
       build(world, renderer.quality);
+    },
+    /** 外部素材の読み込みが終わる（読めなくても終わる）。試験は描く前にこれを待つ */
+    assetsReady() {
+      return glbReady;
     },
     /** @param {any} world @param {number} alpha */
     render(world, alpha) {
@@ -636,6 +677,8 @@ export function createLookdevView(renderer, cfg, opts = {}) {
     },
     dispose() {
       clear();
+      glbData?.geometry.dispose();
+      glbData?.map.dispose();
       for (const d of detailCache.values()) d.dispose();
       detailCache.clear();
       post.dispose();

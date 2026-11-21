@@ -1,5 +1,5 @@
 // 工房（docs/12 4章）の撮影：1つの形を決まった6視点で撮り、1枚の一覧にする。
-// 使い方：node scripts/atelier-shot.mjs <形の名前> [--url=http://localhost:5199/] [--q=high] [--ref=参考画像のパス] [--focus=head など（寄り）] [--anim=walk|run（主人公の動き）] [--strip --view=番号 --every=tick（8コマの連続写真）] [--out=tests/artifacts/atelier]
+// 使い方：node scripts/atelier-shot.mjs <形の名前> [--url=http://localhost:5199/] [--q=high] [--ref=参考画像のパス] [--focus=head など（寄り）] [--anim=walk|run（主人公の動き）] [--strip --view=番号 --every=tick（8コマの連続写真）] [--glb（外部素材を映す。開発サーバで）] [--out=tests/artifacts/atelier]
 // 参考画像（--ref）があれば一覧の左に並べる。
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -15,6 +15,8 @@ const focus = opt('focus', '');
 const animName = opt('anim', '');
 // --strip：動きの連続写真（8コマ。視点は --view の番号、--every tick ごと）
 const strip = args.includes('--strip');
+// --glb：目録（src/data/assets.js）にある外部素材（GLB）を映す（assets-raw の試しの素材は開発サーバでだけ読める）
+const glb = args.includes('--glb');
 const stripView = Number(opt('view', 2));
 const every = Number(opt('every', 4));
 const OUT = opt('out', 'tests/artifacts/atelier');
@@ -32,7 +34,7 @@ try {
   const errors = [];
   page.on('console', (m) => { if (m.type() === 'error' || m.type() === 'warning') errors.push(m.text()); });
   page.on('pageerror', (e) => errors.push(`pageerror: ${e.message}`));
-  await page.goto(`${url}?test=1&scene=lookdev&q=${q}&model=${model}${focus ? `&focus=${focus}` : ''}${animName ? `&anim=${animName}` : ''}${strip ? `&view=${VIEWS[stripView][1]},${VIEWS[stripView][2]}` : ''}`);
+  await page.goto(`${url}?test=1&scene=lookdev&q=${q}&model=${model}${focus ? `&focus=${focus}` : ''}${animName ? `&anim=${animName}` : ''}${glb ? '&glb=1' : ''}${strip ? `&view=${VIEWS[stripView][1]},${VIEWS[stripView][2]}` : ''}`);
   await page.waitForFunction(() => Boolean(window.__game));
   await page.evaluate(() => window.__game.ready);
   await page.addStyleTag({ content: '#hud,#input,#menus{display:none !important}' });
@@ -81,7 +83,7 @@ try {
     }
     return c.toDataURL('image/png');
   }, [shots, refUrl, W, H]);
-  const file = join(OUT, `${model}${focus ? `_${focus}` : ''}${animName ? `_${animName}` : ''}${strip ? '_strip' : ''}.png`);
+  const file = join(OUT, `${model}${glb ? '_glb' : ''}${focus ? `_${focus}` : ''}${animName ? `_${animName}` : ''}${strip ? '_strip' : ''}.png`);
   writeFileSync(file, Buffer.from(sheet.split(',')[1], 'base64'));
   console.log(`${file}  calls=${info.calls} tris=${info.triangles} q=${info.quality}`);
   if (errors.length) console.log(`console:\n${errors.slice(0, 12).join('\n')}`);

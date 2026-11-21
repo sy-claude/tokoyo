@@ -133,6 +133,10 @@ export function createFrame(renderer, cfg, opts = {}) {
       cameraView.update(world.camera, alpha, w / h);
       renderer.draw(scene, cameraView.three);
     },
+    /** 場面の外部素材の読み込みが終わる（読めなくても終わる） @returns {Promise<void>} */
+    assetsReady() {
+      return lookdev?.assetsReady() ?? Promise.resolve();
+    },
     dispose() {
       clear();
       lookdev?.dispose();
